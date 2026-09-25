@@ -1,6 +1,6 @@
 # =====================================================================
-# CALABRIA METEO LAB — SOLO CITTÀ
-# VERSIONE FINALE INTERATTIVA (TABELLA PERFETTA + TAB/GIORNI INTEGRATI)
+# CALABRIA METEO LAB — VERSIONE CON RADAR LIVE INTEGRATO
+# ICON-2I VIA OPEN-METEO + RADAR DOPPLER/SATELLITE INTERATTIVO (LEAFLET)
 # =====================================================================
 
 import html
@@ -246,7 +246,7 @@ def risolvi_citta(testo):
         return citta, lat, lon
 
     try:
-        geocoder = Nominatim(user_agent="calabria_meteo_lab_v4", timeout=12)
+        geocoder = Nominatim(user_agent="calabria_meteo_lab_v5", timeout=12)
         risposta = geocoder.geocode(
             f"{nome}, Italia",
             exactly_one=True,
@@ -328,13 +328,12 @@ def prepara(dati):
     return ore.reset_index(drop=True), giorni.reset_index(drop=True)
 
 # =====================================================================
-# COSTRUZIONE DEL DOCUMENTO COMPLETO CON SWITCH GIORNI JS INTEGRATO
+# COSTRUZIONE DOCUMENTO MONOLITICO + RADAR LEAFLET INTERATTIVO
 # =====================================================================
-def genera_app_completa(luogo, dati, ore, giorni):
+def genera_app_completa(luogo, lat, lon, dati, ore, giorni):
     cur = dati["current"]
     ico_cur, desc_cur = meteo(cur.get("weather_code"))
 
-    # Metriche correnti
     metriche = [
         ("🌡️", "Percepita", numero(cur.get("apparent_temperature"), 1, " °C")),
         ("💧", "Umidità", numero(cur.get("relative_humidity_2m"), 0, " %")),
@@ -349,7 +348,6 @@ def genera_app_completa(luogo, dati, ore, giorni):
         for m in metriche
     ])
 
-    # Schede 3 giorni
     etichette = ["OGGI", "DOMANI", "DOPODOMANI"]
     carte_html = []
     for idx, (_, r) in enumerate(giorni.iterrows()):
@@ -393,7 +391,6 @@ def genera_app_completa(luogo, dati, ore, giorni):
         </div>
         """)
 
-    # Costruzione tabelle per tutti i giorni disponibili
     date_disponibili = sorted(ore["time"].dt.date.unique())
     pulsanti_tab_html = []
     sezioni_tabelle_html = []
@@ -477,6 +474,7 @@ def genera_app_completa(luogo, dati, ore, giorni):
 <html lang="it">
 <head>
 <meta charset="utf-8">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <style>
 :root {{
   --cml-ink: #102b3b;
@@ -608,6 +606,67 @@ body {{
 }}
 .cml-current-footer b {{ color: #345967; }}
 
+/* RADAR LIVE SECTION */
+.cml-radar-box {{
+  border: 1px solid var(--cml-line);
+  border-radius: 22px;
+  background: #ffffff;
+  padding: 24px;
+  box-shadow: 0 10px 30px rgba(18,71,89,.08);
+  margin-bottom: 30px;
+}}
+.cml-radar-header {{
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+  gap: 10px;
+}}
+.cml-radar-header h2 {{ font-size: 24px; font-weight: 800; color: var(--cml-ink); margin: 0; }}
+.cml-radar-controls {{
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}}
+.cml-radar-btn {{
+  background: #f2f9fa;
+  border: 1px solid #cce3ea;
+  border-radius: 10px;
+  padding: 7px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #102b3b;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}}
+.cml-radar-btn.active {{
+  background: #0b687c;
+  color: #ffffff;
+  border-color: #0b687c;
+}}
+#radar-map {{
+  width: 100%;
+  height: 480px;
+  border-radius: 16px;
+  border: 1px solid #dcebef;
+  z-index: 1;
+}}
+.cml-radar-legend {{
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 12px;
+  padding: 8px 14px;
+  background: #f4f9fa;
+  border-radius: 10px;
+  font-size: 12px;
+  color: #607987;
+  flex-wrap: wrap;
+  gap: 10px;
+}}
+.cml-radar-time {{ font-weight: 800; color: #087b8e; }}
+
 /* 3 GIORNI */
 .cml-section-title {{
   display: flex;
@@ -729,9 +788,7 @@ body {{
   box-shadow: 0 4px 12px rgba(11,104,124,0.25);
 }}
 
-/* ==================================================================
-   TABELLA ORARIA — PROPORZIONI, ALLINEAMENTO E RIGHE NOTTURNE
-   ================================================================== */
+/* TABELLA ORARIA */
 .cml-table-wrap {{
   width: 100%;
   max-width: 100%;
@@ -742,7 +799,6 @@ body {{
   box-shadow: 0 8px 23px rgba(22,68,86,.08);
   margin-bottom: 12px;
 }}
-
 .cml-table {{
   width: 100%;
   min-width: 1120px;
@@ -753,7 +809,6 @@ body {{
   font: 13px Arial, sans-serif;
   white-space: nowrap;
 }}
-
 .cml-table col.col-ora {{ width: 7%; }}
 .cml-table col.col-scenario {{ width: 23%; }}
 .cml-table col.col-temp {{ width: 10%; }}
@@ -789,32 +844,12 @@ body {{
   line-height: 1.2;
   font-variant-numeric: tabular-nums;
 }}
-
-.cml-table td:first-child {{
-  color: #087b8e;
-  font-weight: 700;
-}}
-
-.cml-table th:nth-child(2),
-.cml-table td:nth-child(2) {{
-  text-align: left;
-}}
-
-.cml-table td:nth-child(3),
-.cml-table td:nth-child(4),
-.cml-table td:nth-child(5),
-.cml-table td:nth-child(6),
-.cml-table td:nth-child(8),
-.cml-table td:nth-child(9),
-.cml-table td:nth-child(10) {{
-  text-align: right;
-}}
-
-.cml-table td:nth-child(7) {{
-  text-align: center;
-  color: #315b6a;
-  font-weight: 700;
-}}
+.cml-table td:first-child {{ color: #087b8e; font-weight: 700; }}
+.cml-table th:nth-child(2), .cml-table td:nth-child(2) {{ text-align: left; }}
+.cml-table td:nth-child(3), .cml-table td:nth-child(4), .cml-table td:nth-child(5),
+.cml-table td:nth-child(6), .cml-table td:nth-child(8), .cml-table td:nth-child(9),
+.cml-table td:nth-child(10) {{ text-align: right; }}
+.cml-table td:nth-child(7) {{ text-align: center; color: #315b6a; font-weight: 700; }}
 
 .cml-table-condition {{
   display: flex;
@@ -824,7 +859,6 @@ body {{
   width: 100%;
   min-width: 0;
 }}
-
 .cml-table-icon {{
   display: inline-flex;
   align-items: center;
@@ -836,7 +870,6 @@ body {{
   line-height: 1;
   text-align: center;
 }}
-
 .cml-table-scenario {{
   display: block;
   min-width: 0;
@@ -854,15 +887,8 @@ body {{
   background: linear-gradient(90deg, #111d42 0%, #1d2c59 100%) !important;
   color: #edf4ff !important;
 }}
-.cml-table tr.cml-night-row .cml-table-icon {{
-  opacity: 1;
-  filter: none;
-  font-size: 20px;
-}}
-.cml-table tr.cml-night-row .cml-table-scenario {{
-  color: #f4dda0;
-  font-weight: 700;
-}}
+.cml-table tr.cml-night-row .cml-table-icon {{ opacity: 1; filter: none; font-size: 20px; }}
+.cml-table tr.cml-night-row .cml-table-scenario {{ color: #f4dda0; font-weight: 700; }}
 .cml-table tr.cml-night-row td:first-child {{ color: #a8e5ef; }}
 .cml-table tr.cml-night-row td:nth-child(7) {{ color: #d4e8f5; }}
 
@@ -879,6 +905,7 @@ body {{
 }}
 </style>
 
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 function mostraGiorno(dataId, btn) {{
   var tabs = document.getElementsByClassName("cml-day-table-container");
@@ -934,6 +961,26 @@ function mostraGiorno(dataId, btn) {{
   </div>
 </div>
 
+<!-- ================= RADAR LIVE INTERATTIVO ================= -->
+<div class="cml-radar-box">
+  <div class="cml-radar-header">
+    <div>
+      <h2>📡 Radar Precipitazioni & Nuvolosità Live</h2>
+      <div style="font-size:12px;color:#607987;margin-top:2px;">Mosaico radar Doppler e scansione satellitare in tempo reale centrata su <b>{html.escape(luogo)}</b>.</div>
+    </div>
+    <div class="cml-radar-controls">
+      <button class="cml-radar-btn" id="btn-play" onclick="togglePlay()">⏸️ Pausa</button>
+      <button class="cml-radar-btn active" id="btn-rad" onclick="setLayer('radar')">🌧️ Radar Pioggia</button>
+      <button class="cml-radar-btn" id="btn-sat" onclick="setLayer('satellite')">☁️ Satellite Nubi</button>
+    </div>
+  </div>
+  <div id="radar-map"></div>
+  <div class="cml-radar-legend">
+    <div>⚡ <b>Risoluzione:</b> Nazionale Protezione Civile / DWD via RainViewer</div>
+    <div>Scansione: <span id="radar-timestamp" class="cml-radar-time">Caricamento frame...</span></div>
+  </div>
+</div>
+
 <div class="cml-section-title">
   <div>
     <span>ORIZZONTE PREVISIONALE</span>
@@ -963,11 +1010,134 @@ function mostraGiorno(dataId, btn) {{
   ℹ️ La precipitazione oraria è espressa in millimetri. 🧭 «Da SO» indica vento proveniente da sud-ovest. Le ore notturne sono riconoscibili esclusivamente dallo sfondo blu.
 </div>
 
+<script>
+// ================= SCRIPT INIZIALIZZAZIONE RADAR RAINVIEWER =================
+var lat = {lat};
+var lon = {lon};
+var map = L.map('radar-map', {{
+  center: [lat, lon],
+  zoom: 8,
+  zoomControl: true
+}});
+
+L.tileLayer('https://{{s}}.basemaps.cartocdn.com/rastertiles/voyager/{{z}}/{{x}}/{{y}}{{r}}.png', {{
+  attribution: '&copy; CartoDB &copy; OpenStreetMap',
+  maxZoom: 18
+}}).addTo(map);
+
+// Marker per la località scelta
+var markerIcon = L.divIcon({{
+  className: 'custom-pin',
+  html: '<div style="background:#ed8750;color:#fff;font-weight:bold;padding:4px 8px;border-radius:12px;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.3);font-size:11px;white-space:nowrap;">📍 {html.escape(luogo)}</div>',
+  iconSize: [80, 30],
+  iconAnchor: [40, 15]
+}});
+L.marker([lat, lon], {{icon: markerIcon}}).addTo(map);
+
+var timestamps = [];
+var radarLayers = {{}};
+var currentFrame = 0;
+var isPlaying = true;
+var currentMode = 'radar';
+var animationTimer = null;
+
+fetch('https://api.rainviewer.com/public/weather-maps.json')
+  .then(res => res.json())
+  .then(apiData => {{
+    var frames = apiData.radar.past;
+    timestamps = frames.map(f => f.time);
+    
+    // Pre-caricamento layer radar
+    frames.forEach(f => {{
+      var layer = L.tileLayer('https://tilecache.rainviewer.com' + f.path + '/256/{{z}}/{{x}}/{{y}}/2/1_1.png', {{
+        opacity: 0,
+        zIndex: 100
+      }});
+      layer.addTo(map);
+      radarLayers[f.time] = layer;
+    }});
+
+    showFrame(timestamps.length - 1);
+    startAnimation();
+  }});
+
+function showFrame(index) {{
+  if (timestamps.length === 0) return;
+  
+  // Nascondi frame precedente
+  if (radarLayers[timestamps[currentFrame]]) {{
+    radarLayers[timestamps[currentFrame]].setOpacity(0);
+  }}
+
+  currentFrame = index;
+  var time = timestamps[currentFrame];
+  
+  if (radarLayers[time]) {{
+    radarLayers[time].setOpacity(0.72);
+  }}
+
+  var date = new Date(time * 1000);
+  var ore = ('0' + date.getHours()).slice(-2);
+  var min = ('0' + date.getMinutes()).slice(-2);
+  document.getElementById('radar-timestamp').innerText = ore + ':' + min + ' (Ora Locale)';
+}}
+
+function startAnimation() {{
+  if (animationTimer) clearInterval(animationTimer);
+  animationTimer = setInterval(() => {{
+    var next = (currentFrame + 1) % timestamps.length;
+    showFrame(next);
+  }}, 750);
+}}
+
+function togglePlay() {{
+  var btn = document.getElementById('btn-play');
+  if (isPlaying) {{
+    clearInterval(animationTimer);
+    btn.innerText = '▶️ Play';
+    isPlaying = false;
+  }} else {{
+    startAnimation();
+    btn.innerText = '⏸️ Pausa';
+    isPlaying = true;
+  }}
+}}
+
+function setLayer(mode) {{
+  currentMode = mode;
+  document.getElementById('btn-rad').classList.toggle('active', mode === 'radar');
+  document.getElementById('btn-sat').classList.toggle('active', mode === 'satellite');
+  
+  // Aggiorna tile layer path
+  Object.keys(radarLayers).forEach(t => {{
+    map.removeLayer(radarLayers[t]);
+  }});
+  radarLayers = {{}};
+
+  fetch('https://api.rainviewer.com/public/weather-maps.json')
+    .then(res => res.json())
+    .then(apiData => {{
+      var frames = (mode === 'radar') ? apiData.radar.past : apiData.satellite.infrared;
+      timestamps = frames.map(f => f.time);
+      frames.forEach(f => {{
+        var layer = L.tileLayer('https://tilecache.rainviewer.com' + f.path + '/256/{{z}}/{{x}}/{{y}}/0/0_0.png', {{
+          opacity: 0,
+          zIndex: 100
+        }});
+        layer.addTo(map);
+        radarLayers[f.time] = layer;
+      }});
+      currentFrame = timestamps.length - 1;
+      showFrame(currentFrame);
+    }});
+}}
+</script>
+
 </body>
 </html>"""
 
 # =====================================================================
-# CONTROLLI STREAMLIT
+# INTERFACCIA STREAMLIT
 # =====================================================================
 st.markdown("### 🔍 Seleziona Località Calabrese")
 
@@ -976,7 +1146,7 @@ with st.form("search_form", clear_on_submit=False):
     with col_in:
         testo_citta = st.text_input(
             "Località",
-            value="Cosenza",
+            value="Lamezia Terme",
             placeholder="Scrivi es. Cosenza, Tropea, Soverato, Reggio Calabria, Catanzaro...",
             label_visibility="collapsed"
         )
@@ -985,13 +1155,12 @@ with st.form("search_form", clear_on_submit=False):
 
 try:
     luogo, lat, lon = risolvi_citta(testo_citta)
-    with st.spinner(f"Elaborazione modello ICON-2I per {luogo}..."):
+    with st.spinner(f"Elaborazione modello ICON-2I e connessione Radar Live per {luogo}..."):
         dati_meteo = scarica_previsione(lat, lon)
         df_ore, df_giorni = prepara(dati_meteo)
 
-    # Rendering completo e istantaneo
-    doc_html = genera_app_completa(luogo, dati_meteo, df_ore, df_giorni)
-    components.html(doc_html, height=2100, scrolling=True)
+    doc_html = genera_app_completa(luogo, lat, lon, dati_meteo, df_ore, df_giorni)
+    components.html(doc_html, height=2700, scrolling=True)
 
 except Exception as errore:
     st.error(f"{errore}")

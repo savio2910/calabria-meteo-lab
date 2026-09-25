@@ -263,7 +263,7 @@ def risolvi_citta(testo):
         return citta, lat, lon
 
     try:
-        geocoder = Nominatim(user_agent="calabria_meteo_lab_v15", timeout=12)
+        geocoder = Nominatim(user_agent="calabria_meteo_lab_v16", timeout=12)
         risposta = geocoder.geocode(
             f"{nome}, Italia",
             exactly_one=True,
@@ -360,7 +360,6 @@ def genera_app_completa(luogo, lat, lon, dati, ore, giorni):
     ico_cur, desc_cur = meteo(cur.get("weather_code"))
     is_night = datetime.now().hour < 6 or datetime.now().hour > 20
 
-    # Determina tipo meteo per sfondi e colori
     codice_cur = cur.get("weather_code", 0)
     meteo_type = "sereno"
     if codice_cur in [0, 1]:
@@ -576,7 +575,34 @@ def genera_app_completa(luogo, lat, lon, dati, ore, giorni):
         </div>
         """)
 
-    return f"""<!DOCTYPE html>
+    # Costruisci elementi sfondo animato
+    bg_elements = []
+    
+    if meteo_type not in ["pioggia", "temporale", "neve"]:
+        bg_elements.append("<div class='cml-cloud cml-cloud-1'></div>")
+        bg_elements.append("<div class='cml-cloud cml-cloud-2'></div>")
+        bg_elements.append("<div class='cml-cloud cml-cloud-3'></div>")
+    
+    if meteo_type == "pioggia":
+        for i in range(1, 10):
+            bg_elements.append(f"<div class='cml-raindrop cml-raindrop-{i}'></div>")
+    
+    if meteo_type == "neve":
+        snowflakes = ["❄", "❅", "❆", "❄", "❅", "❆", "❄", "❅"]
+        for i, flake in enumerate(snowflakes, 1):
+            bg_elements.append(f"<div class='cml-snowflake cml-snowflake-{i}'>{flake}</div>")
+    
+    if meteo_type == "temporale":
+        bg_elements.append("<div class='cml-lightning cml-lightning-1'></div>")
+        bg_elements.append("<div class='cml-lightning cml-lightning-2'></div>")
+    
+    if is_night:
+        for i in range(1, 6):
+            bg_elements.append(f"<div class='cml-star cml-star-{i}'></div>")
+    
+    bg_elements_html = "".join(bg_elements)
+
+    html_content = f"""<!DOCTYPE html>
 <html lang="it">
 <head>
 <meta charset="utf-8">
@@ -609,7 +635,6 @@ body {{
   overflow-x: hidden;
 }}
 
-/* SFONDO ANIMATO METEO */
 .cml-weather-bg {{
   position: fixed;
   top: 0;
@@ -639,7 +664,6 @@ body {{
   background: linear-gradient(180deg, #0f172a 0%, #1e293b 40%, #334155 100%);
 }}
 
-/* Nuvole animate */
 .cml-cloud {{
   position: absolute;
   background: rgba(255, 255, 255, 0.6);
@@ -677,7 +701,6 @@ body {{
   100% {{ transform: translateX(600px) translateY(0); }}
 }}
 
-/* Gocce pioggia */
 .cml-raindrop {{
   position: absolute;
   width: 2px;
@@ -700,7 +723,6 @@ body {{
   100% {{ transform: translateY(100vh); opacity: 0; }}
 }}
 
-/* Fiocchi neve */
 .cml-snowflake {{
   position: absolute;
   color: white;
@@ -722,7 +744,6 @@ body {{
   100% {{ transform: translateY(100vh) translateX(50px) rotate(360deg); opacity: 0; }}
 }}
 
-/* Fulmini */
 .cml-lightning {{
   position: absolute;
   width: 3px;
@@ -738,7 +759,6 @@ body {{
   90%, 95% {{ opacity: 1; }}
 }}
 
-/* Stelle per notte */
 .cml-star {{
   position: absolute;
   width: 3px;
@@ -757,7 +777,6 @@ body {{
   50% {{ opacity: 1; transform: scale(1.3); }}
 }}
 
-/* HERO SECTION */
 .cml-hero {{
   position: relative;
   overflow: hidden;
@@ -836,7 +855,6 @@ body {{
   line-height: 1.7;
 }}
 
-/* CURRENT PANEL */
 .cml-current {{
   overflow: hidden;
   margin: 24px 0 32px;
@@ -999,7 +1017,6 @@ body {{
   font-weight: 700;
 }}
 
-/* RADAR BOX */
 .cml-radar-box {{
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.3);
@@ -1085,7 +1102,6 @@ body {{
   box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.4), 0 4px 12px rgba(0, 0, 0, 0.3);
 }}
 
-/* SECTION TITLES */
 .cml-section-title {{
   display: flex;
   align-items: flex-end;
@@ -1124,7 +1140,6 @@ body {{
   border: 1px solid rgba(186, 230, 253, 0.6);
 }}
 
-/* 3 DAYS GRID */
 .cml-days-grid {{
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
@@ -1325,7 +1340,6 @@ body {{
   font-weight: 800;
 }}
 
-/* HOUR HEADER */
 .cml-hour-header {{
   position: relative;
   overflow: hidden;
@@ -1368,7 +1382,6 @@ body {{
   line-height: 1.6;
 }}
 
-/* TABS */
 .cml-tabs-bar {{
   display: flex;
   gap: 12px;
@@ -1403,7 +1416,6 @@ body {{
   transform: translateY(-2px);
 }}
 
-/* TABLE */
 .cml-table-wrap {{
   width: 100%;
   max-width: 100%;
@@ -1508,7 +1520,6 @@ body {{
   border-bottom: 0;
 }}
 
-/* ROW COLORI PER METEO */
 .cml-table tr.cml-row-sereno:hover {{
   background: linear-gradient(135deg, rgba(254, 243, 199, 0.9) 0%, rgba(253, 230, 138, 0.85) 100%) !important;
 }}
@@ -1557,7 +1568,6 @@ body {{
   font-weight: 600;
 }}
 
-/* RIGHE NOTTURNE */
 .cml-table tr.cml-night-row {{
   background: linear-gradient(90deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.9) 100%) !important;
 }}
@@ -1585,7 +1595,6 @@ body {{
   background: linear-gradient(90deg, rgba(30, 41, 59, 0.95) 0%, rgba(51, 65, 85, 0.9) 100%) !important;
 }}
 
-/* NOTE */
 .cml-note {{
   margin: 20px 0 24px;
   padding: 18px 22px;
@@ -1623,54 +1632,8 @@ function mostraGiorno(dataId, btn) {{
 </head>
 <body>
 
-<!-- SFONDO ANIMATO METEO -->
 <div class="cml-weather-bg cml-bg-{meteo_type}">
-  <!-- Nuvole (se nuvoloso o sereno) -->
-  {'' if meteo_type in ['pioggia', 'temporale', 'neve'] else '''
-  <div class="cml-cloud cml-cloud-1"></div>
-  <div class="cml-cloud cml-cloud-2"></div>
-  <div class="cml-cloud cml-cloud-3"></div>
-  ''}
-  
-  <!-- Gocce pioggia -->
-  {'' if meteo_type != 'pioggia' else '''
-  <div class="cml-raindrop cml-raindrop-1"></div>
-  <div class="cml-raindrop cml-raindrop-2"></div>
-  <div class="cml-raindrop cml-raindrop-3"></div>
-  <div class="cml-raindrop cml-raindrop-4"></div>
-  <div class="cml-raindrop cml-raindrop-5"></div>
-  <div class="cml-raindrop cml-raindrop-6"></div>
-  <div class="cml-raindrop cml-raindrop-7"></div>
-  <div class="cml-raindrop cml-raindrop-8"></div>
-  <div class="cml-raindrop cml-raindrop-9"></div>
-  ''}
-  
-  <!-- Fiocchi neve -->
-  {'' if meteo_type != 'neve' else '''
-  <div class="cml-snowflake cml-snowflake-1">❄</div>
-  <div class="cml-snowflake cml-snowflake-2">❅</div>
-  <div class="cml-snowflake cml-snowflake-3">❆</div>
-  <div class="cml-snowflake cml-snowflake-4">❄</div>
-  <div class="cml-snowflake cml-snowflake-5">❅</div>
-  <div class="cml-snowflake cml-snowflake-6">❆</div>
-  <div class="cml-snowflake cml-snowflake-7">❄</div>
-  <div class="cml-snowflake cml-snowflake-8">❅</div>
-  ''}
-  
-  <!-- Fulmini (se temporale) -->
-  {'' if meteo_type != 'temporale' else '''
-  <div class="cml-lightning cml-lightning-1"></div>
-  <div class="cml-lightning cml-lightning-2"></div>
-  ''}
-  
-  <!-- Stelle (se notte) -->
-  {'' if not is_night else '''
-  <div class="cml-star cml-star-1"></div>
-  <div class="cml-star cml-star-2"></div>
-  <div class="cml-star cml-star-3"></div>
-  <div class="cml-star cml-star-4"></div>
-  <div class="cml-star cml-star-5"></div>
-  ''}
+  {bg_elements_html}
 </div>
 
 <div class="cml-hero">
@@ -1754,7 +1717,7 @@ function mostraGiorno(dataId, btn) {{
 {''.join(sezioni_tabelle_html)}
 
 <div class="cml-note">
-  ℹ️ <b>Modello ICON-2I:</b> Previsione deterministica ad alta risoluzione (2.2 km) di ItaliaMeteo–ARPAE. Aggiornata 2× al giorno (00/12 UTC), orizzonte 72h. [5][20]
+  ℹ️ <b>Modello ICON-2I:</b> Previsione deterministica ad alta risoluzione (2.2 km) di ItaliaMeteo–ARPAE. Aggiornata 2× al giorno (00/12 UTC), orizzonte 72h.
 </div>
 
 <script>
@@ -1855,6 +1818,8 @@ function togglePlay() {{
 </body>
 </html>"""
 
+    return html_content
+
 st.markdown("### 🔍 Seleziona Località Calabrese")
 
 with st.form("search_form", clear_on_submit=False):
@@ -1876,3 +1841,7 @@ try:
         df_ore, df_giorni = prepara(dati_meteo)
 
     doc_html = genera_app_completa(luogo, lat, lon, dati_meteo, df_ore, df_giorni)
+    components.html(doc_html, height=2900, scrolling=True)
+
+except Exception as errore:
+    st.error(f"{errore}")

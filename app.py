@@ -263,7 +263,7 @@ def risolvi_citta(testo):
         return citta, lat, lon
 
     try:
-        geocoder = Nominatim(user_agent="calabria_meteo_lab_v14", timeout=12)
+        geocoder = Nominatim(user_agent="calabria_meteo_lab_v15", timeout=12)
         risposta = geocoder.geocode(
             f"{nome}, Italia",
             exactly_one=True,
@@ -358,19 +358,21 @@ def prepara(dati):
 def genera_app_completa(luogo, lat, lon, dati, ore, giorni):
     cur = dati["current"]
     ico_cur, desc_cur = meteo(cur.get("weather_code"))
+    is_night = datetime.now().hour < 6 or datetime.now().hour > 20
 
-    # Badge condizione attuale
-    badge_class = "cml-badge-sereno"
-    if cur.get("weather_code", 0) in [0, 1]:
-        badge_class = "cml-badge-sereno"
-    elif cur.get("weather_code", 0) in [2, 3, 45, 48]:
-        badge_class = "cml-badge-nuvoloso"
-    elif cur.get("weather_code", 0) in range(51, 68):
-        badge_class = "cml-badge-pioggia"
-    elif cur.get("weather_code", 0) in range(71, 87):
-        badge_class = "cml-badge-neve"
-    elif cur.get("weather_code", 0) in [95, 96, 99]:
-        badge_class = "cml-badge-temporale"
+    # Determina tipo meteo per sfondi e colori
+    codice_cur = cur.get("weather_code", 0)
+    meteo_type = "sereno"
+    if codice_cur in [0, 1]:
+        meteo_type = "sereno"
+    elif codice_cur in [2, 3, 45, 48]:
+        meteo_type = "nuvoloso"
+    elif codice_cur in range(51, 68):
+        meteo_type = "pioggia"
+    elif codice_cur in range(71, 87):
+        meteo_type = "neve"
+    elif codice_cur in [95, 96, 99]:
+        meteo_type = "temporale"
 
     metriche = [
         ("🌡️", "Percepita", numero(cur.get("apparent_temperature"), 1, " °C"), "Temperatura percepita dal corpo umano"),
@@ -396,7 +398,6 @@ def genera_app_completa(luogo, lat, lon, dati, ore, giorni):
         ico, desc = meteo(cod_effettivo)
         fase = html.escape(str(r.get("Fase lunare", "🌙 Luna")))
         
-        # Colore badge in base al meteo
         badge_bg = "linear-gradient(135deg, #ffd700 0%, #ffb347 100%)"
         if cod_effettivo in [0, 1]:
             badge_bg = "linear-gradient(135deg, #ffd700 0%, #ffb347 100%)"
@@ -505,7 +506,6 @@ def genera_app_completa(luogo, lat, lon, dati, ore, giorni):
             is_notte = bool(riga.get("Notte", False))
             classe_riga = "cml-night-row" if is_notte else ""
             
-            # Badge colore in base al weather code
             riga_bg = ""
             if riga["weather_code"] in [0, 1]:
                 riga_bg = "cml-row-sereno"
@@ -604,6 +604,157 @@ body {{
   background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
   padding: 8px;
   line-height: 1.5;
+  min-height: 100vh;
+  position: relative;
+  overflow-x: hidden;
+}}
+
+/* SFONDO ANIMATO METEO */
+.cml-weather-bg {{
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}}
+.cml-weather-bg.cml-bg-sereno {{
+  background: linear-gradient(180deg, #38bdf8 0%, #7dd3fc 40%, #bae6fd 100%);
+}}
+.cml-weather-bg.cml-bg-nuvoloso {{
+  background: linear-gradient(180deg, #94a3b8 0%, #cbd5e1 40%, #e2e8f0 100%);
+}}
+.cml-weather-bg.cml-bg-pioggia {{
+  background: linear-gradient(180deg, #475569 0%, #64748b 40%, #94a3b8 100%);
+}}
+.cml-weather-bg.cml-bg-neve {{
+  background: linear-gradient(180deg, #cbd5e1 0%, #e2e8f0 40%, #f1f5f9 100%);
+}}
+.cml-weather-bg.cml-bg-temporale {{
+  background: linear-gradient(180deg, #1e293b 0%, #334155 40%, #475569 100%);
+}}
+.cml-weather-bg.cml-bg-notte {{
+  background: linear-gradient(180deg, #0f172a 0%, #1e293b 40%, #334155 100%);
+}}
+
+/* Nuvole animate */
+.cml-cloud {{
+  position: absolute;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 50%;
+  filter: blur(8px);
+  animation: cml-cloud-float linear infinite;
+}}
+.cml-cloud-1 {{
+  width: 120px;
+  height: 120px;
+  top: 10%;
+  left: -120px;
+  animation-duration: 25s;
+  animation-delay: 0s;
+}}
+.cml-cloud-2 {{
+  width: 180px;
+  height: 180px;
+  top: 20%;
+  left: -180px;
+  animation-duration: 35s;
+  animation-delay: 5s;
+}}
+.cml-cloud-3 {{
+  width: 100px;
+  height: 100px;
+  top: 35%;
+  left: -100px;
+  animation-duration: 20s;
+  animation-delay: 10s;
+}}
+@keyframes cml-cloud-float {{
+  0% {{ transform: translateX(0) translateY(0); }}
+  50% {{ transform: translateX(300px) translateY(-20px); }}
+  100% {{ transform: translateX(600px) translateY(0); }}
+}}
+
+/* Gocce pioggia */
+.cml-raindrop {{
+  position: absolute;
+  width: 2px;
+  height: 20px;
+  background: linear-gradient(180deg, transparent 0%, rgba(255, 255, 255, 0.6) 100%);
+  top: -20px;
+  animation: cml-rain-fall linear infinite;
+}}
+.cml-raindrop-1 {{ left: 10%; animation-duration: 0.8s; animation-delay: 0s; }}
+.cml-raindrop-2 {{ left: 20%; animation-duration: 0.6s; animation-delay: 0.2s; }}
+.cml-raindrop-3 {{ left: 30%; animation-duration: 0.7s; animation-delay: 0.4s; }}
+.cml-raindrop-4 {{ left: 40%; animation-duration: 0.9s; animation-delay: 0.1s; }}
+.cml-raindrop-5 {{ left: 50%; animation-duration: 0.7s; animation-delay: 0.3s; }}
+.cml-raindrop-6 {{ left: 60%; animation-duration: 0.8s; animation-delay: 0.5s; }}
+.cml-raindrop-7 {{ left: 70%; animation-duration: 0.6s; animation-delay: 0.2s; }}
+.cml-raindrop-8 {{ left: 80%; animation-duration: 0.9s; animation-delay: 0.4s; }}
+.cml-raindrop-9 {{ left: 90%; animation-duration: 0.7s; animation-delay: 0.1s; }}
+@keyframes cml-rain-fall {{
+  0% {{ transform: translateY(0); opacity: 1; }}
+  100% {{ transform: translateY(100vh); opacity: 0; }}
+}}
+
+/* Fiocchi neve */
+.cml-snowflake {{
+  position: absolute;
+  color: white;
+  font-size: 18px;
+  top: -30px;
+  animation: cml-snow-fall linear infinite;
+  opacity: 0.8;
+}}
+.cml-snowflake-1 {{ left: 15%; animation-duration: 8s; animation-delay: 0s; }}
+.cml-snowflake-2 {{ left: 25%; animation-duration: 10s; animation-delay: 2s; }}
+.cml-snowflake-3 {{ left: 35%; animation-duration: 9s; animation-delay: 1s; }}
+.cml-snowflake-4 {{ left: 45%; animation-duration: 11s; animation-delay: 3s; }}
+.cml-snowflake-5 {{ left: 55%; animation-duration: 8s; animation-delay: 2s; }}
+.cml-snowflake-6 {{ left: 65%; animation-duration: 10s; animation-delay: 1s; }}
+.cml-snowflake-7 {{ left: 75%; animation-duration: 9s; animation-delay: 3s; }}
+.cml-snowflake-8 {{ left: 85%; animation-duration: 11s; animation-delay: 0s; }}
+@keyframes cml-snow-fall {{
+  0% {{ transform: translateY(0) translateX(0) rotate(0deg); opacity: 1; }}
+  100% {{ transform: translateY(100vh) translateX(50px) rotate(360deg); opacity: 0; }}
+}}
+
+/* Fulmini */
+.cml-lightning {{
+  position: absolute;
+  width: 3px;
+  background: linear-gradient(180deg, #fef3c7 0%, #fbbf24 50%, transparent 100%);
+  top: -100px;
+  animation: cml-lightning-flash 4s ease-in-out infinite;
+  opacity: 0;
+}}
+.cml-lightning-1 {{ left: 30%; height: 120px; animation-delay: 0s; }}
+.cml-lightning-2 {{ left: 60%; height: 150px; animation-delay: 2s; }}
+@keyframes cml-lightning-flash {{
+  0%, 89%, 100% {{ opacity: 0; }}
+  90%, 95% {{ opacity: 1; }}
+}}
+
+/* Stelle per notte */
+.cml-star {{
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  background: white;
+  border-radius: 50%;
+  animation: cml-star-twinkle 2s ease-in-out infinite;
+}}
+.cml-star-1 {{ top: 15%; left: 20%; animation-delay: 0s; }}
+.cml-star-2 {{ top: 25%; left: 40%; animation-delay: 0.5s; }}
+.cml-star-3 {{ top: 35%; left: 60%; animation-delay: 1s; }}
+.cml-star-4 {{ top: 45%; left: 80%; animation-delay: 1.5s; }}
+.cml-star-5 {{ top: 55%; left: 30%; animation-delay: 0.3s; }}
+@keyframes cml-star-twinkle {{
+  0%, 100% {{ opacity: 0.3; transform: scale(1); }}
+  50% {{ opacity: 1; transform: scale(1.3); }}
 }}
 
 /* HERO SECTION */
@@ -614,8 +765,11 @@ body {{
   padding: 48px 48px 40px;
   margin: 12px 0 24px;
   color: #fff;
-  background: linear-gradient(135deg, #0c4a6e 0%, #0369a1 45%, #075985 100%);
-  box-shadow: 0 20px 60px rgba(14, 165, 233, 0.25), 0 8px 24px rgba(0, 0, 0, 0.15);
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }}
 .cml-hero::before {{
   content: "";
@@ -624,7 +778,7 @@ body {{
   right: -10%;
   width: 600px;
   height: 600px;
-  background: radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
   border-radius: 50%;
   animation: cml-pulse 8s ease-in-out infinite;
 }}
@@ -638,27 +792,28 @@ body {{
   align-items: center;
   gap: 12px;
   padding: 8px 16px;
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.2);
   backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border-radius: 999px;
-  color: #bae6fd;
+  color: #ffffff;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 2.5px;
   text-transform: uppercase;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
 }}
 .cml-brand-mark {{
   width: 12px;
   height: 12px;
   border-radius: 50%;
   background: linear-gradient(135deg, #fde047 0%, #fbbf24 100%);
-  box-shadow: 0 0 0 6px rgba(253, 224, 71, 0.15), 0 0 24px rgba(253, 224, 71, 0.6);
+  box-shadow: 0 0 0 6px rgba(253, 224, 71, 0.2), 0 0 24px rgba(253, 224, 71, 0.8);
   animation: cml-glow 3s ease-in-out infinite;
 }}
 @keyframes cml-glow {{
-  0%, 100% {{ box-shadow: 0 0 0 6px rgba(253, 224, 71, 0.15), 0 0 24px rgba(253, 224, 71, 0.6); }}
-  50% {{ box-shadow: 0 0 0 8px rgba(253, 224, 71, 0.2), 0 0 32px rgba(253, 224, 71, 0.8); }}
+  0%, 100% {{ box-shadow: 0 0 0 6px rgba(253, 224, 71, 0.2), 0 0 24px rgba(253, 224, 71, 0.8); }}
+  50% {{ box-shadow: 0 0 0 8px rgba(253, 224, 71, 0.3), 0 0 32px rgba(253, 224, 71, 1); }}
 }}
 .cml-hero h1 {{
   position: relative;
@@ -676,7 +831,7 @@ body {{
   position: relative;
   max-width: 720px;
   margin: 0;
-  color: #bae6fd;
+  color: rgba(255, 255, 255, 0.9);
   font-size: 15px;
   line-height: 1.7;
 }}
@@ -685,15 +840,17 @@ body {{
 .cml-current {{
   overflow: hidden;
   margin: 24px 0 32px;
-  border: 1px solid var(--cml-line);
+  border: 1px solid rgba(255, 255, 255, 0.3);
   border-radius: 24px;
-  background: #ffffff;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1), 0 2px 8px rgba(0, 0, 0, 0.05);
   transition: transform 0.3s ease, box-shadow 0.3s ease;
 }}
 .cml-current:hover {{
   transform: translateY(-2px);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15), 0 4px 12px rgba(0, 0, 0, 0.08);
 }}
 .cml-current-main {{
   display: flex;
@@ -701,15 +858,15 @@ body {{
   justify-content: space-between;
   gap: 32px;
   padding: 36px 40px;
-  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-  border-bottom: 1px solid var(--cml-line);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(240, 249, 255, 0.8) 100%);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.5);
 }}
 .cml-kicker {{
   display: inline-flex;
   align-items: center;
   gap: 8px;
   padding: 6px 14px;
-  background: rgba(14, 165, 233, 0.12);
+  background: rgba(14, 165, 233, 0.15);
   border-radius: 999px;
   color: var(--cml-primary-dark);
   font-size: 11px;
@@ -743,11 +900,12 @@ body {{
   align-items: center;
   gap: 10px;
   padding: 8px 16px;
-  background: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.9);
   border-radius: 12px;
   color: var(--cml-muted);
   font-size: 17px;
   font-weight: 600;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }}
 .cml-temperature {{
   display: flex;
@@ -780,17 +938,19 @@ body {{
   gap: 14px;
   min-height: 72px;
   padding: 16px 18px;
-  border: 1px solid #f1f5f9;
+  border: 1px solid rgba(241, 245, 249, 0.8);
   border-radius: 16px;
-  background: linear-gradient(135deg, #fafafa 0%, #f4f6f8 100%);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 250, 252, 0.8) 100%);
+  backdrop-filter: blur(10px);
   transition: all 0.25s ease;
   cursor: default;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }}
 .cml-metric-card:hover {{
-  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  background: linear-gradient(135deg, rgba(240, 249, 255, 0.95) 0%, rgba(224, 242, 254, 0.9) 100%);
   border-color: var(--cml-primary);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(14, 165, 233, 0.15);
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 8px 20px rgba(14, 165, 233, 0.2);
 }}
 .cml-metric-icon {{
   display: flex;
@@ -801,7 +961,7 @@ body {{
   border-radius: 12px;
   background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
   font-size: 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   flex-shrink: 0;
 }}
 .cml-metric-content {{
@@ -829,8 +989,8 @@ body {{
   flex-wrap: wrap;
   gap: 12px 28px;
   padding: 16px 32px;
-  border-top: 1px solid var(--cml-line);
-  background: #fafafa;
+  border-top: 1px solid rgba(226, 232, 240, 0.6);
+  background: rgba(250, 250, 250, 0.6);
   color: var(--cml-muted);
   font-size: 12px;
 }}
@@ -842,9 +1002,10 @@ body {{
 /* RADAR BOX */
 .cml-radar-box {{
   overflow: hidden;
-  border: 1px solid var(--cml-line);
+  border: 1px solid rgba(255, 255, 255, 0.3);
   border-radius: 24px;
-  background: #ffffff;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(20px);
   padding: 28px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
   margin-bottom: 32px;
@@ -892,7 +1053,7 @@ body {{
   width: 100%;
   height: 520px;
   border-radius: 16px;
-  border: 2px solid var(--cml-line);
+  border: 2px solid rgba(226, 232, 240, 0.8);
   z-index: 1;
 }}
 .cml-radar-legend {{
@@ -901,13 +1062,13 @@ body {{
   align-items: center;
   margin-top: 16px;
   padding: 14px 18px;
-  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  background: linear-gradient(135deg, rgba(240, 249, 255, 0.9) 0%, rgba(224, 242, 254, 0.8) 100%);
   border-radius: 12px;
   font-size: 12px;
   color: var(--cml-muted);
   flex-wrap: wrap;
   gap: 12px;
-  border: 1px solid #bae6fd;
+  border: 1px solid rgba(186, 230, 253, 0.6);
 }}
 .cml-radar-time {{
   font-weight: 800;
@@ -955,12 +1116,12 @@ body {{
 .cml-pill {{
   padding: 8px 16px;
   border-radius: 999px;
-  background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+  background: linear-gradient(135deg, rgba(224, 242, 254, 0.9) 0%, rgba(186, 230, 253, 0.8) 100%);
   color: var(--cml-primary-dark);
   font-size: 12px;
   font-weight: 800;
   white-space: nowrap;
-  border: 1px solid #bae6fd;
+  border: 1px solid rgba(186, 230, 253, 0.6);
 }}
 
 /* 3 DAYS GRID */
@@ -974,16 +1135,18 @@ body {{
   position: relative;
   overflow: hidden;
   padding: 28px;
-  border: 1px solid var(--cml-line);
+  border: 1px solid rgba(255, 255, 255, 0.4);
   border-radius: 24px;
-  background: linear-gradient(145deg, #ffffff 0%, #fafafa 100%);
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(20px);
   color: var(--cml-ink);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
   transition: all 0.3s ease;
 }}
 .cml-day-card:hover {{
-  transform: translateY(-4px);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.12);
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.15);
+  background: rgba(255, 255, 255, 0.95);
 }}
 .cml-day-header {{
   display: flex;
@@ -1000,6 +1163,7 @@ body {{
   font-weight: 800;
   letter-spacing: 1.2px;
   text-transform: uppercase;
+  box-shadow: 0 2px 8px rgba(14, 165, 233, 0.3);
 }}
 .cml-day-date {{
   color: var(--cml-muted);
@@ -1022,7 +1186,7 @@ body {{
   border-radius: 20px;
   font-size: 38px;
   flex-shrink: 0;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
   transition: transform 0.3s ease;
 }}
 .cml-day-card:hover .cml-day-icon {{
@@ -1044,7 +1208,7 @@ body {{
   display: inline-flex;
   padding: 6px 12px;
   border-radius: 999px;
-  background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+  background: linear-gradient(135deg, rgba(224, 231, 255, 0.9) 0%, rgba(199, 210, 254, 0.8) 100%);
   color: #4338ca;
   font-size: 11px;
   font-weight: 700;
@@ -1057,9 +1221,9 @@ body {{
   gap: 14px;
   margin-bottom: 20px;
   padding: 16px;
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  background: linear-gradient(135deg, rgba(248, 250, 252, 0.9) 0%, rgba(241, 245, 249, 0.8) 100%);
   border-radius: 16px;
-  border: 1px solid var(--cml-line);
+  border: 1px solid rgba(226, 232, 240, 0.6);
 }}
 .cml-temp-box {{
   display: flex;
@@ -1092,7 +1256,7 @@ body {{
   gap: 12px;
   margin-bottom: 20px;
   padding-bottom: 20px;
-  border-bottom: 1px solid var(--cml-line);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.6);
 }}
 .cml-detail-row {{
   display: flex;
@@ -1105,10 +1269,11 @@ body {{
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  background: linear-gradient(135deg, rgba(240, 249, 255, 0.9) 0%, rgba(224, 242, 254, 0.8) 100%);
   border-radius: 8px;
   font-size: 16px;
   flex-shrink: 0;
+  border: 1px solid rgba(186, 230, 253, 0.5);
 }}
 .cml-detail-label {{
   color: var(--cml-muted);
@@ -1134,13 +1299,13 @@ body {{
   align-items: center;
   gap: 6px;
   padding: 12px;
-  background: linear-gradient(135deg, #fafafa 0%, #f4f6f8 100%);
+  background: linear-gradient(135deg, rgba(250, 250, 250, 0.9) 0%, rgba(244, 246, 248, 0.8) 100%);
   border-radius: 12px;
-  border: 1px solid var(--cml-line);
+  border: 1px solid rgba(226, 232, 240, 0.6);
   transition: all 0.25s ease;
 }}
 .cml-astro-item:hover {{
-  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  background: linear-gradient(135deg, rgba(240, 249, 255, 0.95) 0%, rgba(224, 242, 254, 0.9) 100%);
   border-color: var(--cml-primary);
   transform: translateY(-2px);
 }}
@@ -1168,20 +1333,22 @@ body {{
   padding: 32px 32px;
   border-radius: 24px;
   color: #fff;
-  background: linear-gradient(135deg, #1e3a5f 0%, #3b5998 55%, #4a69a8);
-  box-shadow: 0 12px 36px rgba(59, 89, 152, 0.28);
+  background: linear-gradient(135deg, rgba(30, 58, 95, 0.95) 0%, rgba(59, 89, 152, 0.9) 55%, rgba(74, 105, 168, 0.85));
+  backdrop-filter: blur(10px);
+  box-shadow: 0 12px 36px rgba(59, 89, 152, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }}
 .cml-hour-header::after {{
   content: "☾";
   position: absolute;
   right: 36px;
   top: 8px;
-  color: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.08);
   font-size: 90px;
   line-height: 1;
 }}
 .cml-hour-header span {{
-  color: #bae6fd;
+  color: rgba(186, 230, 253, 0.9);
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 2px;
@@ -1196,7 +1363,7 @@ body {{
 }}
 .cml-hour-header p {{
   margin: 0;
-  color: #dbeafe;
+  color: rgba(219, 234, 255, 0.9);
   font-size: 14px;
   line-height: 1.6;
 }}
@@ -1211,8 +1378,8 @@ body {{
 }}
 .cml-tab-btn {{
   padding: 12px 24px;
-  background: #ffffff;
-  border: 2px solid #e2e8f0;
+  background: rgba(255, 255, 255, 0.9);
+  border: 2px solid rgba(226, 232, 240, 0.8);
   border-radius: 14px;
   font-size: 14px;
   font-weight: 700;
@@ -1220,9 +1387,10 @@ body {{
   cursor: pointer;
   transition: all 0.25s ease;
   white-space: nowrap;
+  backdrop-filter: blur(10px);
 }}
 .cml-tab-btn:hover {{
-  background: #f0f9ff;
+  background: rgba(240, 249, 255, 0.95);
   border-color: var(--cml-primary);
   color: var(--cml-primary-dark);
   transform: translateY(-2px);
@@ -1231,7 +1399,7 @@ body {{
   background: linear-gradient(135deg, var(--cml-primary) 0%, var(--cml-primary-dark) 100%);
   color: #ffffff;
   border-color: var(--cml-primary);
-  box-shadow: 0 6px 16px rgba(14, 165, 233, 0.3);
+  box-shadow: 0 6px 16px rgba(14, 165, 233, 0.35);
   transform: translateY(-2px);
 }}
 
@@ -1240,9 +1408,10 @@ body {{
   width: 100%;
   max-width: 100%;
   overflow-x: auto;
-  border: 2px solid var(--cml-line);
+  border: 2px solid rgba(226, 232, 240, 0.8);
   border-radius: 20px;
-  background: #ffffff;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
   margin-bottom: 16px;
 }}
@@ -1282,6 +1451,7 @@ body {{
   position: sticky;
   top: 0;
   z-index: 10;
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }}
 .cml-table th:first-child {{
   border-top-left-radius: 18px;
@@ -1293,7 +1463,7 @@ body {{
 .cml-table td {{
   height: 50px;
   padding: 0 12px;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid rgba(241, 245, 249, 0.8);
   text-align: center;
   vertical-align: middle;
   line-height: 1.3;
@@ -1328,10 +1498,10 @@ body {{
   transition: all 0.2s ease;
 }}
 .cml-table tbody tr:nth-child(even) {{
-  background: #fafafa;
+  background: rgba(250, 250, 250, 0.6);
 }}
 .cml-table tbody tr:hover {{
-  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  background: linear-gradient(135deg, rgba(240, 249, 255, 0.95) 0%, rgba(224, 242, 254, 0.9) 100%);
   transform: scale(1.005);
 }}
 .cml-table tbody tr:last-child td {{
@@ -1340,19 +1510,19 @@ body {{
 
 /* ROW COLORI PER METEO */
 .cml-table tr.cml-row-sereno:hover {{
-  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%) !important;
+  background: linear-gradient(135deg, rgba(254, 243, 199, 0.9) 0%, rgba(253, 230, 138, 0.85) 100%) !important;
 }}
 .cml-table tr.cml-row-nuvoloso:hover {{
-  background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%) !important;
+  background: linear-gradient(135deg, rgba(224, 231, 255, 0.9) 0%, rgba(199, 210, 254, 0.85) 100%) !important;
 }}
 .cml-table tr.cml-row-pioggia:hover {{
-  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%) !important;
+  background: linear-gradient(135deg, rgba(219, 234, 255, 0.9) 0%, rgba(191, 219, 254, 0.85) 100%) !important;
 }}
 .cml-table tr.cml-row-neve:hover {{
-  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%) !important;
+  background: linear-gradient(135deg, rgba(241, 245, 249, 0.9) 0%, rgba(226, 232, 240, 0.85) 100%) !important;
 }}
 .cml-table tr.cml-row-temporale:hover {{
-  background: linear-gradient(135deg, #e9d5ff 0%, #d8b4fe 100%) !important;
+  background: linear-gradient(135deg, rgba(233, 213, 255, 0.9) 0%, rgba(216, 180, 254, 0.85) 100%) !important;
 }}
 
 .cml-table-condition {{
@@ -1389,14 +1559,14 @@ body {{
 
 /* RIGHE NOTTURNE */
 .cml-table tr.cml-night-row {{
-  background: linear-gradient(90deg, #0f172a 0%, #1e293b 100%) !important;
+  background: linear-gradient(90deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.9) 100%) !important;
 }}
 .cml-table tr.cml-night-row td {{
-  color: #e2e8f0 !important;
-  border-bottom-color: #334155 !important;
+  color: rgba(226, 232, 240, 0.95) !important;
+  border-bottom-color: rgba(51, 65, 85, 0.8) !important;
 }}
 .cml-table tr.cml-night-row .cml-table-icon {{
-  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.9) 0%, rgba(15, 23, 42, 0.95) 100%);
   color: #fde68a;
   font-size: 22px;
   box-shadow: 0 2px 8px rgba(253, 230, 138, 0.3);
@@ -1406,30 +1576,31 @@ body {{
   font-weight: 800;
 }}
 .cml-table tr.cml-night-row td:first-child {{
-  color: #7dd3fc !important;
+  color: rgba(125, 211, 252, 0.95) !important;
 }}
 .cml-table tr.cml-night-row td:nth-child(7) {{
-  color: #bae6fd !important;
+  color: rgba(186, 230, 253, 0.95) !important;
 }}
 .cml-table tr.cml-night-row:hover {{
-  background: linear-gradient(90deg, #1e293b 0%, #334155 100%) !important;
+  background: linear-gradient(90deg, rgba(30, 41, 59, 0.95) 0%, rgba(51, 65, 85, 0.9) 100%) !important;
 }}
 
 /* NOTE */
 .cml-note {{
   margin: 20px 0 24px;
   padding: 18px 22px;
-  border: 2px solid #fde68a;
-  border-left: 5px solid #f59e0b;
+  border: 2px solid rgba(253, 230, 138, 0.8);
+  border-left: 5px solid var(--cml-yellow);
   border-radius: 16px;
-  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-  color: #78350f;
+  background: linear-gradient(135deg, rgba(254, 243, 199, 0.9) 0%, rgba(253, 230, 138, 0.85) 100%);
+  backdrop-filter: blur(10px);
+  color: rgba(120, 52, 15, 0.9);
   font-size: 13px;
   line-height: 1.7;
   box-shadow: 0 4px 12px rgba(245, 158, 11, 0.15);
 }}
 .cml-note b {{
-  color: #92400e;
+  color: rgba(146, 64, 14, 0.95);
   font-weight: 800;
 }}
 </style>
@@ -1452,6 +1623,56 @@ function mostraGiorno(dataId, btn) {{
 </head>
 <body>
 
+<!-- SFONDO ANIMATO METEO -->
+<div class="cml-weather-bg cml-bg-{meteo_type}">
+  <!-- Nuvole (se nuvoloso o sereno) -->
+  {'' if meteo_type in ['pioggia', 'temporale', 'neve'] else '''
+  <div class="cml-cloud cml-cloud-1"></div>
+  <div class="cml-cloud cml-cloud-2"></div>
+  <div class="cml-cloud cml-cloud-3"></div>
+  ''}
+  
+  <!-- Gocce pioggia -->
+  {'' if meteo_type != 'pioggia' else '''
+  <div class="cml-raindrop cml-raindrop-1"></div>
+  <div class="cml-raindrop cml-raindrop-2"></div>
+  <div class="cml-raindrop cml-raindrop-3"></div>
+  <div class="cml-raindrop cml-raindrop-4"></div>
+  <div class="cml-raindrop cml-raindrop-5"></div>
+  <div class="cml-raindrop cml-raindrop-6"></div>
+  <div class="cml-raindrop cml-raindrop-7"></div>
+  <div class="cml-raindrop cml-raindrop-8"></div>
+  <div class="cml-raindrop cml-raindrop-9"></div>
+  ''}
+  
+  <!-- Fiocchi neve -->
+  {'' if meteo_type != 'neve' else '''
+  <div class="cml-snowflake cml-snowflake-1">❄</div>
+  <div class="cml-snowflake cml-snowflake-2">❅</div>
+  <div class="cml-snowflake cml-snowflake-3">❆</div>
+  <div class="cml-snowflake cml-snowflake-4">❄</div>
+  <div class="cml-snowflake cml-snowflake-5">❅</div>
+  <div class="cml-snowflake cml-snowflake-6">❆</div>
+  <div class="cml-snowflake cml-snowflake-7">❄</div>
+  <div class="cml-snowflake cml-snowflake-8">❅</div>
+  ''}
+  
+  <!-- Fulmini (se temporale) -->
+  {'' if meteo_type != 'temporale' else '''
+  <div class="cml-lightning cml-lightning-1"></div>
+  <div class="cml-lightning cml-lightning-2"></div>
+  ''}
+  
+  <!-- Stelle (se notte) -->
+  {'' if not is_night else '''
+  <div class="cml-star cml-star-1"></div>
+  <div class="cml-star cml-star-2"></div>
+  <div class="cml-star cml-star-3"></div>
+  <div class="cml-star cml-star-4"></div>
+  <div class="cml-star cml-star-5"></div>
+  ''}
+</div>
+
 <div class="cml-hero">
   <div class="cml-brand">
     <span class="cml-brand-mark"></span>
@@ -1459,7 +1680,7 @@ function mostraGiorno(dataId, btn) {{
   </div>
   <h1>Calabria Meteo Lab</h1>
   <p>
-    Previsione ad alta risoluzione per la Calabria.
+    Previsione puntuale ad alta risoluzione per la Calabria.
     Cerca una località e leggi subito temperatura, cielo, vento,
     precipitazioni e sviluppo delle prossime 72 ore.
   </p>
@@ -1470,7 +1691,7 @@ function mostraGiorno(dataId, btn) {{
     <div class="cml-place-block">
       <div class="cml-kicker">
         <span class="cml-live-dot"></span>
-        ICON-2I · PREVISIONE
+        ICON-2I · PREVISIONE PUNTUALE
       </div>
       <h2>📍 {html.escape(luogo)}</h2>
       <div class="cml-condition">
@@ -1655,7 +1876,3 @@ try:
         df_ore, df_giorni = prepara(dati_meteo)
 
     doc_html = genera_app_completa(luogo, lat, lon, dati_meteo, df_ore, df_giorni)
-    components.html(doc_html, height=2800, scrolling=True)
-
-except Exception as errore:
-    st.error(f"{errore}")

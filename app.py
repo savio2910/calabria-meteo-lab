@@ -1166,7 +1166,7 @@ with st.form("search_form", clear_on_submit=False):
     with col_in:
         testo_citta = st.text_input(
             "Località",
-            value="Lamezia Terme",
+            value="Cosenza",
             placeholder="Scrivi es. Cosenza, Tropea, Soverato, Reggio Calabria, Catanzaro...",
             label_visibility="collapsed"
         )

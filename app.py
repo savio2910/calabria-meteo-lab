@@ -1,5 +1,5 @@
 # =====================================================================
-# CALABRIA METEO LAB — VERSIONE CON RADAR LIVE INTEGRATO (OPENSTREETMAP)
+# CALABRIA METEO LAB — RADAR LIVE SENZA ERRORI DI ZOOM (MAX ZOOM NATIVO)
 # ICON-2I VIA OPEN-METEO + RADAR DOPPLER/SATELLITE INTERATTIVO (LEAFLET)
 # =====================================================================
 
@@ -246,7 +246,7 @@ def risolvi_citta(testo):
         return citta, lat, lon
 
     try:
-        geocoder = Nominatim(user_agent="calabria_meteo_lab_v6", timeout=12)
+        geocoder = Nominatim(user_agent="calabria_meteo_lab_v7", timeout=12)
         risposta = geocoder.geocode(
             f"{nome}, Italia",
             exactly_one=True,
@@ -1011,22 +1011,26 @@ function mostraGiorno(dataId, btn) {{
 </div>
 
 <script>
-// ================= SCRIPT INIZIALIZZAZIONE RADAR CON OPENSTREETMAP (NO API KEY) =================
+// ================= SCRIPT INIZIALIZZAZIONE RADAR CON ZOOM NATIVO =================
 var lat = {lat};
 var lon = {lon};
+
+// Creazione mappa Leaflet
 var map = L.map('radar-map', {{
   center: [lat, lon],
   zoom: 8,
+  minZoom: 5,
+  maxZoom: 18,
   zoomControl: true
 }});
 
-// Layer OpenStreetMap pubblico standard al 100% gratuito e senza API Key
+// Sfondo OpenStreetMap con zoom profondo (fino a livello 18 per vedere strade e comuni)
 L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
-  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  attribution: '&copy; OpenStreetMap contributors',
   maxZoom: 18
 }}).addTo(map);
 
-// Marker per la località scelta
+// Pin località
 var markerIcon = L.divIcon({{
   className: 'custom-pin',
   html: '<div style="background:#ed8750;color:#fff;font-weight:bold;padding:4px 8px;border-radius:12px;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.3);font-size:11px;white-space:nowrap;">📍 {html.escape(luogo)}</div>',
@@ -1048,11 +1052,13 @@ fetch('https://api.rainviewer.com/public/weather-maps.json')
     var frames = apiData.radar.past;
     timestamps = frames.map(f => f.time);
     
-    // Pre-caricamento layer radar
+    // maxNativeZoom: 6 o 7 indica a Leaflet di scalare le tile esistenti quando si zooma oltre, evitando l'errore "Zoom Level Not Supported"
     frames.forEach(f => {{
       var layer = L.tileLayer('https://tilecache.rainviewer.com' + f.path + '/256/{{z}}/{{x}}/{{y}}/2/1_1.png', {{
         opacity: 0,
-        zIndex: 100
+        zIndex: 100,
+        maxNativeZoom: 6,
+        maxZoom: 18
       }});
       layer.addTo(map);
       radarLayers[f.time] = layer;
@@ -1065,7 +1071,6 @@ fetch('https://api.rainviewer.com/public/weather-maps.json')
 function showFrame(index) {{
   if (timestamps.length === 0) return;
   
-  // Nascondi frame precedente
   if (radarLayers[timestamps[currentFrame]]) {{
     radarLayers[timestamps[currentFrame]].setOpacity(0);
   }}
@@ -1109,7 +1114,6 @@ function setLayer(mode) {{
   document.getElementById('btn-rad').classList.toggle('active', mode === 'radar');
   document.getElementById('btn-sat').classList.toggle('active', mode === 'satellite');
   
-  // Rimuovi vecchi layer
   Object.keys(radarLayers).forEach(t => {{
     map.removeLayer(radarLayers[t]);
   }});
@@ -1119,11 +1123,16 @@ function setLayer(mode) {{
     .then(res => res.json())
     .then(apiData => {{
       var frames = (mode === 'radar') ? apiData.radar.past : apiData.satellite.infrared;
+      var colorScheme = (mode === 'radar') ? '2/1_1' : '0/0_0';
+      var maxNatZoom = (mode === 'radar') ? 6 : 5;
+      
       timestamps = frames.map(f => f.time);
       frames.forEach(f => {{
-        var layer = L.tileLayer('https://tilecache.rainviewer.com' + f.path + '/256/{{z}}/{{x}}/{{y}}/0/0_0.png', {{
+        var layer = L.tileLayer('https://tilecache.rainviewer.com' + f.path + '/256/{{z}}/{{x}}/{{y}}/' + colorScheme + '.png', {{
           opacity: 0,
-          zIndex: 100
+          zIndex: 100,
+          maxNativeZoom: maxNatZoom,
+          maxZoom: 18
         }});
         layer.addTo(map);
         radarLayers[f.time] = layer;
@@ -1147,7 +1156,7 @@ with st.form("search_form", clear_on_submit=False):
     with col_in:
         testo_citta = st.text_input(
             "Località",
-            value="Cosenza",
+            value="Lamezia Terme",
             placeholder="Scrivi es. Cosenza, Tropea, Soverato, Reggio Calabria, Catanzaro...",
             label_visibility="collapsed"
         )

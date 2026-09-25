@@ -1,6 +1,5 @@
 # =====================================================================
-# CALABRIA METEO LAB — RADAR LIVE SENZA ERRORI DI ZOOM (MAX ZOOM NATIVO)
-# ICON-2I VIA OPEN-METEO + RADAR DOPPLER/SATELLITE INTERATTIVO (LEAFLET)
+# CALABRIA METEO LAB — RADAR PIOGGIA + SATELLITE NUBI INFRAROSSO EUMETSAT
 # =====================================================================
 
 import html
@@ -246,7 +245,7 @@ def risolvi_citta(testo):
         return citta, lat, lon
 
     try:
-        geocoder = Nominatim(user_agent="calabria_meteo_lab_v7", timeout=12)
+        geocoder = Nominatim(user_agent="calabria_meteo_lab_v8", timeout=12)
         risposta = geocoder.geocode(
             f"{nome}, Italia",
             exactly_one=True,
@@ -966,18 +965,18 @@ function mostraGiorno(dataId, btn) {{
   <div class="cml-radar-header">
     <div>
       <h2>📡 Radar Precipitazioni & Nuvolosità Live</h2>
-      <div style="font-size:12px;color:#607987;margin-top:2px;">Mosaico radar Doppler e scansione satellitare in tempo reale centrata su <b>{html.escape(luogo)}</b>.</div>
+      <div style="font-size:12px;color:#607987;margin-top:2px;">Mosaico radar Doppler e satellite infrarosso termico centrati su <b>{html.escape(luogo)}</b>.</div>
     </div>
     <div class="cml-radar-controls">
       <button class="cml-radar-btn" id="btn-play" onclick="togglePlay()">⏸️ Pausa</button>
       <button class="cml-radar-btn active" id="btn-rad" onclick="setLayer('radar')">🌧️ Radar Pioggia</button>
-      <button class="cml-radar-btn" id="btn-sat" onclick="setLayer('satellite')">☁️ Satellite Nubi</button>
+      <button class="cml-radar-btn" id="btn-sat" onclick="setLayer('satellite')">☁️ Satellite Nubi (IR)</button>
     </div>
   </div>
   <div id="radar-map"></div>
   <div class="cml-radar-legend">
-    <div>⚡ <b>Risoluzione:</b> Mosaico Radar Nazionale Protezione Civile via RainViewer &bull; Mappe OpenStreetMap</div>
-    <div>Scansione: <span id="radar-timestamp" class="cml-radar-time">Caricamento frame...</span></div>
+    <div id="radar-source-info">⚡ <b>Layer:</b> Radar Doppler DPC/DWD &bull; OpenStreetMap</div>
+    <div>Scansione: <span id="radar-timestamp" class="cml-radar-time">Caricamento in corso...</span></div>
   </div>
 </div>
 
@@ -1011,11 +1010,9 @@ function mostraGiorno(dataId, btn) {{
 </div>
 
 <script>
-// ================= SCRIPT INIZIALIZZAZIONE RADAR CON ZOOM NATIVO =================
 var lat = {lat};
 var lon = {lon};
 
-// Creazione mappa Leaflet
 var map = L.map('radar-map', {{
   center: [lat, lon],
   zoom: 8,
@@ -1024,13 +1021,11 @@ var map = L.map('radar-map', {{
   zoomControl: true
 }});
 
-// Sfondo OpenStreetMap con zoom profondo (fino a livello 18 per vedere strade e comuni)
 L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
   attribution: '&copy; OpenStreetMap contributors',
   maxZoom: 18
 }}).addTo(map);
 
-// Pin località
 var markerIcon = L.divIcon({{
   className: 'custom-pin',
   html: '<div style="background:#ed8750;color:#fff;font-weight:bold;padding:4px 8px;border-radius:12px;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.3);font-size:11px;white-space:nowrap;">📍 {html.escape(luogo)}</div>',
@@ -1040,46 +1035,69 @@ var markerIcon = L.divIcon({{
 L.marker([lat, lon], {{icon: markerIcon}}).addTo(map);
 
 var timestamps = [];
-var radarLayers = {{}};
+var weatherLayers = {{}};
 var currentFrame = 0;
 var isPlaying = true;
 var currentMode = 'radar';
 var animationTimer = null;
 
-fetch('https://api.rainviewer.com/public/weather-maps.json')
-  .then(res => res.json())
-  .then(apiData => {{
-    var frames = apiData.radar.past;
-    timestamps = frames.map(f => f.time);
-    
-    // maxNativeZoom: 6 o 7 indica a Leaflet di scalare le tile esistenti quando si zooma oltre, evitando l'errore "Zoom Level Not Supported"
-    frames.forEach(f => {{
-      var layer = L.tileLayer('https://tilecache.rainviewer.com' + f.path + '/256/{{z}}/{{x}}/{{y}}/2/1_1.png', {{
-        opacity: 0,
-        zIndex: 100,
-        maxNativeZoom: 6,
-        maxZoom: 18
-      }});
-      layer.addTo(map);
-      radarLayers[f.time] = layer;
-    }});
-
-    showFrame(timestamps.length - 1);
-    startAnimation();
+function loadWeatherLayer(mode) {{
+  if (animationTimer) clearInterval(animationTimer);
+  
+  // Rimozione layer precedenti
+  Object.keys(weatherLayers).forEach(t => {{
+    map.removeLayer(weatherLayers[t]);
   }});
+  weatherLayers = {{}};
+  timestamps = [];
+  
+  document.getElementById('radar-timestamp').innerText = 'Caricamento...';
+  
+  fetch('https://api.rainviewer.com/public/weather-maps.json')
+    .then(res => res.json())
+    .then(apiData => {{
+      var frames = (mode === 'radar') ? apiData.radar.past : apiData.satellite.infrared;
+      timestamps = frames.map(f => f.time);
+      
+      // Radar: schema colore 2/1_1 | Satellite Infrarosso: schema standard 0/1_0
+      var colorPath = (mode === 'radar') ? '/2/1_1.png' : '/0/1_0.png';
+      var maxNative = (mode === 'radar') ? 6 : 5;
+      var opacityVal = (mode === 'radar') ? 0.75 : 0.65;
+
+      frames.forEach(f => {{
+        var layer = L.tileLayer('https://tilecache.rainviewer.com' + f.path + '/256/{{z}}/{{x}}/{{y}}' + colorPath, {{
+          opacity: 0,
+          zIndex: 100,
+          maxNativeZoom: maxNative,
+          maxZoom: 18
+        }});
+        layer.addTo(map);
+        weatherLayers[f.time] = layer;
+      }});
+
+      currentFrame = timestamps.length - 1;
+      showFrame(currentFrame);
+      if (isPlaying) startAnimation();
+      
+      document.getElementById('radar-source-info').innerHTML = (mode === 'radar') 
+        ? '⚡ <b>Layer:</b> Radar Doppler DPC/DWD &bull; OpenStreetMap'
+        : '⚡ <b>Layer:</b> Satellite Geostazionario MSG Infrarosso &bull; OpenStreetMap';
+    }});
+}}
 
 function showFrame(index) {{
   if (timestamps.length === 0) return;
   
-  if (radarLayers[timestamps[currentFrame]]) {{
-    radarLayers[timestamps[currentFrame]].setOpacity(0);
+  if (weatherLayers[timestamps[currentFrame]]) {{
+    weatherLayers[timestamps[currentFrame]].setOpacity(0);
   }}
 
   currentFrame = index;
   var time = timestamps[currentFrame];
+  var opacityTarget = (currentMode === 'radar') ? 0.75 : 0.65;
   
-  if (radarLayers[time]) {{
-    radarLayers[time].setOpacity(0.72);
+  if (weatherLayers[time]) {{
+    weatherLayers[time].setOpacity(opacityTarget);
   }}
 
   var date = new Date(time * 1000);
@@ -1113,34 +1131,11 @@ function setLayer(mode) {{
   currentMode = mode;
   document.getElementById('btn-rad').classList.toggle('active', mode === 'radar');
   document.getElementById('btn-sat').classList.toggle('active', mode === 'satellite');
-  
-  Object.keys(radarLayers).forEach(t => {{
-    map.removeLayer(radarLayers[t]);
-  }});
-  radarLayers = {{}};
-
-  fetch('https://api.rainviewer.com/public/weather-maps.json')
-    .then(res => res.json())
-    .then(apiData => {{
-      var frames = (mode === 'radar') ? apiData.radar.past : apiData.satellite.infrared;
-      var colorScheme = (mode === 'radar') ? '2/1_1' : '0/0_0';
-      var maxNatZoom = (mode === 'radar') ? 6 : 5;
-      
-      timestamps = frames.map(f => f.time);
-      frames.forEach(f => {{
-        var layer = L.tileLayer('https://tilecache.rainviewer.com' + f.path + '/256/{{z}}/{{x}}/{{y}}/' + colorScheme + '.png', {{
-          opacity: 0,
-          zIndex: 100,
-          maxNativeZoom: maxNatZoom,
-          maxZoom: 18
-        }});
-        layer.addTo(map);
-        radarLayers[f.time] = layer;
-      }});
-      currentFrame = timestamps.length - 1;
-      showFrame(currentFrame);
-    }});
+  loadWeatherLayer(mode);
 }}
+
+// Inizializzazione automatica
+loadWeatherLayer('radar');
 </script>
 
 </body>

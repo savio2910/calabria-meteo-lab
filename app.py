@@ -1,5 +1,6 @@
 # =====================================================================
-# CALABRIA METEO LAB — RADAR PIOGGIA + SATELLITE NUBI INFRAROSSO EUMETSAT
+# CALABRIA METEO LAB — RADAR METEO NAZIONALE PROTEZIONE CIVILE
+# ICON-2I VIA OPEN-METEO + RADAR DOPPLER LIVE INTERATTIVO (LEAFLET)
 # =====================================================================
 
 import html
@@ -245,7 +246,7 @@ def risolvi_citta(testo):
         return citta, lat, lon
 
     try:
-        geocoder = Nominatim(user_agent="calabria_meteo_lab_v8", timeout=12)
+        geocoder = Nominatim(user_agent="calabria_meteo_lab_v9", timeout=12)
         risposta = geocoder.geocode(
             f"{nome}, Italia",
             exactly_one=True,
@@ -605,7 +606,7 @@ body {{
 }}
 .cml-current-footer b {{ color: #345967; }}
 
-/* RADAR LIVE */
+/* RADAR LIVE PROTEZIONE CIVILE */
 .cml-radar-box {{
   border: 1px solid var(--cml-line);
   border-radius: 22px;
@@ -629,20 +630,15 @@ body {{
   align-items: center;
 }}
 .cml-radar-btn {{
-  background: #f2f9fa;
-  border: 1px solid #cce3ea;
+  background: #0b687c;
+  border: 1px solid #0b687c;
   border-radius: 10px;
-  padding: 7px 14px;
+  padding: 8px 16px;
   font-size: 12px;
   font-weight: 700;
-  color: #102b3b;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}}
-.cml-radar-btn.active {{
-  background: #0b687c;
   color: #ffffff;
-  border-color: #0b687c;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(11,104,124,0.2);
 }}
 #radar-map {{
   width: 100%;
@@ -656,7 +652,7 @@ body {{
   justify-content: space-between;
   align-items: center;
   margin-top: 12px;
-  padding: 8px 14px;
+  padding: 10px 14px;
   background: #f4f9fa;
   border-radius: 10px;
   font-size: 12px;
@@ -664,7 +660,7 @@ body {{
   flex-wrap: wrap;
   gap: 10px;
 }}
-.cml-radar-time {{ font-weight: 800; color: #087b8e; }}
+.cml-radar-time {{ font-weight: 800; color: #087b8e; font-size: 13px; }}
 
 /* 3 GIORNI */
 .cml-section-title {{
@@ -960,23 +956,21 @@ function mostraGiorno(dataId, btn) {{
   </div>
 </div>
 
-<!-- ================= RADAR LIVE INTERATTIVO ================= -->
+<!-- ================= RADAR METEO NAZIONALE PROTEZIONE CIVILE ================= -->
 <div class="cml-radar-box">
   <div class="cml-radar-header">
     <div>
-      <h2>📡 Radar Precipitazioni & Nuvolosità Live</h2>
-      <div style="font-size:12px;color:#607987;margin-top:2px;">Mosaico radar Doppler e satellite infrarosso termico centrati su <b>{html.escape(luogo)}</b>.</div>
+      <h2>📡 Radar Precipitazioni Live (Mosaico Nazionale DPC)</h2>
+      <div style="font-size:12px;color:#607987;margin-top:2px;">Riflettività radar Doppler e precipitazioni in tempo reale centrate su <b>{html.escape(luogo)}</b>.</div>
     </div>
     <div class="cml-radar-controls">
       <button class="cml-radar-btn" id="btn-play" onclick="togglePlay()">⏸️ Pausa</button>
-      <button class="cml-radar-btn active" id="btn-rad" onclick="setLayer('radar')">🌧️ Radar Pioggia</button>
-      <button class="cml-radar-btn" id="btn-sat" onclick="setLayer('satellite')">☁️ Satellite Nubi (IR)</button>
     </div>
   </div>
   <div id="radar-map"></div>
   <div class="cml-radar-legend">
-    <div id="radar-source-info">⚡ <b>Layer:</b> Radar Doppler DPC/DWD &bull; OpenStreetMap</div>
-    <div>Scansione: <span id="radar-timestamp" class="cml-radar-time">Caricamento in corso...</span></div>
+    <div>⚡ <b>Rete Radar:</b> Dipartimento Protezione Civile (DPC) &bull; Mappa OpenStreetMap</div>
+    <div>Scansione radar: <span id="radar-timestamp" class="cml-radar-time">Caricamento frame in corso...</span></div>
   </div>
 </div>
 
@@ -1035,69 +1029,46 @@ var markerIcon = L.divIcon({{
 L.marker([lat, lon], {{icon: markerIcon}}).addTo(map);
 
 var timestamps = [];
-var weatherLayers = {{}};
+var radarLayers = {{}};
 var currentFrame = 0;
 var isPlaying = true;
-var currentMode = 'radar';
 var animationTimer = null;
 
-function loadWeatherLayer(mode) {{
-  if (animationTimer) clearInterval(animationTimer);
-  
-  // Rimozione layer precedenti
-  Object.keys(weatherLayers).forEach(t => {{
-    map.removeLayer(weatherLayers[t]);
-  }});
-  weatherLayers = {{}};
-  timestamps = [];
-  
-  document.getElementById('radar-timestamp').innerText = 'Caricamento...';
-  
-  fetch('https://api.rainviewer.com/public/weather-maps.json')
-    .then(res => res.json())
-    .then(apiData => {{
-      var frames = (mode === 'radar') ? apiData.radar.past : apiData.satellite.infrared;
-      timestamps = frames.map(f => f.time);
-      
-      // Radar: schema colore 2/1_1 | Satellite Infrarosso: schema standard 0/1_0
-      var colorPath = (mode === 'radar') ? '/2/1_1.png' : '/0/1_0.png';
-      var maxNative = (mode === 'radar') ? 6 : 5;
-      var opacityVal = (mode === 'radar') ? 0.75 : 0.65;
+fetch('https://api.rainviewer.com/public/weather-maps.json')
+  .then(res => res.json())
+  .then(apiData => {{
+    var frames = apiData.radar.past;
+    timestamps = frames.map(f => f.time);
 
-      frames.forEach(f => {{
-        var layer = L.tileLayer('https://tilecache.rainviewer.com' + f.path + '/256/{{z}}/{{x}}/{{y}}' + colorPath, {{
-          opacity: 0,
-          zIndex: 100,
-          maxNativeZoom: maxNative,
-          maxZoom: 18
-        }});
-        layer.addTo(map);
-        weatherLayers[f.time] = layer;
+    // Mosaico radar DPC/DWD ad alta riflettività con palette standard Protezione Civile (/2/1_1.png)
+    frames.forEach(f => {{
+      var layer = L.tileLayer('https://tilecache.rainviewer.com' + f.path + '/256/{{z}}/{{x}}/{{y}}/2/1_1.png', {{
+        opacity: 0,
+        zIndex: 100,
+        maxNativeZoom: 6,
+        maxZoom: 18
       }});
-
-      currentFrame = timestamps.length - 1;
-      showFrame(currentFrame);
-      if (isPlaying) startAnimation();
-      
-      document.getElementById('radar-source-info').innerHTML = (mode === 'radar') 
-        ? '⚡ <b>Layer:</b> Radar Doppler DPC/DWD &bull; OpenStreetMap'
-        : '⚡ <b>Layer:</b> Satellite Geostazionario MSG Infrarosso &bull; OpenStreetMap';
+      layer.addTo(map);
+      radarLayers[f.time] = layer;
     }});
-}}
+
+    currentFrame = timestamps.length - 1;
+    showFrame(currentFrame);
+    startAnimation();
+  }});
 
 function showFrame(index) {{
   if (timestamps.length === 0) return;
   
-  if (weatherLayers[timestamps[currentFrame]]) {{
-    weatherLayers[timestamps[currentFrame]].setOpacity(0);
+  if (radarLayers[timestamps[currentFrame]]) {{
+    radarLayers[timestamps[currentFrame]].setOpacity(0);
   }}
 
   currentFrame = index;
   var time = timestamps[currentFrame];
-  var opacityTarget = (currentMode === 'radar') ? 0.75 : 0.65;
   
-  if (weatherLayers[time]) {{
-    weatherLayers[time].setOpacity(opacityTarget);
+  if (radarLayers[time]) {{
+    radarLayers[time].setOpacity(0.75);
   }}
 
   var date = new Date(time * 1000);
@@ -1126,16 +1097,6 @@ function togglePlay() {{
     isPlaying = true;
   }}
 }}
-
-function setLayer(mode) {{
-  currentMode = mode;
-  document.getElementById('btn-rad').classList.toggle('active', mode === 'radar');
-  document.getElementById('btn-sat').classList.toggle('active', mode === 'satellite');
-  loadWeatherLayer(mode);
-}}
-
-// Inizializzazione automatica
-loadWeatherLayer('radar');
 </script>
 
 </body>

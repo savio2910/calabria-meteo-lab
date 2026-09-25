@@ -25,7 +25,7 @@ st.markdown("""
   .block-container {
     padding-top: 1rem !important;
     padding-bottom: 2rem !important;
-    max-width: 1300px !important;
+    max-width: 1400px !important;
   }
 </style>
 """, unsafe_allow_html=True)
@@ -263,7 +263,7 @@ def risolvi_citta(testo):
         return citta, lat, lon
 
     try:
-        geocoder = Nominatim(user_agent="calabria_meteo_lab_v13", timeout=12)
+        geocoder = Nominatim(user_agent="calabria_meteo_lab_v14", timeout=12)
         risposta = geocoder.geocode(
             f"{nome}, Italia",
             exactly_one=True,
@@ -359,17 +359,30 @@ def genera_app_completa(luogo, lat, lon, dati, ore, giorni):
     cur = dati["current"]
     ico_cur, desc_cur = meteo(cur.get("weather_code"))
 
+    # Badge condizione attuale
+    badge_class = "cml-badge-sereno"
+    if cur.get("weather_code", 0) in [0, 1]:
+        badge_class = "cml-badge-sereno"
+    elif cur.get("weather_code", 0) in [2, 3, 45, 48]:
+        badge_class = "cml-badge-nuvoloso"
+    elif cur.get("weather_code", 0) in range(51, 68):
+        badge_class = "cml-badge-pioggia"
+    elif cur.get("weather_code", 0) in range(71, 87):
+        badge_class = "cml-badge-neve"
+    elif cur.get("weather_code", 0) in [95, 96, 99]:
+        badge_class = "cml-badge-temporale"
+
     metriche = [
-        ("🌡️", "Percepita", numero(cur.get("apparent_temperature"), 1, " °C")),
-        ("💧", "Umidità", numero(cur.get("relative_humidity_2m"), 0, " %")),
-        ("☁️", "Nuvolosità", numero(cur.get("cloud_cover"), 0, " %")),
-        ("💨", "Vento", numero(cur.get("wind_speed_10m"), 0, " km/h")),
-        ("🧭", "Provenienza", direzione(cur.get("wind_direction_10m"))),
-        ("🌬️", "Raffica", numero(cur.get("wind_gusts_10m"), 0, " km/h")),
-        ("🌀", "Pressione", numero(cur.get("pressure_msl"), 1, " hPa")),
+        ("🌡️", "Percepita", numero(cur.get("apparent_temperature"), 1, " °C"), "Temperatura percepita dal corpo umano"),
+        ("💧", "Umidità", numero(cur.get("relative_humidity_2m"), 0, " %"), "Contenuto di vapore acqueo nell'aria"),
+        ("☁️", "Nuvolosità", numero(cur.get("cloud_cover"), 0, " %"), "Copertura nuvolosa totale"),
+        ("💨", "Vento", numero(cur.get("wind_speed_10m"), 0, " km/h"), "Velocità media del vento"),
+        ("🧭", "Provenienza", direzione(cur.get("wind_direction_10m")), "Direzione di provenienza"),
+        ("🌬️", "Raffica", numero(cur.get("wind_gusts_10m"), 0, " km/h"), "Picchi istantanei di vento"),
+        ("🌀", "Pressione", numero(cur.get("pressure_msl"), 1, " hPa"), "Pressione atmosferica al livello del mare"),
     ]
     metriche_html = "".join([
-        f'<div class="cml-metric"><div class="cml-metric-icon">{m[0]}</div><div><div class="cml-metric-lbl">{m[1]}</div><div class="cml-metric-val">{m[2]}</div></div></div>'
+        f'<div class="cml-metric-card" title="{m[3]}"><div class="cml-metric-icon">{m[0]}</div><div class="cml-metric-content"><div class="cml-metric-lbl">{m[1]}</div><div class="cml-metric-val">{m[2]}</div></div></div>'
         for m in metriche
     ])
 
@@ -383,39 +396,90 @@ def genera_app_completa(luogo, lat, lon, dati, ore, giorni):
         ico, desc = meteo(cod_effettivo)
         fase = html.escape(str(r.get("Fase lunare", "🌙 Luna")))
         
+        # Colore badge in base al meteo
+        badge_bg = "linear-gradient(135deg, #ffd700 0%, #ffb347 100%)"
+        if cod_effettivo in [0, 1]:
+            badge_bg = "linear-gradient(135deg, #ffd700 0%, #ffb347 100%)"
+        elif cod_effettivo in [2, 3, 45, 48]:
+            badge_bg = "linear-gradient(135deg, #b0c4de 0%, #87a3c9 100%)"
+        elif cod_effettivo in range(51, 68):
+            badge_bg = "linear-gradient(135deg, #4a90e2 0%, #357abd 100%)"
+        elif cod_effettivo in range(71, 87):
+            badge_bg = "linear-gradient(135deg, #6c7a89 0%, #5a6573 100%)"
+        elif cod_effettivo in [95, 96, 99]:
+            badge_bg = "linear-gradient(135deg, #8e44ad 0%, #6c3483 100%)"
+        
         carte_html.append(f"""
         <div class="cml-day-card">
-          <div class="cml-day-top">
+          <div class="cml-day-header">
             <span class="cml-day-tag">{tag}</span>
             <span class="cml-day-date">{html.escape(data_it(r["time"]))}</span>
           </div>
-          <div class="cml-day-main">
-            <div class="cml-day-sym">{ico}</div>
-            <div>
+          <div class="cml-day-body">
+            <div class="cml-day-icon" style="background: {badge_bg}">{ico}</div>
+            <div class="cml-day-info">
               <div class="cml-day-desc">{html.escape(desc)}</div>
               <div class="cml-day-moon">{fase}</div>
             </div>
           </div>
           <div class="cml-day-temps">
-            <div>
-              <small>MINIMA</small>
-              <strong class="cml-cold">↓ {numero(r["temperature_2m_min"], 1, "°")}</strong>
+            <div class="cml-temp-box">
+              <span class="cml-temp-label">MINIMA</span>
+              <span class="cml-temp-val cml-cold">↓ {numero(r["temperature_2m_min"], 1, "°")}</span>
             </div>
-            <div>
-              <small>MASSIMA</small>
-              <strong class="cml-warm">↑ {numero(r["temperature_2m_max"], 1, "°")}</strong>
+            <div class="cml-temp-box">
+              <span class="cml-temp-label">MASSIMA</span>
+              <span class="cml-temp-val cml-warm">↑ {numero(r["temperature_2m_max"], 1, "°")}</span>
             </div>
           </div>
-          <div class="cml-day-row"><span>☁️ Nuvolosità diurna</span><b>{nubi_effettive}%</b></div>
-          <div class="cml-day-row"><span>🌧️ Precipitazione</span><b>{numero(r["precipitation_sum"], 1, " mm")}</b></div>
-          <div class="cml-day-row"><span>💨 Vento max</span><b>{numero(r["wind_speed_10m_max"], 0, " km/h")}</b></div>
-          <div class="cml-day-row"><span>🌬️ Raffica max</span><b>{numero(r["wind_gusts_10m_max"], 0, " km/h")}</b></div>
-          <div class="cml-day-row"><span>🧭 Direzione dom.</span><b>{html.escape(str(r["Da"]))}</b></div>
-          <div class="cml-astro-grid">
-            <div><span>☀️ Alba</span><b>{ora_it(r.get("sunrise"))}</b></div>
-            <div><span>🌇 Tramonto</span><b>{ora_it(r.get("sunset"))}</b></div>
-            <div><span>🌙 Sorge</span><b>{ora_it(r.get("moonrise"))}</b></div>
-            <div><span>🌘 Tramonta</span><b>{ora_it(r.get("moonset"))}</b></div>
+          <div class="cml-day-details">
+            <div class="cml-detail-row">
+              <span class="cml-detail-icon">☁️</span>
+              <span class="cml-detail-label">Nuvolosità diurna</span>
+              <span class="cml-detail-value">{nubi_effettive}%</span>
+            </div>
+            <div class="cml-detail-row">
+              <span class="cml-detail-icon">🌧️</span>
+              <span class="cml-detail-label">Precipitazione</span>
+              <span class="cml-detail-value">{numero(r["precipitation_sum"], 1, " mm")}</span>
+            </div>
+            <div class="cml-detail-row">
+              <span class="cml-detail-icon">💨</span>
+              <span class="cml-detail-label">Vento max</span>
+              <span class="cml-detail-value">{numero(r["wind_speed_10m_max"], 0, " km/h")}</span>
+            </div>
+            <div class="cml-detail-row">
+              <span class="cml-detail-icon">🌬️</span>
+              <span class="cml-detail-label">Raffica max</span>
+              <span class="cml-detail-value">{numero(r["wind_gusts_10m_max"], 0, " km/h")}</span>
+            </div>
+            <div class="cml-detail-row">
+              <span class="cml-detail-icon">🧭</span>
+              <span class="cml-detail-label">Direzione dom.</span>
+              <span class="cml-detail-value">{html.escape(str(r["Da"]))}</span>
+            </div>
+          </div>
+          <div class="cml-day-astro">
+            <div class="cml-astro-item">
+              <span class="cml-astro-icon">☀️</span>
+              <span class="cml-astro-label">Alba</span>
+              <span class="cml-astro-time">{ora_it(r.get("sunrise"))}</span>
+            </div>
+            <div class="cml-astro-item">
+              <span class="cml-astro-icon">🌇</span>
+              <span class="cml-astro-label">Tramonto</span>
+              <span class="cml-astro-time">{ora_it(r.get("sunset"))}</span>
+            </div>
+            <div class="cml-astro-item">
+              <span class="cml-astro-icon">🌙</span>
+              <span class="cml-astro-label">Sorge</span>
+              <span class="cml-astro-time">{ora_it(r.get("moonrise"))}</span>
+            </div>
+            <div class="cml-astro-item">
+              <span class="cml-astro-icon">🌘</span>
+              <span class="cml-astro-label">Tramonta</span>
+              <span class="cml-astro-time">{ora_it(r.get("moonset"))}</span>
+            </div>
           </div>
         </div>
         """)
@@ -441,23 +505,36 @@ def genera_app_completa(luogo, lat, lon, dati, ore, giorni):
             is_notte = bool(riga.get("Notte", False))
             classe_riga = "cml-night-row" if is_notte else ""
             
+            # Badge colore in base al weather code
+            riga_bg = ""
+            if riga["weather_code"] in [0, 1]:
+                riga_bg = "cml-row-sereno"
+            elif riga["weather_code"] in [2, 3]:
+                riga_bg = "cml-row-nuvoloso"
+            elif riga["weather_code"] in range(51, 68):
+                riga_bg = "cml-row-pioggia"
+            elif riga["weather_code"] in range(71, 87):
+                riga_bg = "cml-row-neve"
+            elif riga["weather_code"] in [95, 96, 99]:
+                riga_bg = "cml-row-temporale"
+            
             righe_tabella.append(f"""
-            <tr class="{classe_riga}">
-              <td>{riga["time"].strftime("%H:%M")}</td>
-              <td>
+            <tr class="{classe_riga} {riga_bg}">
+              <td class="col-ora">{riga["time"].strftime("%H:%M")}</td>
+              <td class="col-scenario">
                 <span class="cml-table-condition">
                   <span class="cml-table-icon">{riga["Icona"]}</span>
                   <span class="cml-table-scenario">{riga["Scenario"]}</span>
                 </span>
               </td>
-              <td>{numero(riga["temperature_2m"])}</td>
-              <td>{numero(riga["apparent_temperature"])}</td>
-              <td>{numero(riga["precipitation"])}</td>
-              <td>{numero(riga["wind_speed_10m"], 0)}</td>
-              <td>{riga["Da"]}</td>
-              <td>{numero(riga["wind_gusts_10m"], 0)}</td>
-              <td>{numero(riga["cloud_cover"], 0)}</td>
-              <td>{numero(riga["relative_humidity_2m"], 0)}</td>
+              <td class="col-temp">{numero(riga["temperature_2m"])}</td>
+              <td class="col-percepita">{numero(riga["apparent_temperature"])}</td>
+              <td class="col-pioggia">{numero(riga["precipitation"])}</td>
+              <td class="col-vento">{numero(riga["wind_speed_10m"], 0)}</td>
+              <td class="col-direzione">{riga["Da"]}</td>
+              <td class="col-raffica">{numero(riga["wind_gusts_10m"], 0)}</td>
+              <td class="col-nubi">{numero(riga["cloud_cover"], 0)}</td>
+              <td class="col-umidita">{numero(riga["relative_humidity_2m"], 0)}</td>
             </tr>
             """)
 
@@ -503,336 +580,680 @@ def genera_app_completa(luogo, lat, lon, dati, ore, giorni):
 <html lang="it">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <style>
 :root {{
-  --cml-ink: #102b3b;
-  --cml-muted: #607987;
-  --cml-line: #dcebef;
-  --cml-orange: #ed8750;
+  --cml-ink: #0f172a;
+  --cml-muted: #64748b;
+  --cml-line: #e2e8f0;
+  --cml-primary: #0ea5e9;
+  --cml-primary-dark: #0284c7;
+  --cml-orange: #f97316;
+  --cml-blue: #3b82f6;
+  --cml-green: #10b981;
+  --cml-purple: #8b5cf6;
+  --cml-red: #ef4444;
+  --cml-yellow: #f59e0b;
 }}
 
 * {{ box-sizing: border-box; margin: 0; padding: 0; }}
 body {{
-  font-family: Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   color: var(--cml-ink);
-  background: transparent;
-  padding: 4px;
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  padding: 8px;
+  line-height: 1.5;
 }}
 
+/* HERO SECTION */
 .cml-hero {{
   position: relative;
   overflow: hidden;
-  border-radius: 28px;
-  padding: 38px 40px;
-  margin: 8px 0 18px;
+  border-radius: 32px;
+  padding: 48px 48px 40px;
+  margin: 12px 0 24px;
   color: #fff;
-  background: radial-gradient(circle at 83% 16%, rgba(117,241,244,.4), transparent 23%),
-              radial-gradient(circle at 4% 115%, rgba(244,177,86,.22), transparent 30%),
-              linear-gradient(125deg, #061b33 0%, #07566f 53%, #13aab2 100%);
-  box-shadow: 0 18px 44px rgba(5,57,78,.28);
+  background: linear-gradient(135deg, #0c4a6e 0%, #0369a1 45%, #075985 100%);
+  box-shadow: 0 20px 60px rgba(14, 165, 233, 0.25), 0 8px 24px rgba(0, 0, 0, 0.15);
 }}
-.cml-hero:before {{
+.cml-hero::before {{
   content: "";
   position: absolute;
-  right: -74px;
-  top: -122px;
-  width: 310px;
-  height: 310px;
-  border: 38px solid rgba(255,255,255,.09);
+  top: -50%;
+  right: -10%;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 70%);
   border-radius: 50%;
+  animation: cml-pulse 8s ease-in-out infinite;
+}}
+@keyframes cml-pulse {{
+  0%, 100% {{ transform: scale(1); opacity: 0.5; }}
+  50% {{ transform: scale(1.1); opacity: 0.8; }}
 }}
 .cml-brand {{
   position: relative;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 10px;
-  color: #bceff0;
+  gap: 12px;
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(8px);
+  border-radius: 999px;
+  color: #bae6fd;
   font-size: 11px;
   font-weight: 700;
-  letter-spacing: 2.3px;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  border: 1px solid rgba(255, 255, 255, 0.15);
 }}
 .cml-brand-mark {{
-  width: 10px;
-  height: 10px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
-  background: #ffd06b;
-  box-shadow: 0 0 0 5px rgba(255,208,107,.18), 0 0 17px rgba(255,208,107,.8);
+  background: linear-gradient(135deg, #fde047 0%, #fbbf24 100%);
+  box-shadow: 0 0 0 6px rgba(253, 224, 71, 0.15), 0 0 24px rgba(253, 224, 71, 0.6);
+  animation: cml-glow 3s ease-in-out infinite;
 }}
-.cml-hero h1 {{ position: relative; margin: 15px 0 9px; font-size: 38px; letter-spacing: -1.2px; color: #fff; font-weight: bold; }}
-.cml-hero p {{ position: relative; max-width: 760px; margin: 0; color: #e1f7f8; font-size: 14px; line-height: 1.7; }}
+@keyframes cml-glow {{
+  0%, 100% {{ box-shadow: 0 0 0 6px rgba(253, 224, 71, 0.15), 0 0 24px rgba(253, 224, 71, 0.6); }}
+  50% {{ box-shadow: 0 0 0 8px rgba(253, 224, 71, 0.2), 0 0 32px rgba(253, 224, 71, 0.8); }}
+}}
+.cml-hero h1 {{
+  position: relative;
+  margin: 20px 0 12px;
+  font-size: 44px;
+  font-weight: 800;
+  letter-spacing: -1.5px;
+  line-height: 1.1;
+  background: linear-gradient(135deg, #ffffff 0%, #e0f2fe 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}}
+.cml-hero p {{
+  position: relative;
+  max-width: 720px;
+  margin: 0;
+  color: #bae6fd;
+  font-size: 15px;
+  line-height: 1.7;
+}}
 
+/* CURRENT PANEL */
 .cml-current {{
   overflow: hidden;
-  margin: 18px 0 30px;
+  margin: 24px 0 32px;
   border: 1px solid var(--cml-line);
   border-radius: 24px;
-  background: #fff;
-  box-shadow: 0 12px 32px rgba(18,71,89,.11);
+  background: #ffffff;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}}
+.cml-current:hover {{
+  transform: translateY(-2px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.06);
 }}
 .cml-current-main {{
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 24px;
-  padding: 30px 32px 25px;
-  background: radial-gradient(circle at 91% 29%, rgba(255,207,105,.27), transparent 23%),
-              linear-gradient(110deg, #fff, #effbfd);
+  gap: 32px;
+  padding: 36px 40px;
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  border-bottom: 1px solid var(--cml-line);
 }}
-.cml-kicker {{ color: #078195; font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; }}
+.cml-kicker {{
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  background: rgba(14, 165, 233, 0.12);
+  border-radius: 999px;
+  color: var(--cml-primary-dark);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  margin-bottom: 14px;
+}}
 .cml-live-dot {{
   display: inline-block;
-  width: 7px;
-  height: 7px;
-  margin-right: 7px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  background: #19b7a0;
-  box-shadow: 0 0 0 4px #d7f7ef, 0 0 12px rgba(25,183,160,.7);
+  background: var(--cml-green);
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.2), 0 0 16px rgba(16, 185, 129, 0.6);
+  animation: cml-blink 2s ease-in-out infinite;
 }}
-.cml-place-block h2 {{ margin: 10px 0 8px; color: var(--cml-ink); font-size: 30px; letter-spacing: -.7px; }}
-.cml-condition {{ color: #476572; font-size: 18px; }}
+@keyframes cml-blink {{
+  0%, 100% {{ opacity: 1; }}
+  50% {{ opacity: 0.5; }}
+}}
+.cml-place-block h2 {{
+  margin: 12px 0 10px;
+  color: var(--cml-ink);
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}}
+.cml-condition {{
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 12px;
+  color: var(--cml-muted);
+  font-size: 17px;
+  font-weight: 600;
+}}
 .cml-temperature {{
   display: flex;
   align-items: flex-start;
   color: var(--cml-orange);
-  font-weight: 800;
-  line-height: .9;
+  font-weight: 900;
+  line-height: 0.9;
   white-space: nowrap;
 }}
-.cml-temperature span {{ font-size: 72px; letter-spacing: -6px; }}
-.cml-temperature small {{ margin: 9px 0 0 6px; font-size: 24px; }}
+.cml-temperature span {{
+  font-size: 86px;
+  letter-spacing: -8px;
+  text-shadow: 2px 2px 8px rgba(249, 115, 22, 0.2);
+}}
+.cml-temperature small {{
+  margin: 12px 0 0 8px;
+  font-size: 28px;
+  color: var(--cml-orange);
+}}
 
 .cml-metrics {{
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 10px;
-  padding: 18px 24px;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  padding: 24px 32px;
 }}
-.cml-metric {{
+.cml-metric-card {{
   display: flex;
   align-items: center;
-  gap: 10px;
-  min-height: 64px;
-  padding: 10px 12px;
-  border: 1px solid #e1edf1;
-  border-radius: 14px;
-  background: #f2f9fa;
+  gap: 14px;
+  min-height: 72px;
+  padding: 16px 18px;
+  border: 1px solid #f1f5f9;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #fafafa 0%, #f4f6f8 100%);
+  transition: all 0.25s ease;
+  cursor: default;
 }}
-.cml-metric-icon {{ width: 27px; text-align: center; font-size: 21px; }}
-.cml-metric-lbl {{ margin-bottom: 4px; color: var(--cml-muted); font-size: 11px; }}
-.cml-metric-val {{ color: var(--cml-ink); font-size: 15px; font-weight: 700; }}
+.cml-metric-card:hover {{
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  border-color: var(--cml-primary);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(14, 165, 233, 0.15);
+}}
+.cml-metric-icon {{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  font-size: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  flex-shrink: 0;
+}}
+.cml-metric-content {{
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}}
+.cml-metric-lbl {{
+  color: var(--cml-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}}
+.cml-metric-val {{
+  color: var(--cml-ink);
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.3px;
+}}
 
 .cml-current-footer {{
   display: flex;
   flex-wrap: wrap;
-  gap: 8px 22px;
-  padding: 12px 27px;
-  border-top: 1px solid #e3edf1;
-  color: #607985;
+  gap: 12px 28px;
+  padding: 16px 32px;
+  border-top: 1px solid var(--cml-line);
+  background: #fafafa;
+  color: var(--cml-muted);
   font-size: 12px;
 }}
-.cml-current-footer b {{ color: #345967; }}
+.cml-current-footer b {{
+  color: var(--cml-ink);
+  font-weight: 700;
+}}
 
+/* RADAR BOX */
 .cml-radar-box {{
+  overflow: hidden;
   border: 1px solid var(--cml-line);
-  border-radius: 22px;
+  border-radius: 24px;
   background: #ffffff;
-  padding: 24px;
-  box-shadow: 0 10px 30px rgba(18,71,89,.08);
-  margin-bottom: 30px;
+  padding: 28px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  margin-bottom: 32px;
 }}
 .cml-radar-header {{
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 14px;
+  margin-bottom: 18px;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 14px;
 }}
-.cml-radar-header h2 {{ font-size: 24px; font-weight: 800; color: var(--cml-ink); margin: 0; }}
+.cml-radar-header h2 {{
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--cml-ink);
+  margin: 0;
+  letter-spacing: -0.3px;
+}}
 .cml-radar-controls {{
   display: flex;
-  gap: 8px;
+  gap: 10px;
   align-items: center;
 }}
 .cml-radar-btn {{
-  background: #0b687c;
-  border: 1px solid #0b687c;
-  border-radius: 10px;
-  padding: 8px 16px;
-  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: linear-gradient(135deg, var(--cml-primary) 0%, var(--cml-primary-dark) 100%);
+  border: none;
+  border-radius: 12px;
+  font-size: 13px;
   font-weight: 700;
   color: #ffffff;
   cursor: pointer;
-  box-shadow: 0 4px 10px rgba(11,104,124,0.2);
+  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
+  transition: all 0.25s ease;
+}}
+.cml-radar-btn:hover {{
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(14, 165, 233, 0.4);
 }}
 #radar-map {{
   width: 100%;
-  height: 480px;
+  height: 520px;
   border-radius: 16px;
-  border: 1px solid #dcebef;
+  border: 2px solid var(--cml-line);
   z-index: 1;
 }}
 .cml-radar-legend {{
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 12px;
-  padding: 10px 14px;
-  background: #f4f9fa;
-  border-radius: 10px;
+  margin-top: 16px;
+  padding: 14px 18px;
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  border-radius: 12px;
   font-size: 12px;
-  color: #607987;
+  color: var(--cml-muted);
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 12px;
+  border: 1px solid #bae6fd;
 }}
-.cml-radar-time {{ font-weight: 800; color: #087b8e; font-size: 13px; }}
+.cml-radar-time {{
+  font-weight: 800;
+  color: var(--cml-primary-dark);
+  font-size: 13px;
+}}
 
 .cml-map-pin {{
-  width: 18px;
-  height: 18px;
-  background: #e63946;
+  width: 20px;
+  height: 20px;
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
   border: 3px solid #ffffff;
   border-radius: 50%;
-  box-shadow: 0 0 0 2px rgba(230,57,70,0.5), 0 3px 8px rgba(0,0,0,0.4);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.4), 0 4px 12px rgba(0, 0, 0, 0.3);
 }}
 
+/* SECTION TITLES */
 .cml-section-title {{
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 18px;
-  margin: 0 0 16px;
+  gap: 20px;
+  margin: 40px 0 20px;
 }}
-.cml-section-title span {{ color: #1592a2; font-size: 10px; font-weight: 700; letter-spacing: 1.8px; text-transform: uppercase; }}
-.cml-section-title h2 {{ margin: 7px 0 5px; color: var(--cml-ink); font-size: 25px; letter-spacing: -.5px; }}
-.cml-section-title p {{ margin: 0; color: var(--cml-muted); font-size: 13px; }}
-.cml-pill {{ padding: 8px 13px; border-radius: 999px; background: #e7f6f8; color: #087a8c; font-size: 12px; font-weight: 700; white-space: nowrap; }}
+.cml-section-title span {{
+  color: var(--cml-primary);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}}
+.cml-section-title h2 {{
+  margin: 8px 0 6px;
+  color: var(--cml-ink);
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}}
+.cml-section-title p {{
+  margin: 0;
+  color: var(--cml-muted);
+  font-size: 14px;
+  line-height: 1.6;
+}}
+.cml-pill {{
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+  color: var(--cml-primary-dark);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+  border: 1px solid #bae6fd;
+}}
 
+/* 3 DAYS GRID */
 .cml-days-grid {{
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(245px, 1fr));
-  gap: 16px;
-  margin-bottom: 24px;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 20px;
+  margin-bottom: 28px;
 }}
 .cml-day-card {{
   position: relative;
   overflow: hidden;
-  padding: 20px;
+  padding: 28px;
   border: 1px solid var(--cml-line);
-  border-radius: 21px;
-  background: linear-gradient(145deg, #fff 0%, #f5fbfc 58%, #e9f7fa 100%);
+  border-radius: 24px;
+  background: linear-gradient(145deg, #ffffff 0%, #fafafa 100%);
   color: var(--cml-ink);
-  box-shadow: 0 8px 23px rgba(22,68,86,.08);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+  transition: all 0.3s ease;
 }}
-.cml-day-top {{ display: flex; justify-content: space-between; gap: 7px; color: #5e7884; font-size: 11px; font-weight: 700; }}
-.cml-day-top span:first-child {{ color: #078195; letter-spacing: 1px; }}
-.cml-day-main {{ display: flex; align-items: center; gap: 12px; min-height: 64px; margin: 14px 0 8px; }}
-.cml-day-sym {{ display: flex; align-items: center; justify-content: center; width: 56px; height: 56px; border-radius: 18px; background: linear-gradient(145deg, #fff2c9, #ffe5a0); font-size: 30px; flex-shrink: 0; }}
-.cml-day-desc {{ font-size: 16px; line-height: 1.2; font-weight: bold; }}
-.cml-day-moon {{ display: inline-flex; margin-top: 5px; padding: 4px 8px; border-radius: 999px; background: #edf4ff; color: #405777; font-size: 11px; font-weight: 700; }}
+.cml-day-card:hover {{
+  transform: translateY(-4px);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.12);
+}}
+.cml-day-header {{
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}}
+.cml-day-tag {{
+  padding: 6px 14px;
+  background: linear-gradient(135deg, var(--cml-primary) 0%, var(--cml-primary-dark) 100%);
+  border-radius: 999px;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+}}
+.cml-day-date {{
+  color: var(--cml-muted);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: capitalize;
+}}
+.cml-day-body {{
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 24px;
+}}
+.cml-day-icon {{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 20px;
+  font-size: 38px;
+  flex-shrink: 0;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  transition: transform 0.3s ease;
+}}
+.cml-day-card:hover .cml-day-icon {{
+  transform: scale(1.08) rotate(5deg);
+}}
+.cml-day-info {{
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}}
+.cml-day-desc {{
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.3;
+  color: var(--cml-ink);
+}}
+.cml-day-moon {{
+  display: inline-flex;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+  color: #4338ca;
+  font-size: 11px;
+  font-weight: 700;
+  align-self: flex-start;
+}}
 
 .cml-day-temps {{
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 9px;
-  margin-bottom: 12px;
-  padding: 11px 0;
-  border-top: 1px solid #e2edf0;
-  border-bottom: 1px solid #e2edf0;
+  gap: 14px;
+  margin-bottom: 20px;
+  padding: 16px;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-radius: 16px;
+  border: 1px solid var(--cml-line);
 }}
-.cml-day-temps div {{ display: flex; flex-direction: column; gap: 4px; }}
-.cml-day-temps small {{ color: #71858e; font-size: 10px; letter-spacing: 1px; }}
-.cml-cold {{ color: #2c91b7; font-size: 21px; font-weight: bold; }}
-.cml-warm {{ color: var(--cml-orange); font-size: 21px; font-weight: bold; }}
+.cml-temp-box {{
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+}}
+.cml-temp-label {{
+  color: var(--cml-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}}
+.cml-temp-val {{
+  font-size: 24px;
+  font-weight: 900;
+  letter-spacing: -1px;
+}}
+.cml-cold {{
+  color: #0284c7;
+}}
+.cml-warm {{
+  color: var(--cml-orange);
+}}
 
-.cml-day-row {{ display: flex; justify-content: space-between; gap: 12px; margin: 8px 0; font-size: 13px; }}
-.cml-day-row b {{ white-space: nowrap; color: #16495b; font-weight: bold; }}
+.cml-day-details {{
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--cml-line);
+}}
+.cml-detail-row {{
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}}
+.cml-detail-icon {{
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  border-radius: 8px;
+  font-size: 16px;
+  flex-shrink: 0;
+}}
+.cml-detail-label {{
+  color: var(--cml-muted);
+  font-size: 13px;
+  font-weight: 600;
+  flex: 1;
+}}
+.cml-detail-value {{
+  color: var(--cml-ink);
+  font-size: 14px;
+  font-weight: 800;
+  white-space: nowrap;
+}}
 
-.cml-astro-grid {{
+.cml-day-astro {{
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 7px;
-  margin-top: 14px;
-  padding-top: 12px;
-  border-top: 1px solid #dcebef;
+  gap: 10px;
 }}
-.cml-astro-grid div {{ display: flex; justify-content: space-between; gap: 5px; padding: 6px 8px; border-radius: 8px; background: rgba(255,255,255,.75); font-size: 11px; }}
-.cml-astro-grid span {{ color: #718791; }}
-.cml-astro-grid b {{ color: #234c5b; }}
+.cml-astro-item {{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px;
+  background: linear-gradient(135deg, #fafafa 0%, #f4f6f8 100%);
+  border-radius: 12px;
+  border: 1px solid var(--cml-line);
+  transition: all 0.25s ease;
+}}
+.cml-astro-item:hover {{
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  border-color: var(--cml-primary);
+  transform: translateY(-2px);
+}}
+.cml-astro-icon {{
+  font-size: 20px;
+}}
+.cml-astro-label {{
+  color: var(--cml-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}}
+.cml-astro-time {{
+  color: var(--cml-ink);
+  font-size: 14px;
+  font-weight: 800;
+}}
 
+/* HOUR HEADER */
 .cml-hour-header {{
   position: relative;
   overflow: hidden;
-  margin-top: 10px;
-  padding: 24px 26px;
-  border-radius: 20px;
+  margin-top: 16px;
+  padding: 32px 32px;
+  border-radius: 24px;
   color: #fff;
-  background: radial-gradient(circle at 87% 12%, rgba(116,210,255,.29), transparent 28%),
-              linear-gradient(120deg, #0d1939, #24366b 55%, #3f5184);
-  box-shadow: 0 12px 29px rgba(21,38,79,.22);
+  background: linear-gradient(135deg, #1e3a5f 0%, #3b5998 55%, #4a69a8);
+  box-shadow: 0 12px 36px rgba(59, 89, 152, 0.28);
 }}
-.cml-hour-header:after {{
+.cml-hour-header::after {{
   content: "☾";
   position: absolute;
-  right: 32px;
-  top: 6px;
-  color: rgba(255,255,255,.8);
-  font-size: 70px;
+  right: 36px;
+  top: 8px;
+  color: rgba(255, 255, 255, 0.12);
+  font-size: 90px;
   line-height: 1;
 }}
-.cml-hour-header span {{ color: #9aeaf1; font-size: 10px; font-weight: 700; letter-spacing: 1.8px; text-transform: uppercase; }}
-.cml-hour-header h2 {{ margin: 7px 0 5px; color: #b98cff; font-size: 24px; letter-spacing: -.4px; }}
-.cml-hour-header p {{ margin: 0; color: #d9e9ff; font-size: 13px; }}
+.cml-hour-header span {{
+  color: #bae6fd;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}}
+.cml-hour-header h2 {{
+  margin: 10px 0 8px;
+  color: #ffffff;
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}}
+.cml-hour-header p {{
+  margin: 0;
+  color: #dbeafe;
+  font-size: 14px;
+  line-height: 1.6;
+}}
 
+/* TABS */
 .cml-tabs-bar {{
   display: flex;
-  gap: 10px;
-  margin: 16px 0 12px;
+  gap: 12px;
+  margin: 20px 0 16px;
   overflow-x: auto;
-  padding-bottom: 4px;
+  padding-bottom: 6px;
 }}
 .cml-tab-btn {{
+  padding: 12px 24px;
   background: #ffffff;
-  border: 1px solid #cce3ea;
-  border-radius: 12px;
-  padding: 10px 18px;
-  font-size: 13px;
+  border: 2px solid #e2e8f0;
+  border-radius: 14px;
+  font-size: 14px;
   font-weight: 700;
-  color: #2b556b;
+  color: var(--cml-muted);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.25s ease;
   white-space: nowrap;
 }}
 .cml-tab-btn:hover {{
-  background: #e9f7fa;
-  border-color: #0b687c;
+  background: #f0f9ff;
+  border-color: var(--cml-primary);
+  color: var(--cml-primary-dark);
+  transform: translateY(-2px);
 }}
 .cml-tab-btn.active {{
-  background: #0b687c;
+  background: linear-gradient(135deg, var(--cml-primary) 0%, var(--cml-primary-dark) 100%);
   color: #ffffff;
-  border-color: #0b687c;
-  box-shadow: 0 4px 12px rgba(11,104,124,0.25);
+  border-color: var(--cml-primary);
+  box-shadow: 0 6px 16px rgba(14, 165, 233, 0.3);
+  transform: translateY(-2px);
 }}
 
+/* TABLE */
 .cml-table-wrap {{
   width: 100%;
   max-width: 100%;
   overflow-x: auto;
-  border: 1px solid #d9e7ec;
-  border-radius: 17px;
-  background: #fff;
-  box-shadow: 0 8px 23px rgba(22,68,86,.08);
-  margin-bottom: 12px;
+  border: 2px solid var(--cml-line);
+  border-radius: 20px;
+  background: #ffffff;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  margin-bottom: 16px;
 }}
 .cml-table {{
   width: 100%;
-  min-width: 1050px;
+  min-width: 1100px;
   table-layout: fixed;
   border-collapse: separate;
   border-spacing: 0;
   color: var(--cml-ink);
-  font: 13px Arial, sans-serif;
+  font: 13px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
   white-space: nowrap;
 }}
 .cml-table col.col-ora {{ width: 7%; }}
@@ -847,41 +1268,98 @@ body {{
 .cml-table col.col-umidita {{ width: 7%; }}
 
 .cml-table th {{
-  height: 48px;
-  padding: 0 10px;
-  background: #0b687c;
-  color: #fff;
+  height: 54px;
+  padding: 0 12px;
+  background: linear-gradient(135deg, var(--cml-primary) 0%, var(--cml-primary-dark) 100%);
+  color: #ffffff;
   text-align: center;
   vertical-align: middle;
   font-size: 12px;
-  font-weight: 700;
-  letter-spacing: .1px;
-  line-height: 1.15;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  line-height: 1.2;
+  text-transform: uppercase;
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }}
-.cml-table th:first-child {{ border-top-left-radius: 16px; }}
-.cml-table th:last-child {{ border-top-right-radius: 16px; }}
+.cml-table th:first-child {{
+  border-top-left-radius: 18px;
+}}
+.cml-table th:last-child {{
+  border-top-right-radius: 18px;
+}}
 
 .cml-table td {{
-  height: 46px;
-  padding: 0 10px;
-  border-bottom: 1px solid #e7eff2;
+  height: 50px;
+  padding: 0 12px;
+  border-bottom: 1px solid #f1f5f9;
   text-align: center;
   vertical-align: middle;
-  line-height: 1.2;
+  line-height: 1.3;
   font-variant-numeric: tabular-nums;
+  transition: all 0.15s ease;
 }}
-.cml-table td:first-child {{ color: #087b8e; font-weight: 700; }}
-.cml-table th:nth-child(2), .cml-table td:nth-child(2) {{ text-align: left; }}
-.cml-table td:nth-child(3), .cml-table td:nth-child(4), .cml-table td:nth-child(5),
-.cml-table td:nth-child(6), .cml-table td:nth-child(8), .cml-table td:nth-child(9),
-.cml-table td:nth-child(10) {{ text-align: right; }}
-.cml-table td:nth-child(7) {{ text-align: center; color: #315b6a; font-weight: 700; }}
+.cml-table td:first-child {{
+  color: var(--cml-primary-dark);
+  font-weight: 800;
+  font-size: 14px;
+}}
+.cml-table th:nth-child(2),
+.cml-table td:nth-child(2) {{
+  text-align: left;
+}}
+.cml-table td:nth-child(3),
+.cml-table td:nth-child(4),
+.cml-table td:nth-child(5),
+.cml-table td:nth-child(6),
+.cml-table td:nth-child(8),
+.cml-table td:nth-child(9),
+.cml-table td:nth-child(10) {{
+  text-align: right;
+}}
+.cml-table td:nth-child(7) {{
+  text-align: center;
+  color: var(--cml-muted);
+  font-weight: 800;
+}}
+
+.cml-table tbody tr {{
+  transition: all 0.2s ease;
+}}
+.cml-table tbody tr:nth-child(even) {{
+  background: #fafafa;
+}}
+.cml-table tbody tr:hover {{
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  transform: scale(1.005);
+}}
+.cml-table tbody tr:last-child td {{
+  border-bottom: 0;
+}}
+
+/* ROW COLORI PER METEO */
+.cml-table tr.cml-row-sereno:hover {{
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%) !important;
+}}
+.cml-table tr.cml-row-nuvoloso:hover {{
+  background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%) !important;
+}}
+.cml-table tr.cml-row-pioggia:hover {{
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%) !important;
+}}
+.cml-table tr.cml-row-neve:hover {{
+  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%) !important;
+}}
+.cml-table tr.cml-row-temporale:hover {{
+  background: linear-gradient(135deg, #e9d5ff 0%, #d8b4fe 100%) !important;
+}}
 
 .cml-table-condition {{
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 9px;
+  gap: 12px;
   width: 100%;
   min-width: 0;
 }}
@@ -889,44 +1367,70 @@ body {{
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  flex: 0 0 30px;
-  width: 30px;
-  min-width: 30px;
-  font-size: 19px;
+  flex: 0 0 34px;
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  font-size: 20px;
   line-height: 1;
   text-align: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
 }}
 .cml-table-scenario {{
   display: block;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  line-height: 1.2;
+  line-height: 1.3;
+  font-weight: 600;
 }}
 
-.cml-table tbody tr:nth-child(even) {{ background: #f4f9fa; }}
-.cml-table tbody tr:hover {{ background: #e5f4f6; }}
-.cml-table tbody tr:last-child td {{ border-bottom: 0; }}
-
+/* RIGHE NOTTURNE */
 .cml-table tr.cml-night-row {{
-  background: linear-gradient(90deg, #111d42 0%, #1d2c59 100%) !important;
-  color: #edf4ff !important;
+  background: linear-gradient(90deg, #0f172a 0%, #1e293b 100%) !important;
 }}
-.cml-table tr.cml-night-row .cml-table-icon {{ opacity: 1; filter: none; font-size: 20px; }}
-.cml-table tr.cml-night-row .cml-table-scenario {{ color: #f4dda0; font-weight: 700; }}
-.cml-table tr.cml-night-row td:first-child {{ color: #a8e5ef; }}
-.cml-table tr.cml-night-row td:nth-child(7) {{ color: #d4e8f5; }}
+.cml-table tr.cml-night-row td {{
+  color: #e2e8f0 !important;
+  border-bottom-color: #334155 !important;
+}}
+.cml-table tr.cml-night-row .cml-table-icon {{
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  color: #fde68a;
+  font-size: 22px;
+  box-shadow: 0 2px 8px rgba(253, 230, 138, 0.3);
+}}
+.cml-table tr.cml-night-row .cml-table-scenario {{
+  color: #fde68a !important;
+  font-weight: 800;
+}}
+.cml-table tr.cml-night-row td:first-child {{
+  color: #7dd3fc !important;
+}}
+.cml-table tr.cml-night-row td:nth-child(7) {{
+  color: #bae6fd !important;
+}}
+.cml-table tr.cml-night-row:hover {{
+  background: linear-gradient(90deg, #1e293b 0%, #334155 100%) !important;
+}}
 
+/* NOTE */
 .cml-note {{
-  margin: 14px 0 20px;
-  padding: 13px 16px;
-  border: 1px solid #f2e3bf;
-  border-left: 4px solid #e5ad4f;
-  border-radius: 11px;
-  background: #fff9ea;
-  color: #625237;
+  margin: 20px 0 24px;
+  padding: 18px 22px;
+  border: 2px solid #fde68a;
+  border-left: 5px solid #f59e0b;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  color: #78350f;
   font-size: 13px;
-  line-height: 1.6;
+  line-height: 1.7;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.15);
+}}
+.cml-note b {{
+  color: #92400e;
+  font-weight: 800;
 }}
 </style>
 
@@ -989,8 +1493,8 @@ function mostraGiorno(dataId, btn) {{
 <div class="cml-radar-box">
   <div class="cml-radar-header">
     <div>
-      <h2>📡 Radar Precipitazioni Live (Mosaico Nazionale DPC)</h2>
-      <div style="font-size:12px;color:#607987;margin-top:2px;">Riflettività radar Doppler e precipitazioni in tempo reale centrate sulla posizione selezionata.</div>
+      <h2>📡 Radar Precipitazioni Live</h2>
+      <div style="font-size:12px;color:var(--cml-muted);margin-top:2px;">Mosaico Nazionale DPC · Riflettività radar in tempo reale</div>
     </div>
     <div class="cml-radar-controls">
       <button class="cml-radar-btn" id="btn-play" onclick="togglePlay()">⏸️ Pausa</button>
@@ -998,8 +1502,8 @@ function mostraGiorno(dataId, btn) {{
   </div>
   <div id="radar-map"></div>
   <div class="cml-radar-legend">
-    <div>⚡ <b>Rete Radar:</b> Dipartimento Protezione Civile (DPC) &bull; Mappa OpenStreetMap</div>
-    <div>Scansione radar: <span id="radar-timestamp" class="cml-radar-time">Caricamento frame in corso...</span></div>
+    <div>⚡ <b>Rete Radar:</b> Dipartimento Protezione Civile (DPC)</div>
+    <div>Scansione: <span id="radar-timestamp" class="cml-radar-time">Caricamento...</span></div>
   </div>
 </div>
 
@@ -1007,19 +1511,19 @@ function mostraGiorno(dataId, btn) {{
   <div>
     <span>ORIZZONTE PREVISIONALE</span>
     <h2>📅 I prossimi tre giorni</h2>
-    <p>Condizione prevalente diurna, nuvolosità media, temperature, precipitazioni, vento e ciclo lunare.</p>
+    <p>Condizione prevalente diurna, nuvolosità, temperature, precipitazioni, vento e ciclo lunare.</p>
   </div>
   <div class="cml-pill">72 ore</div>
 </div>
 <div class="cml-days-grid">{''.join(carte_html)}</div>
 <div class="cml-note">
-  ℹ️ Le schede giornaliere riportano la <b>condizione meteorologica prevalente e la nuvolosità media delle ore diurne</b> (dall'alba al tramonto). I valori di temperatura, vento e pioggia rappresentano gli estremi e i cumulati delle 24 ore.
+  ℹ️ Le schede mostrano la <b>condizione prevalente e la nuvolosità media diurna</b> (alba-tramonto). Temperature, vento e pioggia sono valori estremi/cumulati sulle 24h.
 </div>
 
 <div class="cml-hour-header">
   <span>DETTAGLIO ORARIO</span>
   <h2>🕒 Previsione ora per ora</h2>
-  <p>Seleziona uno dei giorni sottostanti per visualizzare l'evoluzione oraria dettagliata del modello deterministico ICON-2I.</p>
+  <p>Seleziona un giorno per vedere l'evoluzione oraria del modello ICON-2I.</p>
 </div>
 
 <div class="cml-tabs-bar">
@@ -1029,7 +1533,7 @@ function mostraGiorno(dataId, btn) {{
 {''.join(sezioni_tabelle_html)}
 
 <div class="cml-note">
-  ℹ️ <b>Modello ICON-2I:</b> Previsione deterministica ad alta risoluzione (2.2 km) prodotta da ItaliaMeteo–ARPAE. Aggiornata due volte al giorno (00 e 12 UTC) con orizzonte di 72 ore. I valori di precipitazione sono accumuli orari (mm). [20][23]
+  ℹ️ <b>Modello ICON-2I:</b> Previsione deterministica ad alta risoluzione (2.2 km) di ItaliaMeteo–ARPAE. Aggiornata 2× al giorno (00/12 UTC), orizzonte 72h. [5][20]
 </div>
 
 <script>
@@ -1052,8 +1556,8 @@ L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
 var redPinIcon = L.divIcon({{
   className: 'cml-pin-wrapper',
   html: '<div class="cml-map-pin"></div>',
-  iconSize: [18, 18],
-  iconAnchor: [9, 9]
+  iconSize: [20, 20],
+  iconAnchor: [10, 10]
 }});
 L.marker([lat, lon], {{icon: redPinIcon, title: '{html.escape(luogo)}'}}).addTo(map);
 
@@ -1151,7 +1655,7 @@ try:
         df_ore, df_giorni = prepara(dati_meteo)
 
     doc_html = genera_app_completa(luogo, lat, lon, dati_meteo, df_ore, df_giorni)
-    components.html(doc_html, height=2650, scrolling=True)
+    components.html(doc_html, height=2800, scrolling=True)
 
 except Exception as errore:
     st.error(f"{errore}")

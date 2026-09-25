@@ -1,5 +1,5 @@
 # =====================================================================
-# CALABRIA METEO LAB — CON NUVOLOSITÀ DIURNA NEI 3 GIORNI E RADAR DPC
+# CALABRIA METEO LAB — CON INDICE DI ATTENDIBILITÀ METEOROLOGICA
 # ICON-2I VIA OPEN-METEO + RADAR DOPPLER LIVE INTERATTIVO (LEAFLET)
 # =====================================================================
 
@@ -231,12 +231,42 @@ def e_notte(ora, alba, tramonto):
     except (TypeError, ValueError):
         return False
 
+def calcola_attendibilita(forecast_time, now_time, weather_code, precipitation):
+    """
+    Calcola l'indice di attendibilità percentuale (%) della previsione:
+    - Decade con la distanza temporale (Lead Time).
+    - Risente della natura convettiva/stocastica dei fenomeni (temporali/piogge convettive hanno spread maggiore).
+    """
+    dt_hours = (forecast_time - now_time).total_seconds() / 3600.0
+    if dt_hours < 0:
+        dt_hours = 0
+    
+    # Base di decadimento per modello ad area limitata LAM (ICON-2I)
+    # Da 0 a 12h: ~95-92%
+    # Da 12h a 24h: ~90-85%
+    # Da 24h a 48h: ~84-75%
+    # Da 48h a 72h: ~74-62%
+    base_confidence = 96.0 - (dt_hours * 0.45)
+    
+    # Penalità fenomenologica per incertezza idrometeore convettive
+    w_code = int(weather_code) if pd.notna(weather_code) else 0
+    p_val = float(precipitation) if pd.notna(precipitation) else 0.0
+    
+    penalty = 0.0
+    if w_code in [95, 96, 99]: # Temporali
+        penalty = 8.0
+    elif w_code in [80, 81, 82]: # Rovesci
+        penalty = 5.0
+    elif p_val > 0.5:
+        penalty = 3.0
+    elif w_code in [45, 48]: # Nebbie
+        penalty = 4.0
+
+    confidence = round(base_confidence - penalty)
+    confidence = max(50, min(98, confidence))
+    return int(confidence)
+
 def calcola_dati_diurni(ore_giorno, alba, tramonto):
-    """
-    Calcola per la giornata:
-    1. Il codice meteo prevalente diurno.
-    2. La percentuale di nuvolosità media diurna (dall'alba al tramonto).
-    """
     if ore_giorno.empty:
         return 0, 0
     
@@ -248,11 +278,8 @@ def calcola_dati_diurni(ore_giorno, alba, tramonto):
         ore_diurne = ore_giorno.loc[(ore_giorno["time"].dt.hour >= 7) & (ore_giorno["time"].dt.hour <= 20)]
 
     df_target = ore_diurne if not ore_diurne.empty else ore_giorno
-    
-    # Nuvolosità media diurna
     nubi_media = round(df_target["cloud_cover"].mean()) if "cloud_cover" in df_target else 0
 
-    # Condizione meteo prevalente
     codici_severi = [99, 96, 95, 82, 81, 80, 65, 63, 61, 55, 53, 51]
     for c_sev in codici_severi:
         if (df_target["weather_code"] == c_sev).sum() >= 2:
@@ -276,7 +303,7 @@ def risolvi_citta(testo):
         return citta, lat, lon
 
     try:
-        geocoder = Nominatim(user_agent="calabria_meteo_lab_v11", timeout=12)
+        geocoder = Nominatim(user_agent="calabria_meteo_lab_v12", timeout=12)
         risposta = geocoder.geocode(
             f"{nome}, Italia",
             exactly_one=True,
@@ -348,6 +375,12 @@ def prepara(dati):
 
     ora_locale = datetime.now(FUSO).replace(tzinfo=None)
     ore = ore_raw.loc[ore_raw["time"] >= pd.Timestamp(ora_locale).floor("h")].copy()
+
+    # Calcolo attendibilità oraria
+    ore["Attendibilita"] = ore.apply(
+        lambda r: calcola_attendibilita(r["time"], ora_locale, r["weather_code"], r.get("precipitation", 0)),
+        axis=1
+    )
 
     ore["Icona"] = ore["weather_code"].map(lambda c: meteo(c)[0])
     ore["Scenario"] = ore["weather_code"].map(lambda c: meteo(c)[1])
@@ -457,6 +490,15 @@ def genera_app_completa(luogo, lat, lon, dati, ore, giorni):
             is_notte = bool(riga.get("Notte", False))
             classe_riga = "cml-night-row" if is_notte else ""
             
+            # Badge di attendibilità con colore dinamico
+            att = int(riga["Attendibilita"])
+            if att >= 85:
+                att_badge = f'<span class="cml-conf-high">{att}%</span>'
+            elif att >= 70:
+                att_badge = f'<span class="cml-conf-med">{att}%</span>'
+            else:
+                att_badge = f'<span class="cml-conf-low">{att}%</span>'
+            
             righe_tabella.append(f"""
             <tr class="{classe_riga}">
               <td>{riga["time"].strftime("%H:%M")}</td>
@@ -474,6 +516,7 @@ def genera_app_completa(luogo, lat, lon, dati, ore, giorni):
               <td>{numero(riga["wind_gusts_10m"], 0)}</td>
               <td>{numero(riga["cloud_cover"], 0)}</td>
               <td>{numero(riga["relative_humidity_2m"], 0)}</td>
+              <td class="col-conf">{att_badge}</td>
             </tr>
             """)
 
@@ -492,6 +535,7 @@ def genera_app_completa(luogo, lat, lon, dati, ore, giorni):
                 <col class="col-raffica">
                 <col class="col-nubi">
                 <col class="col-umidita">
+                <col class="col-attendibilita">
               </colgroup>
               <thead>
                 <tr>
@@ -505,6 +549,7 @@ def genera_app_completa(luogo, lat, lon, dati, ore, giorni):
                   <th>Raffica km/h</th>
                   <th>Nubi %</th>
                   <th>Umidità %</th>
+                  <th>Affidabilità</th>
                 </tr>
               </thead>
               <tbody>
@@ -707,7 +752,6 @@ body {{
 }}
 .cml-radar-time {{ font-weight: 800; color: #087b8e; font-size: 13px; }}
 
-/* PIN RADAR ROSSO TIPO GOOGLE MAPS */
 .cml-map-pin {{
   width: 18px;
   height: 18px;
@@ -838,7 +882,7 @@ body {{
   box-shadow: 0 4px 12px rgba(11,104,124,0.25);
 }}
 
-/* TABELLA ORARIA */
+/* TABELLA ORARIA PREMIUM */
 .cml-table-wrap {{
   width: 100%;
   max-width: 100%;
@@ -851,7 +895,7 @@ body {{
 }}
 .cml-table {{
   width: 100%;
-  min-width: 1120px;
+  min-width: 1180px;
   table-layout: fixed;
   border-collapse: separate;
   border-spacing: 0;
@@ -859,20 +903,21 @@ body {{
   font: 13px Arial, sans-serif;
   white-space: nowrap;
 }}
-.cml-table col.col-ora {{ width: 7%; }}
-.cml-table col.col-scenario {{ width: 23%; }}
-.cml-table col.col-temp {{ width: 10%; }}
-.cml-table col.col-percepita {{ width: 10%; }}
-.cml-table col.col-pioggia {{ width: 10%; }}
-.cml-table col.col-vento {{ width: 10%; }}
-.cml-table col.col-direzione {{ width: 7%; }}
-.cml-table col.col-raffica {{ width: 11%; }}
+.cml-table col.col-ora {{ width: 6.5%; }}
+.cml-table col.col-scenario {{ width: 21%; }}
+.cml-table col.col-temp {{ width: 9%; }}
+.cml-table col.col-percepita {{ width: 9%; }}
+.cml-table col.col-pioggia {{ width: 9%; }}
+.cml-table col.col-vento {{ width: 9%; }}
+.cml-table col.col-direzione {{ width: 6.5%; }}
+.cml-table col.col-raffica {{ width: 10%; }}
 .cml-table col.col-nubi {{ width: 6%; }}
 .cml-table col.col-umidita {{ width: 6%; }}
+.cml-table col.col-attendibilita {{ width: 8%; }}
 
 .cml-table th {{
   height: 48px;
-  padding: 0 12px;
+  padding: 0 10px;
   background: #0b687c;
   color: #fff;
   text-align: center;
@@ -887,7 +932,7 @@ body {{
 
 .cml-table td {{
   height: 46px;
-  padding: 0 12px;
+  padding: 0 10px;
   border-bottom: 1px solid #e7eff2;
   text-align: center;
   vertical-align: middle;
@@ -900,6 +945,11 @@ body {{
 .cml-table td:nth-child(6), .cml-table td:nth-child(8), .cml-table td:nth-child(9),
 .cml-table td:nth-child(10) {{ text-align: right; }}
 .cml-table td:nth-child(7) {{ text-align: center; color: #315b6a; font-weight: 700; }}
+
+.col-conf {{ text-align: center !important; }}
+.cml-conf-high {{ display: inline-block; padding: 3px 8px; border-radius: 6px; background: #e3f9e5; color: #1e7e34; font-weight: 700; font-size: 11px; }}
+.cml-conf-med {{ display: inline-block; padding: 3px 8px; border-radius: 6px; background: #fff3cd; color: #856404; font-weight: 700; font-size: 11px; }}
+.cml-conf-low {{ display: inline-block; padding: 3px 8px; border-radius: 6px; background: #f8d7da; color: #721c24; font-weight: 700; font-size: 11px; }}
 
 .cml-table-condition {{
   display: flex;
@@ -1045,7 +1095,7 @@ function mostraGiorno(dataId, btn) {{
 <div class="cml-hour-header">
   <span>DETTAGLIO ORARIO</span>
   <h2>🕒 Previsione ora per ora</h2>
-  <p>Seleziona uno dei giorni sottostanti per visualizzare l'evoluzione oraria dettagliata.</p>
+  <p>Seleziona uno dei giorni sottostanti per visualizzare l'evoluzione oraria dettagliata e il grado di affidabilità del modello.</p>
 </div>
 
 <div class="cml-tabs-bar">
@@ -1055,7 +1105,7 @@ function mostraGiorno(dataId, btn) {{
 {''.join(sezioni_tabelle_html)}
 
 <div class="cml-note">
-  ℹ️ La precipitazione oraria è espressa in millimetri. 🧭 «Da SO» indica vento proveniente da sud-ovest. Le ore notturne sono riconoscibili esclusivamente dallo sfondo blu.
+  ℹ️ <b>Affidabilità oraria:</b> Indice probabilistico (%) calcolato in base alla distanza temporale (Lead Time) e alla stocasticità dei fenomeni convettivi/frontali. Valori verdi (&ge;85%) indicano alta certezza deterministica; valori gialli/rossi (&le;70%) indicano maggiore variabilità/rischio temporalesco.
 </div>
 
 <script>

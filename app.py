@@ -1,6 +1,6 @@
 # =====================================================================
-# CALABRIA METEO LAB — VERSIONE CON METEO PREVALENTE DIURNO + PIN MAPPA
-# ICON-2I VIA OPEN-METEO + RADAR DOPPLER NAZIONALE DPC
+# CALABRIA METEO LAB — CON NUVOLOSITÀ DIURNA NEI 3 GIORNI E RADAR DPC
+# ICON-2I VIA OPEN-METEO + RADAR DOPPLER LIVE INTERATTIVO (LEAFLET)
 # =====================================================================
 
 import html
@@ -231,17 +231,15 @@ def e_notte(ora, alba, tramonto):
     except (TypeError, ValueError):
         return False
 
-def calcola_codice_prevalente(ore_giorno, alba, tramonto):
+def calcola_dati_diurni(ore_giorno, alba, tramonto):
     """
-    Determina la condizione meteorologica prevalente:
-    1. Filtra le ore diurne (dall'alba al tramonto, o fascia 07:00-20:00).
-    2. Se ci sono precipitazioni/temporali significativi diurni, dà priorità alla pioggia.
-    3. Altrimenti seleziona la condizione a frequenza statistica modale (più presente durante il giorno).
+    Calcola per la giornata:
+    1. Il codice meteo prevalente diurno.
+    2. La percentuale di nuvolosità media diurna (dall'alba al tramonto).
     """
     if ore_giorno.empty:
-        return 0
+        return 0, 0
     
-    # Filtra ore diurne
     if alba is not None and tramonto is not None:
         alba_t = pd.Timestamp(alba)
         tramonto_t = pd.Timestamp(tramonto)
@@ -251,14 +249,17 @@ def calcola_codice_prevalente(ore_giorno, alba, tramonto):
 
     df_target = ore_diurne if not ore_diurne.empty else ore_giorno
     
-    # Se ci sono piogge/temporali per almeno 2 ore nel giorno, segnala pioggia/temporale prevalente
+    # Nuvolosità media diurna
+    nubi_media = round(df_target["cloud_cover"].mean()) if "cloud_cover" in df_target else 0
+
+    # Condizione meteo prevalente
     codici_severi = [99, 96, 95, 82, 81, 80, 65, 63, 61, 55, 53, 51]
     for c_sev in codici_severi:
         if (df_target["weather_code"] == c_sev).sum() >= 2:
-            return c_sev
+            return c_sev, nubi_media
 
-    # Altrimenti calcola la moda statistica
-    return df_target["weather_code"].mode()[0]
+    cod_prev = df_target["weather_code"].mode()[0] if not df_target.empty else 0
+    return cod_prev, nubi_media
 
 def risolvi_citta(testo):
     nome = testo.strip()
@@ -275,7 +276,7 @@ def risolvi_citta(testo):
         return citta, lat, lon
 
     try:
-        geocoder = Nominatim(user_agent="calabria_meteo_lab_v10", timeout=12)
+        geocoder = Nominatim(user_agent="calabria_meteo_lab_v11", timeout=12)
         risposta = geocoder.geocode(
             f"{nome}, Italia",
             exactly_one=True,
@@ -330,15 +331,18 @@ def prepara(dati):
     ore_raw["time"] = pd.to_datetime(ore_raw["time"])
     giorni["time"] = pd.to_datetime(giorni["time"])
 
-    # Ricalcola la condizione prevalente diurna per ogni giorno
     codici_prevalenti = []
+    nuvolosita_giornaliera = []
+
     for _, g in giorni.iterrows():
         g_data = g["time"].date()
         ore_del_giorno = ore_raw.loc[ore_raw["time"].dt.date == g_data]
-        cod_prev = calcola_codice_prevalente(ore_del_giorno, g.get("sunrise"), g.get("sunset"))
+        cod_prev, nubi_prev = calcola_dati_diurni(ore_del_giorno, g.get("sunrise"), g.get("sunset"))
         codici_prevalenti.append(cod_prev)
+        nuvolosita_giornaliera.append(nubi_prev)
 
     giorni["weather_code_prevalente"] = codici_prevalenti
+    giorni["cloud_cover_diurno"] = nuvolosita_giornaliera
     giorni["Da"] = giorni["wind_direction_10m_dominant"].map(direzione)
     giorni["Fase lunare"] = giorni["moon_phase"].map(fase_lunare)
 
@@ -390,8 +394,8 @@ def genera_app_completa(luogo, lat, lon, dati, ore, giorni):
     for idx, (_, r) in enumerate(giorni.iterrows()):
         tag = etichette[idx] if idx < len(etichette) else "PROSSIMAMENTE"
         
-        # USA IL CODICE METEO PREVALENTE DIURNO
         cod_effettivo = r.get("weather_code_prevalente", r["weather_code"])
+        nubi_effettive = r.get("cloud_cover_diurno", 0)
         ico, desc = meteo(cod_effettivo)
         fase = html.escape(str(r.get("Fase lunare", "🌙 Luna")))
         
@@ -418,6 +422,7 @@ def genera_app_completa(luogo, lat, lon, dati, ore, giorni):
               <strong class="cml-warm">↑ {numero(r["temperature_2m_max"], 1, "°")}</strong>
             </div>
           </div>
+          <div class="cml-day-row"><span>☁️ Nuvolosità diurna</span><b>{nubi_effettive}%</b></div>
           <div class="cml-day-row"><span>🌧️ Precipitazione</span><b>{numero(r["precipitation_sum"], 1, " mm")}</b></div>
           <div class="cml-day-row"><span>💨 Vento max</span><b>{numero(r["wind_speed_10m_max"], 0, " km/h")}</b></div>
           <div class="cml-day-row"><span>🌬️ Raffica max</span><b>{numero(r["wind_gusts_10m_max"], 0, " km/h")}</b></div>
@@ -1028,13 +1033,13 @@ function mostraGiorno(dataId, btn) {{
   <div>
     <span>ORIZZONTE PREVISIONALE</span>
     <h2>📅 I prossimi tre giorni</h2>
-    <p>Condizione prevalente diurna, temperature, precipitazioni, vento e ciclo lunare.</p>
+    <p>Condizione prevalente diurna, nuvolosità media, temperature, precipitazioni, vento e ciclo lunare.</p>
   </div>
   <div class="cml-pill">72 ore</div>
 </div>
 <div class="cml-days-grid">{''.join(carte_html)}</div>
 <div class="cml-note">
-  ℹ️ Le icone della scheda giornaliera sintetizzano la <b>condizione meteorologica prevalente delle ore diurne</b> (dall'alba al tramonto). I valori numerici rappresentano gli estremi e i cumulati delle 24 ore.
+  ℹ️ Le schede giornaliere riportano la <b>condizione meteorologica prevalente e la nuvolosità media delle ore diurne</b> (dall'alba al tramonto). I valori di temperatura, vento e pioggia rappresentano gli estremi e i cumulati delle 24 ore.
 </div>
 
 <div class="cml-hour-header">
@@ -1070,7 +1075,6 @@ L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
   maxZoom: 18
 }}).addTo(map);
 
-// PIN ROSSO MINIMAL TIPO MAPS (SENZA SCRITTE INGOMBRANTI)
 var redPinIcon = L.divIcon({{
   className: 'cml-pin-wrapper',
   html: '<div class="cml-map-pin"></div>',

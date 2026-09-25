@@ -11,6 +11,7 @@ from zoneinfo import ZoneInfo
 import pandas as pd
 import requests
 import streamlit as st
+from streamlit.components.v1 import html as st_html
 
 from geopy.exc import GeocoderServiceError, GeocoderTimedOut
 from geopy.geocoders import Nominatim
@@ -1209,8 +1210,10 @@ st.set_page_config(
     layout="wide",
 )
 
+# Inietta il CSS
 st.markdown(CSS, unsafe_allow_html=True)
 
+# Hero section
 st.markdown("""
 <div class="cml-hero">
   <div class="cml-brand">
@@ -1226,6 +1229,7 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
+# Form di input
 with st.form("meteo_form", clear_on_submit=False):
     citta_input = st.text_input(
         "Località",
@@ -1241,16 +1245,21 @@ if submitted:
             dati = scarica_previsione(lat, lon)
             ore, giorni = prepara(dati)
 
-        st.markdown(pannello_attuale(luogo, dati), unsafe_allow_html=True)
-        st.markdown(carte_giornaliere(giorni), unsafe_allow_html=True)
+        # Pannello attuale
+        st_html(pannello_attuale(luogo, dati), height=350)
+        
+        # Carte giornaliere
+        st_html(carte_giornaliere(giorni), height=900)
 
-        st.markdown("""
+        # Header tabella oraria
+        st_html("""
         <div class="cml-hour-header">
           <span>DETTAGLIO ORARIO</span>
           <h2>🕒 Previsione ora per ora</h2>
         </div>
-        """, unsafe_allow_html=True)
+        """, height=150)
 
+        # Selettore giorno
         date_disponibili = sorted(ore["time"].dt.date.unique())
         giorno_scelto = st.selectbox(
             "Giorno",
@@ -1259,16 +1268,19 @@ if submitted:
         )
 
         ore_giorno = ore.loc[ore["time"].dt.date == giorno_scelto]
-        st.markdown(tabella_html(ore_giorno), unsafe_allow_html=True)
+        
+        # Tabella oraria
+        st_html(tabella_html(ore_giorno), height=850)
 
-        st.markdown("""
+        # Nota finale
+        st_html("""
         <div class="cml-note">
           ℹ️ La precipitazione oraria è espressa in millimetri.
           🧭 «Da SO» indica vento proveniente da sud-ovest.
           Le ore notturne sono riconoscibili esclusivamente
           dallo sfondo blu.
         </div>
-        """, unsafe_allow_html=True)
+        """, height=120)
 
     except Exception as exc:
         st.error(f"❌ {exc}")

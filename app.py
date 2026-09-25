@@ -1,6 +1,6 @@
 # =====================================================================
-# CALABRIA METEO LAB — RADAR METEO NAZIONALE PROTEZIONE CIVILE
-# ICON-2I VIA OPEN-METEO + RADAR DOPPLER LIVE INTERATTIVO (LEAFLET)
+# CALABRIA METEO LAB — VERSIONE CON METEO PREVALENTE DIURNO + PIN MAPPA
+# ICON-2I VIA OPEN-METEO + RADAR DOPPLER NAZIONALE DPC
 # =====================================================================
 
 import html
@@ -231,6 +231,35 @@ def e_notte(ora, alba, tramonto):
     except (TypeError, ValueError):
         return False
 
+def calcola_codice_prevalente(ore_giorno, alba, tramonto):
+    """
+    Determina la condizione meteorologica prevalente:
+    1. Filtra le ore diurne (dall'alba al tramonto, o fascia 07:00-20:00).
+    2. Se ci sono precipitazioni/temporali significativi diurni, dà priorità alla pioggia.
+    3. Altrimenti seleziona la condizione a frequenza statistica modale (più presente durante il giorno).
+    """
+    if ore_giorno.empty:
+        return 0
+    
+    # Filtra ore diurne
+    if alba is not None and tramonto is not None:
+        alba_t = pd.Timestamp(alba)
+        tramonto_t = pd.Timestamp(tramonto)
+        ore_diurne = ore_giorno.loc[(ore_giorno["time"] >= alba_t) & (ore_giorno["time"] <= tramonto_t)]
+    else:
+        ore_diurne = ore_giorno.loc[(ore_giorno["time"].dt.hour >= 7) & (ore_giorno["time"].dt.hour <= 20)]
+
+    df_target = ore_diurne if not ore_diurne.empty else ore_giorno
+    
+    # Se ci sono piogge/temporali per almeno 2 ore nel giorno, segnala pioggia/temporale prevalente
+    codici_severi = [99, 96, 95, 82, 81, 80, 65, 63, 61, 55, 53, 51]
+    for c_sev in codici_severi:
+        if (df_target["weather_code"] == c_sev).sum() >= 2:
+            return c_sev
+
+    # Altrimenti calcola la moda statistica
+    return df_target["weather_code"].mode()[0]
+
 def risolvi_citta(testo):
     nome = testo.strip()
     if not nome:
@@ -246,7 +275,7 @@ def risolvi_citta(testo):
         return citta, lat, lon
 
     try:
-        geocoder = Nominatim(user_agent="calabria_meteo_lab_v9", timeout=12)
+        geocoder = Nominatim(user_agent="calabria_meteo_lab_v10", timeout=12)
         risposta = geocoder.geocode(
             f"{nome}, Italia",
             exactly_one=True,
@@ -295,18 +324,26 @@ def scarica_previsione(lat, lon):
         raise RuntimeError(f"Errore nella ricezione dei dati dal modello ICON-2I: {exc}")
 
 def prepara(dati):
-    ore = pd.DataFrame(dati["hourly"])
+    ore_raw = pd.DataFrame(dati["hourly"])
     giorni = pd.DataFrame(dati["daily"])
 
-    ore["time"] = pd.to_datetime(ore["time"])
+    ore_raw["time"] = pd.to_datetime(ore_raw["time"])
     giorni["time"] = pd.to_datetime(giorni["time"])
 
-    ora_locale = datetime.now(FUSO).replace(tzinfo=None)
-    ore = ore.loc[ore["time"] >= pd.Timestamp(ora_locale).floor("h")].copy()
+    # Ricalcola la condizione prevalente diurna per ogni giorno
+    codici_prevalenti = []
+    for _, g in giorni.iterrows():
+        g_data = g["time"].date()
+        ore_del_giorno = ore_raw.loc[ore_raw["time"].dt.date == g_data]
+        cod_prev = calcola_codice_prevalente(ore_del_giorno, g.get("sunrise"), g.get("sunset"))
+        codici_prevalenti.append(cod_prev)
 
-    giorni["Scenario"] = giorni["weather_code"].map(lambda c: " ".join(meteo(c)))
+    giorni["weather_code_prevalente"] = codici_prevalenti
     giorni["Da"] = giorni["wind_direction_10m_dominant"].map(direzione)
     giorni["Fase lunare"] = giorni["moon_phase"].map(fase_lunare)
+
+    ora_locale = datetime.now(FUSO).replace(tzinfo=None)
+    ore = ore_raw.loc[ore_raw["time"] >= pd.Timestamp(ora_locale).floor("h")].copy()
 
     ore["Icona"] = ore["weather_code"].map(lambda c: meteo(c)[0])
     ore["Scenario"] = ore["weather_code"].map(lambda c: meteo(c)[1])
@@ -352,7 +389,10 @@ def genera_app_completa(luogo, lat, lon, dati, ore, giorni):
     carte_html = []
     for idx, (_, r) in enumerate(giorni.iterrows()):
         tag = etichette[idx] if idx < len(etichette) else "PROSSIMAMENTE"
-        ico, desc = meteo(r["weather_code"])
+        
+        # USA IL CODICE METEO PREVALENTE DIURNO
+        cod_effettivo = r.get("weather_code_prevalente", r["weather_code"])
+        ico, desc = meteo(cod_effettivo)
         fase = html.escape(str(r.get("Fase lunare", "🌙 Luna")))
         
         carte_html.append(f"""
@@ -662,6 +702,16 @@ body {{
 }}
 .cml-radar-time {{ font-weight: 800; color: #087b8e; font-size: 13px; }}
 
+/* PIN RADAR ROSSO TIPO GOOGLE MAPS */
+.cml-map-pin {{
+  width: 18px;
+  height: 18px;
+  background: #e63946;
+  border: 3px solid #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px rgba(230,57,70,0.5), 0 3px 8px rgba(0,0,0,0.4);
+}}
+
 /* 3 GIORNI */
 .cml-section-title {{
   display: flex;
@@ -925,7 +975,7 @@ function mostraGiorno(dataId, btn) {{
   </div>
   <h1>Calabria Meteo Lab</h1>
   <p>
-    Previsione ad alta risoluzione per la Calabria.
+    Previsione puntuale ad alta risoluzione per la Calabria.
     Cerca una località e leggi subito temperatura, cielo, vento,
     precipitazioni e sviluppo delle prossime 72 ore.
   </p>
@@ -936,7 +986,7 @@ function mostraGiorno(dataId, btn) {{
     <div class="cml-place-block">
       <div class="cml-kicker">
         <span class="cml-live-dot"></span>
-        ICON-2I · PREVISIONE
+        ICON-2I · PREVISIONE PUNTUALE
       </div>
       <h2>📍 {html.escape(luogo)}</h2>
       <div class="cml-condition">
@@ -961,7 +1011,7 @@ function mostraGiorno(dataId, btn) {{
   <div class="cml-radar-header">
     <div>
       <h2>📡 Radar Precipitazioni Live (Mosaico Nazionale DPC)</h2>
-      <div style="font-size:12px;color:#607987;margin-top:2px;">Riflettività radar Doppler e precipitazioni in tempo reale centrate su <b>{html.escape(luogo)}</b>.</div>
+      <div style="font-size:12px;color:#607987;margin-top:2px;">Riflettività radar Doppler e precipitazioni in tempo reale centrate sulla posizione selezionata.</div>
     </div>
     <div class="cml-radar-controls">
       <button class="cml-radar-btn" id="btn-play" onclick="togglePlay()">⏸️ Pausa</button>
@@ -978,13 +1028,13 @@ function mostraGiorno(dataId, btn) {{
   <div>
     <span>ORIZZONTE PREVISIONALE</span>
     <h2>📅 I prossimi tre giorni</h2>
-    <p>Temperature, precipitazioni, vento e ciclo lunare in una lettura immediata.</p>
+    <p>Condizione prevalente diurna, temperature, precipitazioni, vento e ciclo lunare.</p>
   </div>
   <div class="cml-pill">72 ore</div>
 </div>
 <div class="cml-days-grid">{''.join(carte_html)}</div>
 <div class="cml-note">
-  ℹ️ Le icone rappresentano la condizione meteorologica prevalente prevista dal modello. I valori sono riferiti alla località selezionata.
+  ℹ️ Le icone della scheda giornaliera sintetizzano la <b>condizione meteorologica prevalente delle ore diurne</b> (dall'alba al tramonto). I valori numerici rappresentano gli estremi e i cumulati delle 24 ore.
 </div>
 
 <div class="cml-hour-header">
@@ -1020,13 +1070,14 @@ L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
   maxZoom: 18
 }}).addTo(map);
 
-var markerIcon = L.divIcon({{
-  className: 'custom-pin',
-  html: '<div style="background:#ed8750;color:#fff;font-weight:bold;padding:4px 8px;border-radius:12px;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.3);font-size:11px;white-space:nowrap;">📍 {html.escape(luogo)}</div>',
-  iconSize: [80, 30],
-  iconAnchor: [40, 15]
+// PIN ROSSO MINIMAL TIPO MAPS (SENZA SCRITTE INGOMBRANTI)
+var redPinIcon = L.divIcon({{
+  className: 'cml-pin-wrapper',
+  html: '<div class="cml-map-pin"></div>',
+  iconSize: [18, 18],
+  iconAnchor: [9, 9]
 }});
-L.marker([lat, lon], {{icon: markerIcon}}).addTo(map);
+L.marker([lat, lon], {{icon: redPinIcon, title: '{html.escape(luogo)}'}}).addTo(map);
 
 var timestamps = [];
 var radarLayers = {{}};
@@ -1040,7 +1091,6 @@ fetch('https://api.rainviewer.com/public/weather-maps.json')
     var frames = apiData.radar.past;
     timestamps = frames.map(f => f.time);
 
-    // Mosaico radar DPC/DWD ad alta riflettività con palette standard Protezione Civile (/2/1_1.png)
     frames.forEach(f => {{
       var layer = L.tileLayer('https://tilecache.rainviewer.com' + f.path + '/256/{{z}}/{{x}}/{{y}}/2/1_1.png', {{
         opacity: 0,
@@ -1112,7 +1162,7 @@ with st.form("search_form", clear_on_submit=False):
     with col_in:
         testo_citta = st.text_input(
             "Località",
-            value="Cosenza",
+            value="Lamezia Terme",
             placeholder="Scrivi es. Cosenza, Tropea, Soverato, Reggio Calabria, Catanzaro...",
             label_visibility="collapsed"
         )

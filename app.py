@@ -1,5 +1,5 @@
 # =====================================================================
-# CALABRIA METEO LAB — VERSIONE CON RADAR LIVE INTEGRATO
+# CALABRIA METEO LAB — VERSIONE CON RADAR LIVE INTEGRATO (OPENSTREETMAP)
 # ICON-2I VIA OPEN-METEO + RADAR DOPPLER/SATELLITE INTERATTIVO (LEAFLET)
 # =====================================================================
 
@@ -246,7 +246,7 @@ def risolvi_citta(testo):
         return citta, lat, lon
 
     try:
-        geocoder = Nominatim(user_agent="calabria_meteo_lab_v5", timeout=12)
+        geocoder = Nominatim(user_agent="calabria_meteo_lab_v6", timeout=12)
         risposta = geocoder.geocode(
             f"{nome}, Italia",
             exactly_one=True,
@@ -328,7 +328,7 @@ def prepara(dati):
     return ore.reset_index(drop=True), giorni.reset_index(drop=True)
 
 # =====================================================================
-# COSTRUZIONE DOCUMENTO MONOLITICO + RADAR LEAFLET INTERATTIVO
+# COSTRUZIONE DOCUMENTO MONOLITICO
 # =====================================================================
 def genera_app_completa(luogo, lat, lon, dati, ore, giorni):
     cur = dati["current"]
@@ -606,7 +606,7 @@ body {{
 }}
 .cml-current-footer b {{ color: #345967; }}
 
-/* RADAR LIVE SECTION */
+/* RADAR LIVE */
 .cml-radar-box {{
   border: 1px solid var(--cml-line);
   border-radius: 22px;
@@ -976,7 +976,7 @@ function mostraGiorno(dataId, btn) {{
   </div>
   <div id="radar-map"></div>
   <div class="cml-radar-legend">
-    <div>⚡ <b>Risoluzione:</b> Nazionale Protezione Civile / DWD via RainViewer</div>
+    <div>⚡ <b>Risoluzione:</b> Mosaico Radar Nazionale Protezione Civile via RainViewer &bull; Mappe OpenStreetMap</div>
     <div>Scansione: <span id="radar-timestamp" class="cml-radar-time">Caricamento frame...</span></div>
   </div>
 </div>
@@ -1011,7 +1011,7 @@ function mostraGiorno(dataId, btn) {{
 </div>
 
 <script>
-// ================= SCRIPT INIZIALIZZAZIONE RADAR RAINVIEWER =================
+// ================= SCRIPT INIZIALIZZAZIONE RADAR CON OPENSTREETMAP (NO API KEY) =================
 var lat = {lat};
 var lon = {lon};
 var map = L.map('radar-map', {{
@@ -1020,8 +1020,9 @@ var map = L.map('radar-map', {{
   zoomControl: true
 }});
 
-L.tileLayer('https://{{s}}.basemaps.cartocdn.com/rastertiles/voyager/{{z}}/{{x}}/{{y}}{{r}}.png', {{
-  attribution: '&copy; CartoDB &copy; OpenStreetMap',
+// Layer OpenStreetMap pubblico standard al 100% gratuito e senza API Key
+L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
   maxZoom: 18
 }}).addTo(map);
 
@@ -1108,7 +1109,7 @@ function setLayer(mode) {{
   document.getElementById('btn-rad').classList.toggle('active', mode === 'radar');
   document.getElementById('btn-sat').classList.toggle('active', mode === 'satellite');
   
-  // Aggiorna tile layer path
+  // Rimuovi vecchi layer
   Object.keys(radarLayers).forEach(t => {{
     map.removeLayer(radarLayers[t]);
   }});
@@ -1155,7 +1156,7 @@ with st.form("search_form", clear_on_submit=False):
 
 try:
     luogo, lat, lon = risolvi_citta(testo_citta)
-    with st.spinner(f"Elaborazione modello ICON-2I e connessione Radar Live per {luogo}..."):
+    with st.spinner(f"Elaborazione modello ICON-2I e Radar Live per {luogo}..."):
         dati_meteo = scarica_previsione(lat, lon)
         df_ore, df_giorni = prepara(dati_meteo)
 

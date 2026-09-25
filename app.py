@@ -1,3 +1,8 @@
+# =====================================================================
+# CALABRIA METEO LAB — CON PROBABILITÀ DI PRECIPITAZIONE (%)
+# ICON-2I VIA OPEN-METEO + RADAR DOPPLER LIVE INTERATTIVO (LEAFLET)
+# =====================================================================
+
 import html
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -229,20 +234,11 @@ def e_notte(ora, alba, tramonto):
         return False
 
 def calcola_attendibilita(forecast_time, now_time, weather_code, precipitation):
-    """
-    Calcola l'indice di attendibilità percentuale (%) della previsione:
-    - Decade con la distanza temporale (Lead Time).
-    - Risente della natura convettiva/stocastica dei fenomeni (temporali/piogge convettive hanno spread maggiore).
-    
-    NOTA: Open-Meteo NON fornisce un confidence index nativo per ICON-2I.
-    Questo è un approccio euristico basato su lead-time e tipologia fenomeno.
-    """
     dt_hours = (forecast_time - now_time).total_seconds() / 3600.0
     if dt_hours < 0:
         dt_hours = 0
     
     base_confidence = 96.0 - (dt_hours * 0.45)
-    
     w_code = int(weather_code) if pd.notna(weather_code) else 0
     p_val = float(precipitation) if pd.notna(precipitation) else 0.0
     
@@ -297,7 +293,7 @@ def risolvi_citta(testo):
         return citta, lat, lon
 
     try:
-        geocoder = Nominatim(user_agent="calabria_meteo_lab_v12", timeout=12)
+        geocoder = Nominatim(user_agent="calabria_meteo_lab_v14", timeout=12)
         risposta = geocoder.geocode(
             f"{nome}, Italia",
             exactly_one=True,
@@ -393,7 +389,10 @@ def prepara(dati):
     )
 
     return ore.reset_index(drop=True), giorni.reset_index(drop=True)
-    
+
+# =====================================================================
+# COSTRUZIONE DOCUMENTO MONOLITICO
+# =====================================================================
 def genera_app_completa(luogo, lat, lon, dati, ore, giorni):
     cur = dati["current"]
     ico_cur, desc_cur = meteo(cur.get("weather_code"))
@@ -419,6 +418,8 @@ def genera_app_completa(luogo, lat, lon, dati, ore, giorni):
         
         cod_effettivo = r.get("weather_code_prevalente", r["weather_code"])
         nubi_effettive = r.get("cloud_cover_diurno", 0)
+        prob_pioggia_max = numero(r.get("precipitation_probability_max"), 0, "%") if pd.notna(r.get("precipitation_probability_max")) else "—"
+        
         ico, desc = meteo(cod_effettivo)
         fase = html.escape(str(r.get("Fase lunare", "🌙 Luna")))
         
@@ -447,7 +448,7 @@ def genera_app_completa(luogo, lat, lon, dati, ore, giorni):
           </div>
           <div class="cml-day-row"><span>☁️ Nuvolosità diurna</span><b>{nubi_effettive}%</b></div>
           <div class="cml-day-row"><span>🌧️ Precipitazione</span><b>{numero(r["precipitation_sum"], 1, " mm")}</b></div>
-          <div class="cml-day-row"><span>🌦️ Prob. pioggia max</span><b>{numero(r["precipitation_probability_max"], 0, " %")}</b></div>
+          <div class="cml-day-row"><span>☔ Probabilità pioggia</span><b style="color:#087b8e;">{prob_pioggia_max}</b></div>
           <div class="cml-day-row"><span>💨 Vento max</span><b>{numero(r["wind_speed_10m_max"], 0, " km/h")}</b></div>
           <div class="cml-day-row"><span>🌬️ Raffica max</span><b>{numero(r["wind_gusts_10m_max"], 0, " km/h")}</b></div>
           <div class="cml-day-row"><span>🧭 Direzione dom.</span><b>{html.escape(str(r["Da"]))}</b></div>
@@ -481,6 +482,14 @@ def genera_app_completa(luogo, lat, lon, dati, ore, giorni):
             is_notte = bool(riga.get("Notte", False))
             classe_riga = "cml-night-row" if is_notte else ""
             
+            # Formattazione probabilità pioggia oraria
+            prob_ora = riga.get("precipitation_probability")
+            if pd.notna(prob_ora):
+                p_val = int(prob_ora)
+                prob_badge = f'<span class="cml-prob-tag" style="color:{"#087b8e" if p_val>0 else "#6a828f"};font-weight:700;">{p_val}%</span>'
+            else:
+                prob_badge = "—"
+
             att = int(riga["Attendibilita"])
             if att >= 85:
                 att_badge = f'<span class="cml-conf-high">{att}%</span>'
@@ -501,7 +510,7 @@ def genera_app_completa(luogo, lat, lon, dati, ore, giorni):
               <td>{numero(riga["temperature_2m"])}</td>
               <td>{numero(riga["apparent_temperature"])}</td>
               <td>{numero(riga["precipitation"])}</td>
-              <td>{numero(riga["precipitation_probability"], 0, " %")}</td>
+              <td class="col-prob">{prob_badge}</td>
               <td>{numero(riga["wind_speed_10m"], 0)}</td>
               <td>{riga["Da"]}</td>
               <td>{numero(riga["wind_gusts_10m"], 0)}</td>
@@ -520,8 +529,8 @@ def genera_app_completa(luogo, lat, lon, dati, ore, giorni):
                 <col class="col-scenario">
                 <col class="col-temp">
                 <col class="col-percepita">
-                <col class="col-pioggia-mm">
-                <col class="col-pioggia-pct">
+                <col class="col-pioggia">
+                <col class="col-prob-pioggia">
                 <col class="col-vento">
                 <col class="col-direzione">
                 <col class="col-raffica">
@@ -536,7 +545,7 @@ def genera_app_completa(luogo, lat, lon, dati, ore, giorni):
                   <th>Temp. °C</th>
                   <th>Percepita °C</th>
                   <th>Pioggia mm</th>
-                  <th>Pioggia %</th>
+                  <th>Prob. %</th>
                   <th>Vento km/h</th>
                   <th>Da</th>
                   <th>Raffica km/h</th>
@@ -574,6 +583,7 @@ body {{
   padding: 4px;
 }}
 
+/* HERO */
 .cml-hero {{
   position: relative;
   overflow: hidden;
@@ -616,6 +626,7 @@ body {{
 .cml-hero h1 {{ position: relative; margin: 15px 0 9px; font-size: 38px; letter-spacing: -1.2px; color: #fff; font-weight: bold; }}
 .cml-hero p {{ position: relative; max-width: 760px; margin: 0; color: #e1f7f8; font-size: 14px; line-height: 1.7; }}
 
+/* PANNELLO ATTUALE */
 .cml-current {{
   overflow: hidden;
   margin: 18px 0 30px;
@@ -687,6 +698,7 @@ body {{
 }}
 .cml-current-footer b {{ color: #345967; }}
 
+/* RADAR LIVE PROTEZIONE CIVILE */
 .cml-radar-box {{
   border: 1px solid var(--cml-line);
   border-radius: 22px;
@@ -751,6 +763,7 @@ body {{
   box-shadow: 0 0 0 2px rgba(230,57,70,0.5), 0 3px 8px rgba(0,0,0,0.4);
 }}
 
+/* 3 GIORNI */
 .cml-section-title {{
   display: flex;
   align-items: flex-end;
@@ -815,6 +828,7 @@ body {{
 .cml-astro-grid span {{ color: #718791; }}
 .cml-astro-grid b {{ color: #234c5b; }}
 
+/* HEADER DETTAGLIO ORARIO */
 .cml-hour-header {{
   position: relative;
   overflow: hidden;
@@ -839,6 +853,7 @@ body {{
 .cml-hour-header h2 {{ margin: 7px 0 5px; color: #b98cff; font-size: 24px; letter-spacing: -.4px; }}
 .cml-hour-header p {{ margin: 0; color: #d9e9ff; font-size: 13px; }}
 
+/* TABS SELETTORE GIORNI INTEGRATO */
 .cml-tabs-bar {{
   display: flex;
   gap: 10px;
@@ -869,6 +884,7 @@ body {{
   box-shadow: 0 4px 12px rgba(11,104,124,0.25);
 }}
 
+/* TABELLA ORARIA PREMIUM CON PROB. PIOGGIA */
 .cml-table-wrap {{
   width: 100%;
   max-width: 100%;
@@ -881,7 +897,7 @@ body {{
 }}
 .cml-table {{
   width: 100%;
-  min-width: 1240px;
+  min-width: 1200px;
   table-layout: fixed;
   border-collapse: separate;
   border-spacing: 0;
@@ -889,22 +905,22 @@ body {{
   font: 13px Arial, sans-serif;
   white-space: nowrap;
 }}
-.cml-table col.col-ora {{ width: 6%; }}
-.cml-table col.col-scenario {{ width: 19%; }}
-.cml-table col.col-temp {{ width: 8%; }}
-.cml-table col.col-percepita {{ width: 8%; }}
-.cml-table col.col-pioggia-mm {{ width: 8%; }}
-.cml-table col.col-pioggia-pct {{ width: 8%; }}
-.cml-table col.col-vento {{ width: 8%; }}
-.cml-table col.col-direzione {{ width: 6%; }}
+.cml-table col.col-ora {{ width: 6.5%; }}
+.cml-table col.col-scenario {{ width: 20%; }}
+.cml-table col.col-temp {{ width: 8.5%; }}
+.cml-table col.col-percepita {{ width: 8.5%; }}
+.cml-table col.col-pioggia {{ width: 8.5%; }}
+.cml-table col.col-prob-pioggia {{ width: 7.5%; }}
+.cml-table col.col-vento {{ width: 8.5%; }}
+.cml-table col.col-direzione {{ width: 6.5%; }}
 .cml-table col.col-raffica {{ width: 9%; }}
-.cml-table col.col-nubi {{ width: 6%; }}
-.cml-table col.col-umidita {{ width: 6%; }}
-.cml-table col.col-attendibilita {{ width: 8%; }}
+.cml-table col.col-nubi {{ width: 5.5%; }}
+.cml-table col.col-umidita {{ width: 5.5%; }}
+.cml-table col.col-attendibilita {{ width: 7.5%; }}
 
 .cml-table th {{
   height: 48px;
-  padding: 0 10px;
+  padding: 0 8px;
   background: #0b687c;
   color: #fff;
   text-align: center;
@@ -919,7 +935,7 @@ body {{
 
 .cml-table td {{
   height: 46px;
-  padding: 0 10px;
+  padding: 0 8px;
   border-bottom: 1px solid #e7eff2;
   text-align: center;
   vertical-align: middle;
@@ -929,20 +945,21 @@ body {{
 .cml-table td:first-child {{ color: #087b8e; font-weight: 700; }}
 .cml-table th:nth-child(2), .cml-table td:nth-child(2) {{ text-align: left; }}
 .cml-table td:nth-child(3), .cml-table td:nth-child(4), .cml-table td:nth-child(5),
-.cml-table td:nth-child(6), .cml-table td:nth-child(7), .cml-table td:nth-child(9),
-.cml-table td:nth-child(10), .cml-table td:nth-child(11) {{ text-align: right; }}
-.cml-table td:nth-child(8) {{ text-align: center; color: #315b6a; font-weight: 700; }}
+.cml-table td:nth-child(7), .cml-table td:nth-child(9), .cml-table td:nth-child(10),
+.cml-table td:nth-child(11) {{ text-align: right; }}
+.cml-table td:nth-child(6), .cml-table td:nth-child(8), .cml-table td:nth-child(12) {{ text-align: center; }}
 
+.col-dir {{ font-weight: 700; color: #315b6a; }}
 .col-conf {{ text-align: center !important; }}
-.cml-conf-high {{ display: inline-block; padding: 3px 8px; border-radius: 6px; background: #e3f9e5; color: #1e7e34; font-weight: 700; font-size: 11px; }}
-.cml-conf-med {{ display: inline-block; padding: 3px 8px; border-radius: 6px; background: #fff3cd; color: #856404; font-weight: 700; font-size: 11px; }}
-.cml-conf-low {{ display: inline-block; padding: 3px 8px; border-radius: 6px; background: #f8d7da; color: #721c24; font-weight: 700; font-size: 11px; }}
+.cml-conf-high {{ display: inline-block; padding: 3px 7px; border-radius: 6px; background: #e3f9e5; color: #1e7e34; font-weight: 700; font-size: 11px; }}
+.cml-conf-med {{ display: inline-block; padding: 3px 7px; border-radius: 6px; background: #fff3cd; color: #856404; font-weight: 700; font-size: 11px; }}
+.cml-conf-low {{ display: inline-block; padding: 3px 7px; border-radius: 6px; background: #f8d7da; color: #721c24; font-weight: 700; font-size: 11px; }}
 
 .cml-table-condition {{
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 9px;
+  gap: 8px;
   width: 100%;
   min-width: 0;
 }}
@@ -950,10 +967,10 @@ body {{
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  flex: 0 0 30px;
-  width: 30px;
-  min-width: 30px;
-  font-size: 19px;
+  flex: 0 0 28px;
+  width: 28px;
+  min-width: 28px;
+  font-size: 18px;
   line-height: 1;
   text-align: center;
 }}
@@ -969,6 +986,7 @@ body {{
 .cml-table tbody tr:hover {{ background: #e5f4f6; }}
 .cml-table tbody tr:last-child td {{ border-bottom: 0; }}
 
+/* RIGHE NOTTURNE */
 .cml-table tr.cml-night-row {{
   background: linear-gradient(90deg, #111d42 0%, #1d2c59 100%) !important;
   color: #edf4ff !important;
@@ -977,6 +995,7 @@ body {{
 .cml-table tr.cml-night-row .cml-table-scenario {{ color: #f4dda0; font-weight: 700; }}
 .cml-table tr.cml-night-row td:first-child {{ color: #a8e5ef; }}
 .cml-table tr.cml-night-row td:nth-child(8) {{ color: #d4e8f5; }}
+.cml-table tr.cml-night-row .cml-prob-tag {{ color: #a6f0ff !important; }}
 
 .cml-note {{
   margin: 14px 0 20px;
@@ -1047,6 +1066,7 @@ function mostraGiorno(dataId, btn) {{
   </div>
 </div>
 
+<!-- ================= RADAR METEO NAZIONALE PROTEZIONE CIVILE ================= -->
 <div class="cml-radar-box">
   <div class="cml-radar-header">
     <div>
@@ -1068,19 +1088,19 @@ function mostraGiorno(dataId, btn) {{
   <div>
     <span>ORIZZONTE PREVISIONALE</span>
     <h2>📅 I prossimi tre giorni</h2>
-    <p>Condizione prevalente diurna, nuvolosità media, temperature, precipitazioni, vento e ciclo lunare.</p>
+    <p>Condizione prevalente diurna, nuvolosità media, probabilità di pioggia, temperature, precipitazioni, vento e ciclo lunare.</p>
   </div>
   <div class="cml-pill">72 ore</div>
 </div>
 <div class="cml-days-grid">{''.join(carte_html)}</div>
 <div class="cml-note">
-  ℹ️ Le schede giornaliere riportano la <b>condizione meteorologica prevalente e la nuvolosità media delle ore diurne</b> (dall'alba al tramonto). I valori di temperatura, vento e pioggia rappresentano gli estremi e i cumulati delle 24 ore. La probabilità di pioggia è il massimo valore orario delle 24h.
+  ℹ️ Le schede giornaliere riportano la <b>condizione meteorologica prevalente e la nuvolosità media delle ore diurne</b> (dall'alba al tramonto). I valori di temperatura, vento, precipitazioni e probabilità massima rappresentano gli estremi delle 24 ore.
 </div>
 
 <div class="cml-hour-header">
   <span>DETTAGLIO ORARIO</span>
   <h2>🕒 Previsione ora per ora</h2>
-  <p>Seleziona uno dei giorni sottostanti per visualizzare l'evoluzione oraria dettagliata e il grado di affidabilità del modello.</p>
+  <p>Seleziona uno dei giorni sottostanti per visualizzare l'evoluzione oraria dettagliata, millimetri e probabilità di pioggia, e affidabilità del modello.</p>
 </div>
 
 <div class="cml-tabs-bar">
@@ -1090,9 +1110,7 @@ function mostraGiorno(dataId, btn) {{
 {''.join(sezioni_tabelle_html)}
 
 <div class="cml-note">
-  ℹ️ <b>Affidabilità oraria:</b> Indice euristico (%) calcolato in base alla distanza temporale (Lead Time) e alla stocasticità dei fenomeni convettivi/frontali. Open-Meteo NON fornisce un confidence index nativo per ICON-2I. Valori verdi (≥85%) indicano alta certezza deterministica; valori gialli/rossi (≤70%) indicano maggiore variabilità/rischio temporalesco.
-  <br><br>
-  🌦️ <b>Probabilità di precipitazione:</b> Percentuale derivata dall'ensemble GEFS (30 membri). Se 10 membri su 30 prevedono pioggia, la probabilità è 33%.
+  ℹ️ <b>Probabilità di pioggia:</b> Valore percentuale (%) calcolato dal modello per ciascuna ora. <b>Affidabilità oraria:</b> Indice probabilistico (%) basato sul Lead Time e sulla stocasticità dei fenomeni convettivi/frontali. Le ore notturne sono evidenziate con sfondo blu.
 </div>
 
 <script>
@@ -1193,6 +1211,9 @@ function togglePlay() {{
 </body>
 </html>"""
 
+# =====================================================================
+# INTERFACCIA STREAMLIT
+# =====================================================================
 st.markdown("### 🔍 Seleziona Località Calabrese")
 
 with st.form("search_form", clear_on_submit=False):
@@ -1200,7 +1221,7 @@ with st.form("search_form", clear_on_submit=False):
     with col_in:
         testo_citta = st.text_input(
             "Località",
-            value="Cosenza",
+            value="Lamezia Terme",
             placeholder="Scrivi es. Cosenza, Tropea, Soverato, Reggio Calabria, Catanzaro...",
             label_visibility="collapsed"
         )
@@ -1214,7 +1235,7 @@ try:
         df_ore, df_giorni = prepara(dati_meteo)
 
     doc_html = genera_app_completa(luogo, lat, lon, dati_meteo, df_ore, df_giorni)
-    components.html(doc_html, height=2850, scrolling=True)
+    components.html(doc_html, height=2700, scrolling=True)
 
 except Exception as errore:
     st.error(f"{errore}")

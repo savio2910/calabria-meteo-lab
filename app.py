@@ -1459,7 +1459,7 @@ function mostraGiorno(dataId, btn) {{
   </div>
   <h1>Calabria Meteo Lab</h1>
   <p>
-    Previsione puntuale ad alta risoluzione per la Calabria.
+    Previsione ad alta risoluzione per la Calabria.
     Cerca una località e leggi subito temperatura, cielo, vento,
     precipitazioni e sviluppo delle prossime 72 ore.
   </p>
@@ -1470,7 +1470,7 @@ function mostraGiorno(dataId, btn) {{
     <div class="cml-place-block">
       <div class="cml-kicker">
         <span class="cml-live-dot"></span>
-        ICON-2I · PREVISIONE PUNTUALE
+        ICON-2I · PREVISIONE
       </div>
       <h2>📍 {html.escape(luogo)}</h2>
       <div class="cml-condition">

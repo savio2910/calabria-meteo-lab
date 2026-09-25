@@ -1,6 +1,6 @@
 # =====================================================================
 # CALABRIA METEO LAB — SOLO CITTÀ
-# VERSIONE STREAMLIT CLOUD
+# VERSIONE STREAMLIT CLOUD — CORRETTA
 # ICON-2I VIA OPEN-METEO
 # =====================================================================
 
@@ -11,7 +11,6 @@ from zoneinfo import ZoneInfo
 import pandas as pd
 import requests
 import streamlit as st
-from streamlit.components.v1 import html as st_html
 
 from geopy.exc import GeocoderServiceError, GeocoderTimedOut
 from geopy.geocoders import Nominatim
@@ -251,7 +250,7 @@ def scenario_orario(riga, giorni):
 
 
 # =====================================================================
-# GEOCODIFICA
+# GEOCODIFICA — CONTROLLO SEVERO PER CALABRIA
 # =====================================================================
 
 def risolvi_citta(testo):
@@ -260,6 +259,7 @@ def risolvi_citta(testo):
     if not nome:
         raise ValueError("Scrivi il nome di una località della Calabria.")
 
+    # 1. Cerca prima nei comuni predefiniti
     indice = {
         nome_comune.casefold(): nome_comune
         for nome_comune in COMUNI
@@ -273,6 +273,7 @@ def risolvi_citta(testo):
         lat, lon = COMUNI[citta]
         return citta, lat, lon
 
+    # 2. Se non è nei comuni, prova geocoding MA con controlli severi
     try:
         geocoder = Nominatim(
             user_agent="calabria_meteo_lab_streamlit",
@@ -293,24 +294,37 @@ def risolvi_citta(testo):
 
     if risposta is None:
         raise ValueError(
-            "Località non trovata in Calabria: controlla il nome."
+            f"«{nome}» non è una località calabrese riconosciuta. Usa un comune della Calabria."
         )
 
+    # 3. Controlli SEVERI per assicurarsi che sia in Calabria
     indirizzo = risposta.raw.get("address", {})
+    
+    # Controlla regione/state
     regione = (
         indirizzo.get("state")
         or indirizzo.get("region")
+        or indirizzo.get("county")
         or ""
     ).casefold()
-
+    
+    # Controlla se "Calabria" appare da qualche parte nell'indirizzo
+    indirizzo_completo = str(indirizzo).casefold()
+    
     coordinate_valide = (
         37.8 <= risposta.latitude <= 40.2
         and 15.5 <= risposta.longitude <= 17.4
     )
 
-    if "calabria" not in regione or not coordinate_valide:
+    # DEVE soddisfare TUTTE queste condizioni:
+    if "calabria" not in regione and "calabria" not in indirizzo_completo:
         raise ValueError(
-            "La ricerca non ha individuato una località calabrese con sicurezza."
+            f"❌ «{nome}» NON è in Calabria. Questa app fornisce previsioni SOLO per località calabresi."
+        )
+    
+    if not coordinate_valide:
+        raise ValueError(
+            f"❌ «{nome}» non rientra nei confini geografici della Calabria."
         )
 
     return nome, float(risposta.latitude), float(risposta.longitude)
@@ -1245,21 +1259,17 @@ if submitted:
             dati = scarica_previsione(lat, lon)
             ore, giorni = prepara(dati)
 
-        # Pannello attuale
-        st_html(pannello_attuale(luogo, dati), height=350)
-        
-        # Carte giornaliere
-        st_html(carte_giornaliere(giorni), height=900)
+        # Usa components.html per renderizzare correttamente
+        st.components.v1.html(pannello_attuale(luogo, dati), height=350)
+        st.components.v1.html(carte_giornaliere(giorni), height=900)
 
-        # Header tabella oraria
-        st_html("""
+        st.components.v1.html("""
         <div class="cml-hour-header">
           <span>DETTAGLIO ORARIO</span>
           <h2>🕒 Previsione ora per ora</h2>
         </div>
         """, height=150)
 
-        # Selettore giorno
         date_disponibili = sorted(ore["time"].dt.date.unique())
         giorno_scelto = st.selectbox(
             "Giorno",
@@ -1268,12 +1278,9 @@ if submitted:
         )
 
         ore_giorno = ore.loc[ore["time"].dt.date == giorno_scelto]
-        
-        # Tabella oraria
-        st_html(tabella_html(ore_giorno), height=850)
+        st.components.v1.html(tabella_html(ore_giorno), height=850)
 
-        # Nota finale
-        st_html("""
+        st.components.v1.html("""
         <div class="cml-note">
           ℹ️ La precipitazione oraria è espressa in millimetri.
           🧭 «Da SO» indica vento proveniente da sud-ovest.

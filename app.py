@@ -1,5 +1,6 @@
 import html
 import json
+import math
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -12,7 +13,7 @@ from geopy.geocoders import Nominatim
 
 
 # =============================================================================
-# CONFIGURAZIONE
+# CONFIGURAZIONE STREAMLIT
 # =============================================================================
 
 st.set_page_config(
@@ -51,10 +52,22 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-API_URL = "https://api.open-meteo.com/v1/forecast"
-MODELLO = "italia_meteo_arpae_icon_2i"
-FUSO = ZoneInfo("Europe/Rome")
+
+# =============================================================================
+# COSTANTI
+# =============================================================================
+
+API_METEO_URL = "https://api.open-meteo.com/v1/forecast"
+API_MARE_URL = "https://marine-api.open-meteo.com/v1/marine"
+
+MODELLO_TERRESTRE = "italia_meteo_arpae_icon_2i"
+
+FUSO_ORARIO = ZoneInfo("Europe/Rome")
 GIORNI_PREVISIONE = 3
+
+# Il pannello mare viene mostrato solo se la cella marina modellistica
+# selezionata dall'API è abbastanza vicina alla località terrestre.
+SOGLIA_COSTA_KM = 12.0
 
 COMUNI_RAPIDI = {
     "Amantea": (39.1331, 16.0746),
@@ -141,7 +154,7 @@ CODICI_METEO = {
     99: ("⛈️", "Temporale con forte grandine"),
 }
 
-VARIABILI_CURRENT = [
+VARIABILI_CORRENTI = [
     "temperature_2m",
     "relative_humidity_2m",
     "apparent_temperature",
@@ -180,9 +193,46 @@ VARIABILI_GIORNALIERE = [
     "wind_direction_10m_dominant",
 ]
 
+VARIABILI_MARINE_CORRENTI = [
+    "wave_height",
+    "wave_direction",
+    "wave_period",
+    "wave_peak_period",
+    "wind_wave_height",
+    "wind_wave_direction",
+    "wind_wave_period",
+    "swell_wave_height",
+    "swell_wave_direction",
+    "swell_wave_period",
+    "sea_surface_temperature",
+]
+
+VARIABILI_MARINE_ORARIE = [
+    "wave_height",
+    "wave_direction",
+    "wave_period",
+    "wave_peak_period",
+    "wind_wave_height",
+    "wind_wave_direction",
+    "wind_wave_period",
+    "swell_wave_height",
+    "swell_wave_direction",
+    "swell_wave_period",
+    "sea_surface_temperature",
+]
+
+VARIABILI_MARINE_GIORNALIERE = [
+    "wave_height_max",
+    "wave_direction_dominant",
+    "wave_period_max",
+    "wind_wave_height_max",
+    "swell_wave_height_max",
+    "swell_wave_direction_dominant",
+]
+
 
 # =============================================================================
-# FUNZIONI DI SUPPORTO
+# FORMATTAZIONE
 # =============================================================================
 
 def numero(valore, decimali=1, unita=""):
@@ -282,26 +332,30 @@ def e_notte(ora, alba, tramonto):
         if any(valore is None or pd.isna(valore) for valore in (ora, alba, tramonto)):
             return False
 
-        timestamp = pd.Timestamp(ora)
-        return timestamp < pd.Timestamp(alba) or timestamp >= pd.Timestamp(tramonto)
+        istante = pd.Timestamp(ora)
+
+        return (
+            istante < pd.Timestamp(alba)
+            or istante >= pd.Timestamp(tramonto)
+        )
 
     except (TypeError, ValueError):
         return False
 
 
 # =============================================================================
-# GEOLOCALIZZAZIONE LIBERA
+# GEOLOCALIZZAZIONE
 # =============================================================================
 
 @st.cache_data(ttl=60 * 60 * 24, show_spinner=False)
 def geocodifica_calabria(nome):
     """
-    Ricerca libera tramite Nominatim per comuni, frazioni e località calabresi.
-    Il risultato viene conservato in cache per 24 ore.
+    Ricerca libera di comuni, frazioni e località calabresi.
+    Il risultato viene mantenuto in cache per 24 ore.
     """
     try:
         geocoder = Nominatim(
-            user_agent="calabria_meteo_lab_v21",
+            user_agent="calabria_meteo_lab_v22",
             timeout=15,
         )
 
@@ -361,10 +415,10 @@ def geocodifica_calabria(nome):
     return nome_risolto, latitudine, longitudine
 
 
-def risolvi_citta(testo):
+def risolvi_localita(testo):
     """
-    Prima usa le coordinate già disponibili per le località più cercate.
-    Per qualunque altra località calabrese usa il geocoder libero.
+    Per le località più cercate evita il geocoder.
+    Per tutte le altre usa la ricerca libera in Calabria.
     """
     nome = str(testo).strip()
 
@@ -373,7 +427,7 @@ def risolvi_citta(testo):
             "Inserisci il nome di un comune, frazione o località della Calabria."
         )
 
-    indice_comuni = {
+    indice = {
         comune.casefold(): comune
         for comune in COMUNI_RAPIDI
     }
@@ -385,8 +439,8 @@ def risolvi_citta(testo):
 
     chiave = nome_normalizzato.casefold()
 
-    if chiave in indice_comuni:
-        comune = indice_comuni[chiave]
+    if chiave in indice:
+        comune = indice[chiave]
         latitudine, longitudine = COMUNI_RAPIDI[comune]
 
         return comune, latitudine, longitudine
@@ -395,33 +449,34 @@ def risolvi_citta(testo):
 
 
 # =============================================================================
-# API ICON-2I
+# API TERRESTRE ICON-2I
 # =============================================================================
 
 @st.cache_data(ttl=600, show_spinner=False)
-def scarica_previsione(latitudine, longitudine):
+def scarica_previsione_terrestre(latitudine, longitudine):
     parametri = {
         "latitude": latitudine,
         "longitude": longitudine,
-        "models": MODELLO,
+        "models": MODELLO_TERRESTRE,
         "timezone": "Europe/Rome",
         "forecast_days": GIORNI_PREVISIONE,
         "temperature_unit": "celsius",
         "wind_speed_unit": "kmh",
         "precipitation_unit": "mm",
-        "current": ",".join(VARIABILI_CURRENT),
+        "current": ",".join(VARIABILI_CORRENTI),
         "hourly": ",".join(VARIABILI_ORARIE),
         "daily": ",".join(VARIABILI_GIORNALIERE),
     }
 
     try:
         risposta = requests.get(
-            API_URL,
+            API_METEO_URL,
             params=parametri,
             timeout=25,
         )
 
         risposta.raise_for_status()
+
         return risposta.json()
 
     except requests.RequestException as exc:
@@ -431,7 +486,153 @@ def scarica_previsione(latitudine, longitudine):
 
 
 # =============================================================================
-# PREPARAZIONE DATI
+# API MARINA
+# =============================================================================
+
+def distanza_haversine_km(lat1, lon1, lat2, lon2):
+    raggio_terra_km = 6371.0088
+
+    phi1 = math.radians(lat1)
+    phi2 = math.radians(lat2)
+
+    delta_phi = math.radians(lat2 - lat1)
+    delta_lambda = math.radians(lon2 - lon1)
+
+    a = (
+        math.sin(delta_phi / 2) ** 2
+        + math.cos(phi1)
+        * math.cos(phi2)
+        * math.sin(delta_lambda / 2) ** 2
+    )
+
+    c = 2 * math.atan2(
+        math.sqrt(a),
+        math.sqrt(1 - a),
+    )
+
+    return raggio_terra_km * c
+
+
+@st.cache_data(ttl=900, show_spinner=False)
+def scarica_previsione_mare(latitudine, longitudine):
+    """
+    Richiede una cella marina tramite cell_selection='sea'.
+    """
+    parametri = {
+        "latitude": latitudine,
+        "longitude": longitudine,
+        "timezone": "Europe/Rome",
+        "forecast_days": GIORNI_PREVISIONE,
+        "cell_selection": "sea",
+        "current": ",".join(VARIABILI_MARINE_CORRENTI),
+        "hourly": ",".join(VARIABILI_MARINE_ORARIE),
+        "daily": ",".join(VARIABILI_MARINE_GIORNALIERE),
+    }
+
+    try:
+        risposta = requests.get(
+            API_MARE_URL,
+            params=parametri,
+            timeout=25,
+        )
+
+        risposta.raise_for_status()
+
+        dati_mare = risposta.json()
+
+    except requests.RequestException as exc:
+        raise RuntimeError(
+            f"Errore nella ricezione della previsione marina: {exc}"
+        ) from exc
+
+    latitudine_mare = float(
+        dati_mare.get("latitude", latitudine)
+    )
+
+    longitudine_mare = float(
+        dati_mare.get("longitude", longitudine)
+    )
+
+    distanza_km = distanza_haversine_km(
+        latitudine,
+        longitudine,
+        latitudine_mare,
+        longitudine_mare,
+    )
+
+    return dati_mare, distanza_km
+
+
+def stato_mare_da_onda(altezza_onda):
+    """
+    Classificazione descrittiva basata sulla significant wave height.
+    Non sostituisce i bollettini nautici o le comunicazioni ufficiali.
+    """
+    try:
+        if altezza_onda is None or pd.isna(altezza_onda):
+            return "Non disponibile", "⚪", "cml-mare-nd"
+
+        altezza = float(altezza_onda)
+
+        if altezza < 0.10:
+            return "Calmo", "🟦", "cml-mare-calmo"
+
+        if altezza < 0.50:
+            return "Quasi calmo", "🟦", "cml-mare-quasi-calmo"
+
+        if altezza < 1.25:
+            return "Poco mosso", "🟩", "cml-mare-poco-mosso"
+
+        if altezza < 2.50:
+            return "Mosso", "🟨", "cml-mare-mosso"
+
+        if altezza < 4.00:
+            return "Molto mosso", "🟧", "cml-mare-molto-mosso"
+
+        if altezza < 6.00:
+            return "Agitato", "🟥", "cml-mare-agitato"
+
+        return "Molto agitato", "🟥", "cml-mare-molto-agitato"
+
+    except (TypeError, ValueError):
+        return "Non disponibile", "⚪", "cml-mare-nd"
+
+
+def prepara_dati_mare(dati_mare):
+    ore_mare = pd.DataFrame(
+        dati_mare.get("hourly", {})
+    )
+
+    if ore_mare.empty:
+        return ore_mare
+
+    ore_mare["time"] = pd.to_datetime(
+        ore_mare["time"]
+    )
+
+    if "wave_direction" in ore_mare.columns:
+        ore_mare["Direzione onda"] = ore_mare[
+            "wave_direction"
+        ].map(direzione)
+
+    if "wave_height" in ore_mare.columns:
+        stato = ore_mare["wave_height"].map(
+            stato_mare_da_onda
+        )
+
+        ore_mare["Stato mare"] = stato.map(
+            lambda risultato: risultato[0]
+        )
+
+        ore_mare["Icona mare"] = stato.map(
+            lambda risultato: risultato[1]
+        )
+
+    return ore_mare
+
+
+# =============================================================================
+# PREPARAZIONE DATI TERRESTRI
 # =============================================================================
 
 def calcola_dati_diurni(ore_giorno, alba, tramonto):
@@ -452,12 +653,18 @@ def calcola_dati_diurni(ore_giorno, alba, tramonto):
             & (ore_giorno["time"].dt.hour <= 20)
         ]
 
-    dati_target = ore_diurne if not ore_diurne.empty else ore_giorno
+    dati_target = (
+        ore_diurne
+        if not ore_diurne.empty
+        else ore_giorno
+    )
 
     nuvolosita_media = 0
 
     if "cloud_cover" in dati_target.columns:
-        nuvolosita_media = round(dati_target["cloud_cover"].mean())
+        nuvolosita_media = round(
+            dati_target["cloud_cover"].mean()
+        )
 
     codici_severi = [
         99, 96, 95, 82, 81, 80,
@@ -477,12 +684,17 @@ def calcola_dati_diurni(ore_giorno, alba, tramonto):
     return codice_prevalente, nuvolosita_media
 
 
-def prepara(dati):
+def prepara_dati_terrestri(dati):
     ore_raw = pd.DataFrame(dati["hourly"])
     giorni = pd.DataFrame(dati["daily"])
 
-    ore_raw["time"] = pd.to_datetime(ore_raw["time"])
-    giorni["time"] = pd.to_datetime(giorni["time"])
+    ore_raw["time"] = pd.to_datetime(
+        ore_raw["time"]
+    )
+
+    giorni["time"] = pd.to_datetime(
+        giorni["time"]
+    )
 
     codici_prevalenti = []
     nuvolosita_giornaliera = []
@@ -503,20 +715,41 @@ def prepara(dati):
         codici_prevalenti.append(codice)
         nuvolosita_giornaliera.append(nubi)
 
-    giorni["weather_code_prevalente"] = codici_prevalenti
-    giorni["cloud_cover_diurno"] = nuvolosita_giornaliera
-    giorni["Da"] = giorni["wind_direction_10m_dominant"].map(direzione)
-    giorni["Fase lunare"] = giorni["moon_phase"].map(fase_lunare)
+    giorni["weather_code_prevalente"] = (
+        codici_prevalenti
+    )
 
-    ora_locale = datetime.now(FUSO).replace(tzinfo=None)
+    giorni["cloud_cover_diurno"] = (
+        nuvolosita_giornaliera
+    )
+
+    giorni["Da"] = giorni[
+        "wind_direction_10m_dominant"
+    ].map(direzione)
+
+    giorni["Fase lunare"] = giorni[
+        "moon_phase"
+    ].map(fase_lunare)
+
+    ora_locale = datetime.now(
+        FUSO_ORARIO
+    ).replace(tzinfo=None)
 
     ore = ore_raw.loc[
         ore_raw["time"] >= pd.Timestamp(ora_locale).floor("h")
     ].copy()
 
-    ore["Icona"] = ore["weather_code"].map(lambda codice: meteo(codice)[0])
-    ore["Scenario"] = ore["weather_code"].map(lambda codice: meteo(codice)[1])
-    ore["Da"] = ore["wind_direction_10m"].map(direzione)
+    ore["Icona"] = ore["weather_code"].map(
+        lambda codice: meteo(codice)[0]
+    )
+
+    ore["Scenario"] = ore["weather_code"].map(
+        lambda codice: meteo(codice)[1]
+    )
+
+    ore["Da"] = ore["wind_direction_10m"].map(
+        direzione
+    )
 
     valori_notte = []
 
@@ -543,12 +776,15 @@ def prepara(dati):
 
     ore["Notte"] = valori_notte
 
-    return ore.reset_index(drop=True), giorni.reset_index(drop=True)
+    return (
+        ore.reset_index(drop=True),
+        giorni.reset_index(drop=True),
+    )
 
 
 # =============================================================================
-# INDICATORE METEOROLOGICO LOCALE
-# Non è un'allerta ufficiale della Protezione Civile.
+# INDICATORE TECNICO LOCALE
+# NON E' ALLERTA UFFICIALE
 # =============================================================================
 
 def valuta_rischio_locale(riga):
@@ -567,25 +803,43 @@ def valuta_rischio_locale(riga):
         )
     )
 
-    if precipitazione >= 100 or raffica >= 100 or codice_meteo in [96, 99]:
+    if (
+        precipitazione >= 100
+        or raffica >= 100
+        or codice_meteo in [96, 99]
+    ):
         if codice_meteo in [95, 96, 99]:
             return "rosso", "temporali"
+
         if raffica >= 100:
             return "rosso", "vento"
+
         return "rosso", "precipitazioni"
 
-    if precipitazione >= 50 or raffica >= 70 or codice_meteo in [95, 96, 99]:
+    if (
+        precipitazione >= 50
+        or raffica >= 70
+        or codice_meteo in [95, 96, 99]
+    ):
         if codice_meteo in [95, 96, 99]:
             return "arancione", "temporali"
+
         if raffica >= 70:
             return "arancione", "vento"
+
         return "arancione", "precipitazioni"
 
-    if precipitazione >= 20 or raffica >= 50 or codice_meteo in [80, 81, 82]:
+    if (
+        precipitazione >= 20
+        or raffica >= 50
+        or codice_meteo in [80, 81, 82]
+    ):
         if codice_meteo in [80, 81, 82]:
             return "giallo", "rovesci"
+
         if raffica >= 50:
             return "giallo", "vento"
+
         return "giallo", "precipitazioni"
 
     return "verde", "nessuna criticità"
@@ -593,10 +847,26 @@ def valuta_rischio_locale(riga):
 
 def badge_rischio_html(livello, rischio):
     palette = {
-        "verde": ("#12855c", "✅", "Nessuna criticità stimata"),
-        "giallo": ("#b77906", "⚠️", "Attenzione meteorologica"),
-        "arancione": ("#d85d05", "🟠", "Rischio meteorologico elevato"),
-        "rosso": ("#be2635", "🔴", "Rischio meteorologico molto elevato"),
+        "verde": (
+            "#12855c",
+            "✅",
+            "Nessuna criticità stimata",
+        ),
+        "giallo": (
+            "#b77906",
+            "⚠️",
+            "Attenzione meteorologica",
+        ),
+        "arancione": (
+            "#d85d05",
+            "🟠",
+            "Rischio meteorologico elevato",
+        ),
+        "rosso": (
+            "#be2635",
+            "🔴",
+            "Rischio meteorologico molto elevato",
+        ),
     }
 
     colore, icona, testo = palette.get(
@@ -613,11 +883,20 @@ def badge_rischio_html(livello, rischio):
 
 
 # =============================================================================
-# GENERAZIONE APP HTML
+# GENERAZIONE HTML
 # =============================================================================
 
-def genera_app_completa(luogo, latitudine, longitudine, dati, ore, giorni):
-    corrente = dati["current"]
+def genera_app_completa(
+    luogo,
+    latitudine,
+    longitudine,
+    dati_terrestri,
+    ore,
+    giorni,
+    dati_mare=None,
+    distanza_mare_km=None,
+):
+    corrente = dati_terrestri["current"]
 
     icona_corrente, descrizione_corrente = meteo(
         corrente.get("weather_code")
@@ -627,37 +906,63 @@ def genera_app_completa(luogo, latitudine, longitudine, dati, ore, giorni):
         (
             "🌡️",
             "Percepita",
-            numero(corrente.get("apparent_temperature"), 1, " °C"),
+            numero(
+                corrente.get("apparent_temperature"),
+                1,
+                " °C",
+            ),
         ),
         (
             "💧",
             "Umidità",
-            numero(corrente.get("relative_humidity_2m"), 0, " %"),
+            numero(
+                corrente.get("relative_humidity_2m"),
+                0,
+                " %",
+            ),
         ),
         (
             "☁️",
             "Nuvolosità",
-            numero(corrente.get("cloud_cover"), 0, " %"),
+            numero(
+                corrente.get("cloud_cover"),
+                0,
+                " %",
+            ),
         ),
         (
             "💨",
             "Vento",
-            numero(corrente.get("wind_speed_10m"), 0, " km/h"),
+            numero(
+                corrente.get("wind_speed_10m"),
+                0,
+                " km/h",
+            ),
         ),
         (
             "🧭",
             "Provenienza",
-            direzione(corrente.get("wind_direction_10m")),
+            direzione(
+                corrente.get("wind_direction_10m")
+            ),
         ),
         (
             "🌬️",
             "Raffica",
-            numero(corrente.get("wind_gusts_10m"), 0, " km/h"),
+            numero(
+                corrente.get("wind_gusts_10m"),
+                0,
+                " km/h",
+            ),
         ),
         (
             "🌀",
             "Pressione",
-            numero(corrente.get("pressure_msl"), 1, " hPa"),
+            numero(
+                corrente.get("pressure_msl"),
+                1,
+                " hPa",
+            ),
         ),
     ]
 
@@ -666,8 +971,12 @@ def genera_app_completa(luogo, latitudine, longitudine, dati, ore, giorni):
         <div class="cml-metric-card">
           <div class="cml-metric-icon">{icona}</div>
           <div>
-            <div class="cml-metric-label">{html.escape(etichetta)}</div>
-            <div class="cml-metric-value">{html.escape(valore)}</div>
+            <div class="cml-metric-label">
+              {html.escape(etichetta)}
+            </div>
+            <div class="cml-metric-value">
+              {html.escape(valore)}
+            </div>
           </div>
         </div>
         """
@@ -695,12 +1004,26 @@ def genera_app_completa(luogo, latitudine, longitudine, dati, ore, giorni):
 
     if livello_massimo != "verde":
         colori_banner = {
-            "giallo": ("#fff8d6", "#a56500", "⚠️"),
-            "arancione": ("#fff0df", "#bc4f00", "🟠"),
-            "rosso": ("#ffe3e5", "#af1d2d", "🔴"),
+            "giallo": (
+                "#fff8d6",
+                "#a56500",
+                "⚠️",
+            ),
+            "arancione": (
+                "#fff0df",
+                "#bc4f00",
+                "🟠",
+            ),
+            "rosso": (
+                "#ffe3e5",
+                "#af1d2d",
+                "🔴",
+            ),
         }
 
-        sfondo, colore, icona = colori_banner[livello_massimo]
+        sfondo, colore, icona = colori_banner[
+            livello_massimo
+        ]
 
         banner_html = f"""
         <div
@@ -709,18 +1032,144 @@ def genera_app_completa(luogo, latitudine, longitudine, dati, ore, giorni):
         >
           <div class="cml-alert-symbol">{icona}</div>
           <div>
-            <div class="cml-alert-title" style="color:{colore};">
+            <div
+              class="cml-alert-title"
+              style="color:{colore};"
+            >
               ATTENZIONE METEOROLOGICA · LIVELLO {livello_massimo.upper()}
             </div>
+
             <div class="cml-alert-text">
               Condizioni potenzialmente impegnative per
               <b>{html.escape(rischio)}</b> nel periodo considerato a
-              {html.escape(luogo)}.
-              Questo indicatore deriva dai dati modellistici e non sostituisce
-              bollettini o allerte ufficiali della Protezione Civile.
+              {html.escape(luogo)}. Questo indicatore deriva dai dati
+              modellistici e non sostituisce bollettini o allerte ufficiali
+              della Protezione Civile.
             </div>
           </div>
         </div>
+        """
+
+    mare_html = ""
+
+    if (
+        dati_mare is not None
+        and isinstance(dati_mare, dict)
+        and dati_mare.get("current")
+    ):
+        corrente_mare = dati_mare["current"]
+
+        altezza_onda = corrente_mare.get(
+            "wave_height"
+        )
+
+        direzione_onda = corrente_mare.get(
+            "wave_direction"
+        )
+
+        periodo_onda = corrente_mare.get(
+            "wave_period"
+        )
+
+        periodo_picco = corrente_mare.get(
+            "wave_peak_period"
+        )
+
+        altezza_mare_vento = corrente_mare.get(
+            "wind_wave_height"
+        )
+
+        altezza_swell = corrente_mare.get(
+            "swell_wave_height"
+        )
+
+        temperatura_mare = corrente_mare.get(
+            "sea_surface_temperature"
+        )
+
+        stato_mare, icona_mare, classe_mare = (
+            stato_mare_da_onda(altezza_onda)
+        )
+
+        mare_html = f"""
+        <section class="cml-marine-box">
+          <div class="cml-marine-head">
+            <div>
+              <span class="cml-eyebrow">
+                BOLLETTINO COSTIERO
+              </span>
+
+              <h2>🌊 Vento e stato del mare</h2>
+
+              <p>
+                Cella marina modellistica a circa
+                {numero(distanza_mare_km, 1, " km")}
+                dalla località selezionata.
+              </p>
+            </div>
+
+            <div class="cml-sea-status {classe_mare}">
+              <span>{icona_mare}</span>
+
+              <div>
+                <small>STATO DEL MARE</small>
+                <strong>{html.escape(stato_mare)}</strong>
+              </div>
+            </div>
+          </div>
+
+          <div class="cml-marine-grid">
+            <div class="cml-marine-card">
+              <span>🌊 Altezza onda</span>
+              <strong>{numero(altezza_onda, 2, " m")}</strong>
+              <small>Onda significativa</small>
+            </div>
+
+            <div class="cml-marine-card">
+              <span>🧭 Provenienza onda</span>
+              <strong>{direzione(direzione_onda)}</strong>
+              <small>{numero(direzione_onda, 0, "°")}</small>
+            </div>
+
+            <div class="cml-marine-card">
+              <span>〰️ Periodo medio</span>
+              <strong>{numero(periodo_onda, 1, " s")}</strong>
+              <small>Intervallo medio d'onda</small>
+            </div>
+
+            <div class="cml-marine-card">
+              <span>📈 Periodo di picco</span>
+              <strong>{numero(periodo_picco, 1, " s")}</strong>
+              <small>Energia dominante</small>
+            </div>
+
+            <div class="cml-marine-card">
+              <span>💨 Mare del vento</span>
+              <strong>{numero(altezza_mare_vento, 2, " m")}</strong>
+              <small>Componente wind sea</small>
+            </div>
+
+            <div class="cml-marine-card">
+              <span>🌐 Mare di fondo</span>
+              <strong>{numero(altezza_swell, 2, " m")}</strong>
+              <small>Componente swell</small>
+            </div>
+
+            <div class="cml-marine-card">
+              <span>🌡️ Temperatura mare</span>
+              <strong>{numero(temperatura_mare, 1, " °C")}</strong>
+              <small>Temperatura superficiale</small>
+            </div>
+          </div>
+
+          <div class="cml-marine-note">
+            ℹ️ La direzione indica <b>da dove proviene</b> il moto ondoso.
+            I valori sono stimati su griglia marina e possono essere meno
+            rappresentativi in prossimità di coste, baie e promontori.
+            Per navigazione e sicurezza consulta sempre fonti nautiche e avvisi
+            ufficiali.
+          </div>
+        </section>
         """
 
     etichette_giorni = [
@@ -774,7 +1223,10 @@ def genera_app_completa(luogo, latitudine, longitudine, dati, ore, giorni):
         <article class="cml-day-card">
           <div class="cml-day-head">
             <span class="cml-day-tag">{tag}</span>
-            <span class="cml-day-date">{html.escape(data_it(riga["time"]))}</span>
+
+            <span class="cml-day-date">
+              {html.escape(data_it(riga["time"]))}
+            </span>
           </div>
 
           <div class="cml-risk-row">
@@ -782,18 +1234,25 @@ def genera_app_completa(luogo, latitudine, longitudine, dati, ore, giorni):
           </div>
 
           <div class="cml-day-weather">
-            <div class="cml-day-icon {classe_icona}">{icona}</div>
+            <div class="cml-day-icon {classe_icona}">
+              {icona}
+            </div>
+
             <div>
               <div class="cml-day-description">
                 {html.escape(descrizione)}
               </div>
-              <div class="cml-day-moon">{fase}</div>
+
+              <div class="cml-day-moon">
+                {fase}
+              </div>
             </div>
           </div>
 
           <div class="cml-temperature-grid">
             <div class="cml-temp-box">
               <span>MINIMA</span>
+
               <strong class="cml-temp-min">
                 ↓ {numero(riga["temperature_2m_min"], 1, "°")}
               </strong>
@@ -801,6 +1260,7 @@ def genera_app_completa(luogo, latitudine, longitudine, dati, ore, giorni):
 
             <div class="cml-temp-box">
               <span>MASSIMA</span>
+
               <strong class="cml-temp-max">
                 ↑ {numero(riga["temperature_2m_max"], 1, "°")}
               </strong>
@@ -812,18 +1272,22 @@ def genera_app_completa(luogo, latitudine, longitudine, dati, ore, giorni):
               <span>☁️ Nuvolosità diurna</span>
               <b>{numero(riga.get("cloud_cover_diurno"), 0, " %")}</b>
             </div>
+
             <div>
               <span>🌧️ Precipitazione</span>
               <b>{numero(riga.get("precipitation_sum"), 1, " mm")}</b>
             </div>
+
             <div>
               <span>💨 Vento massimo</span>
               <b>{numero(riga.get("wind_speed_10m_max"), 0, " km/h")}</b>
             </div>
+
             <div>
               <span>🌬️ Raffica massima</span>
               <b>{numero(riga.get("wind_gusts_10m_max"), 0, " km/h")}</b>
             </div>
+
             <div>
               <span>🧭 Direzione dominante</span>
               <b>{html.escape(str(riga.get("Da", "—")))}</b>
@@ -835,14 +1299,17 @@ def genera_app_completa(luogo, latitudine, longitudine, dati, ore, giorni):
               <span>☀️ Alba</span>
               <b>{ora_it(riga.get("sunrise"))}</b>
             </div>
+
             <div>
               <span>🌇 Tramonto</span>
               <b>{ora_it(riga.get("sunset"))}</b>
             </div>
+
             <div>
               <span>🌙 Sorge</span>
               <b>{ora_it(riga.get("moonrise"))}</b>
             </div>
+
             <div>
               <span>🌘 Tramonta</span>
               <b>{ora_it(riga.get("moonset"))}</b>
@@ -874,28 +1341,40 @@ def genera_app_completa(luogo, latitudine, longitudine, dati, ore, giorni):
         ].copy()
 
         dati_grafici[chiave] = {
-            "ore": ore_giorno["time"].dt.strftime("%H:%M").tolist(),
+            "ore": ore_giorno["time"].dt.strftime(
+                "%H:%M"
+            ).tolist(),
             "temperatura": [
                 round(float(valore), 1)
                 if pd.notna(valore)
                 else None
-                for valore in ore_giorno["temperature_2m"].tolist()
+                for valore in ore_giorno[
+                    "temperature_2m"
+                ].tolist()
             ],
             "vento": [
                 round(float(valore), 1)
                 if pd.notna(valore)
                 else None
-                for valore in ore_giorno["wind_speed_10m"].tolist()
+                for valore in ore_giorno[
+                    "wind_speed_10m"
+                ].tolist()
             ],
             "precipitazione": [
                 round(float(valore), 1)
                 if pd.notna(valore)
                 else None
-                for valore in ore_giorno["precipitation"].tolist()
+                for valore in ore_giorno[
+                    "precipitation"
+                ].tolist()
             ],
         }
 
-        classe_attiva = "active" if indice == 0 else ""
+        classe_attiva = (
+            "active"
+            if indice == 0
+            else ""
+        )
 
         pulsanti_tabs.append(
             f"""
@@ -928,10 +1407,17 @@ def genera_app_completa(luogo, latitudine, longitudine, dati, ore, giorni):
                 f"""
                 <tr class="{classe_notte}">
                   <td>{riga["time"].strftime("%H:%M")}</td>
+
                   <td class="cml-scenario-cell">
-                    <span class="cml-table-icon">{riga["Icona"]}</span>
-                    <span>{html.escape(str(riga["Scenario"]))}</span>
+                    <span class="cml-table-icon">
+                      {riga["Icona"]}
+                    </span>
+
+                    <span>
+                      {html.escape(str(riga["Scenario"]))}
+                    </span>
                   </td>
+
                   <td>{numero(riga["temperature_2m"], 1)}</td>
                   <td>{numero(riga["apparent_temperature"], 1)}</td>
                   <td>{numero(riga["precipitation"], 1)}</td>
@@ -967,6 +1453,7 @@ def genera_app_completa(luogo, latitudine, longitudine, dati, ore, giorni):
                       <th>Umidità %</th>
                     </tr>
                   </thead>
+
                   <tbody>
                     {''.join(righe_tabella)}
                   </tbody>
@@ -976,7 +1463,9 @@ def genera_app_completa(luogo, latitudine, longitudine, dati, ore, giorni):
             """
         )
 
-    chiave_iniziale = str(date_disponibili[0])
+    chiave_iniziale = str(
+        date_disponibili[0]
+    )
 
     dati_grafici_json = json.dumps(
         dati_grafici,
@@ -988,12 +1477,15 @@ def genera_app_completa(luogo, latitudine, longitudine, dati, ore, giorni):
 <html lang="it">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta
+  name="viewport"
+  content="width=device-width, initial-scale=1"
+>
 
 <link
   rel="stylesheet"
   href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-/>
+>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -1002,9 +1494,6 @@ def genera_app_completa(luogo, latitudine, longitudine, dati, ore, giorni):
 :root {{
   --ink: #102b3b;
   --muted: #607987;
-  --line: #d6e5ea;
-  --blue: #0b7f98;
-  --blue-dark: #07566d;
   --orange: #f26e17;
   --page: #eef5f8;
 }}
@@ -1135,7 +1624,7 @@ body {{
 
 .cml-current {{
   overflow: hidden;
-  margin: 22px 0 30px;
+  margin: 22px 0 25px;
   border: 1px solid #d5e4e9;
   border-radius: 24px;
   background: #ffffff;
@@ -1148,8 +1637,8 @@ body {{
   justify-content: space-between;
   gap: 28px;
   padding: 34px 38px;
-  background: #ffffff;
   border-bottom: 1px solid #e2edf0;
+  background: #ffffff;
 }}
 
 .cml-kicker {{
@@ -1276,6 +1765,148 @@ body {{
 
 .cml-current-footer b {{
   color: #294e5c;
+}}
+
+.cml-marine-box {{
+  margin: 0 0 30px;
+  padding: 26px;
+  border: 1px solid #cbdfe8;
+  border-radius: 24px;
+  background: #ffffff;
+  box-shadow: 0 8px 28px rgba(23, 67, 84, 0.10);
+}}
+
+.cml-marine-head {{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}}
+
+.cml-eyebrow {{
+  color: #087087;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 1.8px;
+}}
+
+.cml-marine-head h2 {{
+  margin: 6px 0 4px;
+  color: var(--ink);
+  font-size: 25px;
+}}
+
+.cml-marine-head p {{
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}}
+
+.cml-sea-status {{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 190px;
+  padding: 13px 16px;
+  border-radius: 14px;
+  color: #ffffff;
+}}
+
+.cml-sea-status > span {{
+  font-size: 28px;
+}}
+
+.cml-sea-status small {{
+  display: block;
+  margin-bottom: 3px;
+  color: rgba(255, 255, 255, 0.84);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.9px;
+}}
+
+.cml-sea-status strong {{
+  display: block;
+  font-size: 17px;
+}}
+
+.cml-mare-calmo {{
+  background: #0d77a7;
+}}
+
+.cml-mare-quasi-calmo {{
+  background: #168db7;
+}}
+
+.cml-mare-poco-mosso {{
+  background: #278b5e;
+}}
+
+.cml-mare-mosso {{
+  background: #c18a1c;
+}}
+
+.cml-mare-molto-mosso {{
+  background: #d16418;
+}}
+
+.cml-mare-agitato {{
+  background: #c3313d;
+}}
+
+.cml-mare-molto-agitato {{
+  background: #8b1e29;
+}}
+
+.cml-mare-nd {{
+  background: #6d7d86;
+}}
+
+.cml-marine-grid {{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
+  gap: 12px;
+}}
+
+.cml-marine-card {{
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-height: 105px;
+  padding: 15px;
+  border: 1px solid #dbe8ec;
+  border-radius: 15px;
+  background: #f7fbfc;
+}}
+
+.cml-marine-card span {{
+  color: #54707c;
+  font-size: 12px;
+  font-weight: 700;
+}}
+
+.cml-marine-card strong {{
+  color: #143b4b;
+  font-size: 22px;
+}}
+
+.cml-marine-card small {{
+  color: #768c95;
+  font-size: 11px;
+}}
+
+.cml-marine-note {{
+  margin-top: 16px;
+  padding: 12px 15px;
+  border: 1px solid #bfe1ea;
+  border-left: 4px solid #168db7;
+  border-radius: 11px;
+  background: #ecf9fc;
+  color: #3d6270;
+  font-size: 12px;
+  line-height: 1.6;
 }}
 
 .cml-radar-box {{
@@ -1832,6 +2463,10 @@ body {{
     padding: 18px;
   }}
 
+  .cml-marine-box {{
+    padding: 18px;
+  }}
+
   .cml-radar-box {{
     padding: 17px;
   }}
@@ -1901,17 +2536,33 @@ body {{
   </div>
 
   <div class="cml-current-footer">
-    <span>◷ Valido alle <b>{html.escape(str(corrente.get("time", "—")))}</b></span>
-    <span>◉ Fuso <b>Europe/Rome</b></span>
-    <span>◌ Fonte <b>ItaliaMeteo–ARPAE</b></span>
+    <span>
+      ◷ Valido alle
+      <b>{html.escape(str(corrente.get("time", "—")))}</b>
+    </span>
+
+    <span>
+      ◉ Fuso
+      <b>Europe/Rome</b>
+    </span>
+
+    <span>
+      ◌ Fonte
+      <b>ItaliaMeteo–ARPAE</b>
+    </span>
   </div>
 </section>
+
+{mare_html}
 
 <section class="cml-radar-box">
   <div class="cml-radar-head">
     <div>
       <h2>📡 Radar precipitazioni live</h2>
-      <p>Sequenza radar disponibile tramite RainViewer, centrata sulla località selezionata.</p>
+      <p>
+        Sequenza radar disponibile tramite RainViewer,
+        centrata sulla località selezionata.
+      </p>
     </div>
 
     <button
@@ -1927,10 +2578,15 @@ body {{
   <div id="radar-map"></div>
 
   <div class="cml-radar-footer">
-    <span>🛰️ Base cartografica OpenStreetMap · Overlay radar RainViewer</span>
+    <span>
+      🛰️ Base cartografica OpenStreetMap · Overlay radar RainViewer
+    </span>
+
     <span>
       Frame:
-      <span id="radar-timestamp" class="cml-radar-time">caricamento...</span>
+      <span id="radar-timestamp" class="cml-radar-time">
+        caricamento...
+      </span>
     </span>
   </div>
 </section>
@@ -1940,8 +2596,8 @@ body {{
     <span>ORIZZONTE PREVISIONALE</span>
     <h2>📅 I prossimi tre giorni</h2>
     <p>
-      Scenario prevalente diurno, estremi termici, precipitazioni,
-      vento e astronomia locale.
+      Scenario prevalente diurno, estremi termici,
+      precipitazioni, vento e astronomia locale.
     </p>
   </div>
 
@@ -1962,11 +2618,16 @@ body {{
 <section class="cml-hour-header">
   <span>DETTAGLIO ORARIO</span>
   <h2>🕒 Previsione ora per ora</h2>
-  <p>Seleziona un giorno: grafico e tabella cambieranno insieme.</p>
+  <p>
+    Seleziona un giorno: grafico e tabella cambieranno insieme.
+  </p>
 </section>
 
 <section class="cml-chart-box">
-  <div class="cml-chart-title">📊 Andamento meteorologico orario</div>
+  <div class="cml-chart-title">
+    📊 Andamento meteorologico orario
+  </div>
+
   <div class="cml-chart-subtitle">
     Temperatura, vento e precipitazione oraria per il giorno selezionato.
   </div>
@@ -1986,8 +2647,8 @@ body {{
 
 <div class="cml-note">
   ℹ️ <b>ICON-2I:</b> modello deterministico ad alta risoluzione di ItaliaMeteo–ARPAE.
-  I dati sono forniti attraverso Open-Meteo. Il grafico e la tabella riportano
-  la previsione oraria disponibile per la posizione selezionata.
+  I dati terrestri sono forniti attraverso Open-Meteo.
+  Il grafico e la tabella riportano la previsione oraria per la posizione selezionata.
 </div>
 
 <script>
@@ -2013,8 +2674,10 @@ function creaGrafico(chiave) {{
 
   meteoChartInstance = new Chart(context, {{
     type: "line",
+
     data: {{
       labels: dati.ore,
+
       datasets: [
         {{
           label: "Temperatura °C",
@@ -2028,6 +2691,7 @@ function creaGrafico(chiave) {{
           tension: 0.35,
           fill: true
         }},
+
         {{
           label: "Vento km/h",
           data: dati.vento,
@@ -2041,6 +2705,7 @@ function creaGrafico(chiave) {{
           tension: 0.3,
           fill: false
         }},
+
         {{
           label: "Precipitazione mm",
           data: dati.precipitazione,
@@ -2053,75 +2718,94 @@ function creaGrafico(chiave) {{
         }}
       ]
     }},
+
     options: {{
       responsive: true,
       maintainAspectRatio: false,
+
       interaction: {{
         mode: "index",
         intersect: false
       }},
+
       plugins: {{
         legend: {{
           position: "top",
+
           labels: {{
             usePointStyle: true,
             padding: 18,
+
             font: {{
               size: 12,
               weight: "600"
             }}
           }}
         }},
+
         tooltip: {{
           backgroundColor: "rgba(15, 43, 59, 0.95)",
           padding: 11,
           cornerRadius: 9
         }}
       }},
+
       scales: {{
         x: {{
           grid: {{
             color: "rgba(16, 43, 59, 0.06)"
           }},
+
           ticks: {{
             maxRotation: 0,
             autoSkip: true
           }}
         }},
+
         temperatura: {{
           type: "linear",
           position: "left",
+
           title: {{
             display: true,
             text: "Temperatura °C"
           }},
+
           grid: {{
             color: "rgba(16, 43, 59, 0.08)"
           }}
         }},
+
         vento: {{
           type: "linear",
           position: "right",
+
           title: {{
             display: true,
             text: "Vento km/h"
           }},
+
           grid: {{
             drawOnChartArea: false
           }},
+
           min: 0
         }},
+
         precipitazione: {{
           type: "linear",
           position: "right",
           offset: true,
+
           title: {{
             display: true,
             text: "Pioggia mm"
           }},
+
           grid: {{
             drawOnChartArea: false
           }},
+
           min: 0
         }}
       }}
@@ -2137,33 +2821,46 @@ function aggiornaGrafico(chiave) {{
   }}
 
   meteoChartInstance.data.labels = dati.ore;
-  meteoChartInstance.data.datasets[0].data = dati.temperatura;
-  meteoChartInstance.data.datasets[1].data = dati.vento;
-  meteoChartInstance.data.datasets[2].data = dati.precipitazione;
+
+  meteoChartInstance.data.datasets[0].data =
+    dati.temperatura;
+
+  meteoChartInstance.data.datasets[1].data =
+    dati.vento;
+
+  meteoChartInstance.data.datasets[2].data =
+    dati.precipitazione;
 
   meteoChartInstance.update();
 }}
 
 function mostraGiorno(chiave, bottone) {{
-  const sezioni = document.getElementsByClassName("cml-day-table-container");
+  const sezioni = document.getElementsByClassName(
+    "cml-day-table-container"
+  );
 
   for (let i = 0; i < sezioni.length; i += 1) {{
     sezioni[i].style.display = "none";
   }}
 
-  const pulsanti = document.getElementsByClassName("cml-tab-btn");
+  const pulsanti = document.getElementsByClassName(
+    "cml-tab-btn"
+  );
 
   for (let i = 0; i < pulsanti.length; i += 1) {{
     pulsanti[i].classList.remove("active");
   }}
 
-  const target = document.getElementById("tab-" + chiave);
+  const target = document.getElementById(
+    "tab-" + chiave
+  );
 
   if (target) {{
     target.style.display = "block";
   }}
 
   bottone.classList.add("active");
+
   aggiornaGrafico(chiave);
 }}
 
@@ -2188,7 +2885,10 @@ L.tileLayer(
 
 const pinIcon = L.divIcon({{
   className: "cml-radar-pin-wrapper",
-  html: '<div style="width:20px;height:20px;background:#e63b45;border:3px solid #ffffff;border-radius:50%;box-shadow:0 0 0 3px rgba(230,59,69,0.40),0 4px 10px rgba(0,0,0,0.25);"></div>',
+
+  html:
+    '<div style="width:20px;height:20px;background:#e63b45;border:3px solid #ffffff;border-radius:50%;box-shadow:0 0 0 3px rgba(230,59,69,0.40),0 4px 10px rgba(0,0,0,0.25);"></div>',
+
   iconSize: [20, 20],
   iconAnchor: [10, 10]
 }});
@@ -2209,7 +2909,9 @@ function visualizzaFrameRadar(indice) {{
     return;
   }}
 
-  const tempoPrecedente = radarTimes[radarFrameIndex];
+  const tempoPrecedente = radarTimes[
+    radarFrameIndex
+  ];
 
   if (radarLayers[tempoPrecedente]) {{
     radarLayers[tempoPrecedente].setOpacity(0);
@@ -2224,13 +2926,22 @@ function visualizzaFrameRadar(indice) {{
   }}
 
   const data = new Date(tempo * 1000);
-  const ore = String(data.getHours()).padStart(2, "0");
-  const minuti = String(data.getMinutes()).padStart(2, "0");
 
-  const timestamp = document.getElementById("radar-timestamp");
+  const ore = String(
+    data.getHours()
+  ).padStart(2, "0");
+
+  const minuti = String(
+    data.getMinutes()
+  ).padStart(2, "0");
+
+  const timestamp = document.getElementById(
+    "radar-timestamp"
+  );
 
   if (timestamp) {{
-    timestamp.textContent = ore + ":" + minuti + " (ora locale)";
+    timestamp.textContent =
+      ore + ":" + minuti + " (ora locale)";
   }}
 }}
 
@@ -2244,13 +2955,17 @@ function avviaRadar() {{
       return;
     }}
 
-    const prossimo = (radarFrameIndex + 1) % radarTimes.length;
+    const prossimo =
+      (radarFrameIndex + 1) % radarTimes.length;
+
     visualizzaFrameRadar(prossimo);
   }}, 800);
 }}
 
 function togglePlayRadar() {{
-  const bottone = document.getElementById("btn-play");
+  const bottone = document.getElementById(
+    "btn-play"
+  );
 
   if (radarPlaying) {{
     clearInterval(radarTimer);
@@ -2263,12 +2978,16 @@ function togglePlayRadar() {{
   }}
 }}
 
-fetch("https://api.rainviewer.com/public/weather-maps.json")
+fetch(
+  "https://api.rainviewer.com/public/weather-maps.json"
+)
   .then(function(response) {{
     return response.json();
   }})
   .then(function(payload) {{
-    const frames = payload && payload.radar && payload.radar.past
+    const frames = payload
+      && payload.radar
+      && payload.radar.past
       ? payload.radar.past
       : [];
 
@@ -2278,7 +2997,9 @@ fetch("https://api.rainviewer.com/public/weather-maps.json")
 
     frames.forEach(function(frame) {{
       const layer = L.tileLayer(
-        "https://tilecache.rainviewer.com" + frame.path + "/256/{{z}}/{{x}}/{{y}}/2/1_1.png",
+        "https://tilecache.rainviewer.com"
+          + frame.path
+          + "/256/{{z}}/{{x}}/{{y}}/2/1_1.png",
         {{
           opacity: 0,
           zIndex: 100,
@@ -2293,21 +3014,28 @@ fetch("https://api.rainviewer.com/public/weather-maps.json")
 
     if (radarTimes.length > 0) {{
       radarFrameIndex = radarTimes.length - 1;
+
       visualizzaFrameRadar(radarFrameIndex);
       avviaRadar();
     }} else {{
-      const timestamp = document.getElementById("radar-timestamp");
+      const timestamp = document.getElementById(
+        "radar-timestamp"
+      );
 
       if (timestamp) {{
-        timestamp.textContent = "frame non disponibile";
+        timestamp.textContent =
+          "frame non disponibile";
       }}
     }}
   }})
   .catch(function() {{
-    const timestamp = document.getElementById("radar-timestamp");
+    const timestamp = document.getElementById(
+      "radar-timestamp"
+    );
 
     if (timestamp) {{
-      timestamp.textContent = "radar temporaneamente non disponibile";
+      timestamp.textContent =
+        "radar temporaneamente non disponibile";
     }}
   }});
 </script>
@@ -2320,7 +3048,7 @@ fetch("https://api.rainviewer.com/public/weather-maps.json")
 
 
 # =============================================================================
-# CAMPO DI RICERCA E AVVIO APP
+# INTERFACCIA STREAMLIT
 # =============================================================================
 
 st.markdown("## 🔎 Seleziona località calabrese")
@@ -2329,7 +3057,7 @@ with st.form("search_form", clear_on_submit=False):
     colonna_input, colonna_bottone = st.columns([4, 1])
 
     with colonna_input:
-        testo_citta = st.text_input(
+        testo_localita = st.text_input(
             "Località",
             value="Cosenza",
             placeholder=(
@@ -2347,31 +3075,64 @@ with st.form("search_form", clear_on_submit=False):
         )
 
 
+# =============================================================================
+# ESECUZIONE
+# =============================================================================
+
 try:
-    luogo, latitudine, longitudine = risolvi_citta(testo_citta)
+    luogo, latitudine, longitudine = risolvi_localita(
+        testo_localita
+    )
 
     with st.spinner(
         f"Elaborazione previsione ICON-2I e radar per {luogo}..."
     ):
-        dati_meteo = scarica_previsione(
+        dati_terrestri = scarica_previsione_terrestre(
             latitudine,
             longitudine,
         )
 
-        dati_orari, dati_giornalieri = prepara(dati_meteo)
+        dati_orari, dati_giornalieri = (
+            prepara_dati_terrestri(
+                dati_terrestri
+            )
+        )
+
+        dati_mare = None
+        distanza_mare_km = None
+
+        try:
+            dati_mare_candidati, distanza_candidata_km = (
+                scarica_previsione_mare(
+                    latitudine,
+                    longitudine,
+                )
+            )
+
+            if distanza_candidata_km <= SOGLIA_COSTA_KM:
+                dati_mare = dati_mare_candidati
+                distanza_mare_km = distanza_candidata_km
+
+        except RuntimeError:
+            # Il pannello terrestre continua a funzionare anche
+            # se la sorgente marina non risponde.
+            dati_mare = None
+            distanza_mare_km = None
 
     documento = genera_app_completa(
         luogo,
         latitudine,
         longitudine,
-        dati_meteo,
+        dati_terrestri,
         dati_orari,
         dati_giornalieri,
+        dati_mare,
+        distanza_mare_km,
     )
 
     components.html(
         documento,
-        height=3400,
+        height=4200,
         scrolling=True,
     )
 

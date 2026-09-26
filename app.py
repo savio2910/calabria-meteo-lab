@@ -1,30 +1,60 @@
 import html
+import json
 from datetime import datetime
 from zoneinfo import ZoneInfo
-import json
 
 import pandas as pd
 import requests
 import streamlit as st
 import streamlit.components.v1 as components
-
 from geopy.exc import GeocoderServiceError, GeocoderTimedOut
 from geopy.geocoders import Nominatim
 
-st.set_page_config(page_title="Calabria Meteo Lab", page_icon="🌤️", layout="wide", initial_sidebar_state="collapsed")
 
-st.markdown("""
-<style>
-  #MainMenu {visibility: hidden;}
-  header {visibility: hidden;}
-  footer {visibility: hidden;}
-  .block-container {
-    padding-top: 1rem !important;
-    padding-bottom: 2rem !important;
-    max-width: 1400px !important;
-  }
-</style>
-""", unsafe_allow_html=True)
+# =============================================================================
+# CONFIGURAZIONE STREAMLIT
+# =============================================================================
+
+st.set_page_config(
+    page_title="Calabria Meteo Lab",
+    page_icon="🌤️",
+    layout="wide",
+    initial_sidebar_state="collapsed",
+)
+
+st.markdown(
+    """
+    <style>
+      #MainMenu {visibility: hidden;}
+      header {visibility: hidden;}
+      footer {visibility: hidden;}
+
+      .block-container {
+        padding-top: 1rem !important;
+        padding-bottom: 2rem !important;
+        max-width: 1400px !important;
+      }
+
+      [data-testid="stAppViewContainer"] {
+        background: #eef5f8;
+      }
+
+      [data-testid="stHeader"] {
+        background: transparent;
+      }
+
+      iframe {
+        background: #eef5f8 !important;
+      }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+
+# =============================================================================
+# COSTANTI
+# =============================================================================
 
 API_URL = "https://api.open-meteo.com/v1/forecast"
 MODELLO = "italia_meteo_arpae_icon_2i"
@@ -32,498 +62,2148 @@ FUSO = ZoneInfo("Europe/Rome")
 GIORNI = 3
 
 COMUNI = {
-    "Amantea": (39.1331, 16.0746), "Belvedere Marittimo": (39.7833, 15.8000), "Bisignano": (39.3667, 16.2167),
-    "Catanzaro": (38.9098, 16.5877), "Castrovillari": (39.8167, 16.2000), "Cirò Marina": (39.3703, 17.1247),
-    "Corigliano-Rossano": (39.5900, 16.5190), "Cosenza": (39.2983, 16.2537), "Crotone": (39.0808, 17.1271),
-    "Diamante": (39.7333, 15.7833), "Isola di Capo Rizzuto": (38.9597, 17.0924), "Lamezia Terme": (38.9708, 16.3189),
-    "Locri": (38.2415, 16.2624), "Paola": (39.3667, 16.0333), "Palmi": (38.3594, 15.8510),
-    "Praia a Mare": (39.8932, 15.7800), "Reggio Calabria": (38.1113, 15.6473), "Rende": (39.3500, 16.2167),
-    "Roccella Ionica": (38.3225, 16.4038), "Rossano": (39.5900, 16.5190), "Scalea": (39.7833, 15.7833),
-    "Sibari": (39.7470, 16.4550), "Soverato": (38.6842, 16.5495), "Tropea": (38.6766, 15.8984),
+    "Amantea": (39.1331, 16.0746),
+    "Belvedere Marittimo": (39.5835, 15.8648),
+    "Bisignano": (39.5089, 16.2808),
+    "Catanzaro": (38.9098, 16.5877),
+    "Castrovillari": (39.8167, 16.2000),
+    "Cirò Marina": (39.3703, 17.1247),
+    "Corigliano-Rossano": (39.5900, 16.5190),
+    "Cosenza": (39.2983, 16.2537),
+    "Crotone": (39.0808, 17.1271),
+    "Diamante": (39.6800, 15.8200),
+    "Isola di Capo Rizzuto": (38.9597, 17.0924),
+    "Lamezia Terme": (38.9708, 16.3189),
+    "Locri": (38.2415, 16.2624),
+    "Paola": (39.3637, 16.0395),
+    "Palmi": (38.3594, 15.8510),
+    "Praia a Mare": (39.8932, 15.7800),
+    "Reggio Calabria": (38.1113, 15.6473),
+    "Rende": (39.3312, 16.1840),
+    "Roccella Ionica": (38.3225, 16.4038),
+    "Scalea": (39.8116, 15.7915),
+    "Sibari": (39.7487, 16.4530),
+    "Soverato": (38.6842, 16.5495),
+    "Tropea": (38.6766, 15.8984),
     "Vibo Valentia": (38.6762, 16.1005),
 }
 
-ALIASES = {"reggio di calabria": "Reggio Calabria", "reggio": "Reggio Calabria", "rossano": "Corigliano-Rossano", "corigliano": "Corigliano-Rossano", "isola capo rizzuto": "Isola di Capo Rizzuto"}
-GIORNI_IT = ["lunedì", "martedì", "mercoledì", "giovedì", "venerdì", "sabato", "domenica"]
-MESI_IT = ["gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno", "luglio", "agosto", "settembre", "ottobre", "novembre", "dicembre"]
-CODICI = {0: ("☀️", "Sereno"), 1: ("🌤️", "Quasi sereno"), 2: ("⛅", "Parzialmente nuvoloso"), 3: ("☁️", "Coperto"), 45: ("🌫️", "Nebbia"), 48: ("🌫️", "Nebbia con brina"), 51: ("🌦️", "Pioviggine debole"), 53: ("🌦️", "Pioviggine moderata"), 55: ("🌧️", "Pioviggine intensa"), 61: ("🌧️", "Pioggia debole"), 63: ("🌧️", "Pioggia moderata"), 65: ("🌧️", "Pioggia forte"), 71: ("❄️", "Neve debole"), 73: ("❄️", "Neve moderata"), 75: ("❄️", "Neve forte"), 80: ("🌦️", "Rovesci deboli"), 81: ("🌧️", "Rovesci moderati"), 82: ("🌧️", "Rovesci forti"), 95: ("⛈️", "Temporale"), 96: ("⛈️", "Temporale con grandine"), 99: ("⛈️", "Temporale con forte grandine")}
-CURRENT = ["temperature_2m", "relative_humidity_2m", "apparent_temperature", "weather_code", "cloud_cover", "pressure_msl", "wind_speed_10m", "wind_direction_10m", "wind_gusts_10m"]
-HOURLY = ["temperature_2m", "relative_humidity_2m", "apparent_temperature", "precipitation", "weather_code", "cloud_cover", "wind_speed_10m", "wind_direction_10m", "wind_gusts_10m"]
-DAILY = ["weather_code", "temperature_2m_max", "temperature_2m_min", "sunrise", "sunset", "moonrise", "moonset", "moon_phase", "precipitation_sum", "wind_speed_10m_max", "wind_gusts_10m_max", "wind_direction_10m_dominant"]
+ALIASES = {
+    "reggio": "Reggio Calabria",
+    "reggio di calabria": "Reggio Calabria",
+    "rossano": "Corigliano-Rossano",
+    "corigliano": "Corigliano-Rossano",
+    "isola capo rizzuto": "Isola di Capo Rizzuto",
+    "capo rizzuto": "Isola di Capo Rizzuto",
+}
 
-def numero(x, decimali=1, unita=""):
+GIORNI_IT = [
+    "lunedì",
+    "martedì",
+    "mercoledì",
+    "giovedì",
+    "venerdì",
+    "sabato",
+    "domenica",
+]
+
+MESI_IT = [
+    "gennaio",
+    "febbraio",
+    "marzo",
+    "aprile",
+    "maggio",
+    "giugno",
+    "luglio",
+    "agosto",
+    "settembre",
+    "ottobre",
+    "novembre",
+    "dicembre",
+]
+
+CODICI = {
+    0: ("☀️", "Sereno"),
+    1: ("🌤️", "Quasi sereno"),
+    2: ("⛅", "Parzialmente nuvoloso"),
+    3: ("☁️", "Coperto"),
+    45: ("🌫️", "Nebbia"),
+    48: ("🌫️", "Nebbia con brina"),
+    51: ("🌦️", "Pioviggine debole"),
+    53: ("🌦️", "Pioviggine moderata"),
+    55: ("🌧️", "Pioviggine intensa"),
+    56: ("🌧️", "Pioviggine gelata debole"),
+    57: ("🌧️", "Pioviggine gelata intensa"),
+    61: ("🌧️", "Pioggia debole"),
+    63: ("🌧️", "Pioggia moderata"),
+    65: ("🌧️", "Pioggia forte"),
+    66: ("🌨️", "Pioggia gelata debole"),
+    67: ("🌨️", "Pioggia gelata forte"),
+    71: ("❄️", "Neve debole"),
+    73: ("❄️", "Neve moderata"),
+    75: ("❄️", "Neve forte"),
+    77: ("❄️", "Granelli di neve"),
+    80: ("🌦️", "Rovesci deboli"),
+    81: ("🌧️", "Rovesci moderati"),
+    82: ("🌧️", "Rovesci forti"),
+    85: ("🌨️", "Rovesci nevosi deboli"),
+    86: ("🌨️", "Rovesci nevosi forti"),
+    95: ("⛈️", "Temporale"),
+    96: ("⛈️", "Temporale con grandine"),
+    99: ("⛈️", "Temporale con forte grandine"),
+}
+
+CURRENT = [
+    "temperature_2m",
+    "relative_humidity_2m",
+    "apparent_temperature",
+    "weather_code",
+    "cloud_cover",
+    "pressure_msl",
+    "wind_speed_10m",
+    "wind_direction_10m",
+    "wind_gusts_10m",
+]
+
+HOURLY = [
+    "temperature_2m",
+    "relative_humidity_2m",
+    "apparent_temperature",
+    "precipitation",
+    "weather_code",
+    "cloud_cover",
+    "wind_speed_10m",
+    "wind_direction_10m",
+    "wind_gusts_10m",
+]
+
+DAILY = [
+    "weather_code",
+    "temperature_2m_max",
+    "temperature_2m_min",
+    "sunrise",
+    "sunset",
+    "moonrise",
+    "moonset",
+    "moon_phase",
+    "precipitation_sum",
+    "wind_speed_10m_max",
+    "wind_gusts_10m_max",
+    "wind_direction_10m_dominant",
+]
+
+
+# =============================================================================
+# FUNZIONI DI FORMATTAZIONE
+# =============================================================================
+
+def numero(valore, decimali=1, unita=""):
     try:
-        if x is None or pd.isna(x): return "—"
-        return f"{float(x):.{decimali}f}{unita}"
-    except: return "—"
+        if valore is None or pd.isna(valore):
+            return "—"
+        return f"{float(valore):.{decimali}f}{unita}"
+    except (TypeError, ValueError):
+        return "—"
+
 
 def direzione(gradi):
     try:
-        if gradi is None or pd.isna(gradi): return "—"
-        return ["N", "NE", "E", "SE", "S", "SO", "O", "NO"][int((float(gradi) + 22.5) // 45) % 8]
-    except: return "—"
+        if gradi is None or pd.isna(gradi):
+            return "—"
+
+        direzioni = ["N", "NE", "E", "SE", "S", "SO", "O", "NO"]
+        indice = int((float(gradi) + 22.5) // 45) % 8
+        return direzioni[indice]
+    except (TypeError, ValueError):
+        return "—"
+
 
 def meteo(codice):
     try:
-        if codice is None or pd.isna(codice): return "❔", "Non disponibile"
+        if codice is None or pd.isna(codice):
+            return "❔", "Non disponibile"
         return CODICI.get(int(codice), ("❔", "Non disponibile"))
-    except: return "❔", "Non disponibile"
+    except (TypeError, ValueError):
+        return "❔", "Non disponibile"
 
-def data_it(x):
-    try:
-        d = pd.Timestamp(x)
-        return f"{GIORNI_IT[d.weekday()]} {d.day} {MESI_IT[d.month - 1]}"
-    except: return "Data non disponibile"
 
-def ora_it(x):
+def data_it(valore):
     try:
-        if x is None or pd.isna(x): return "—"
-        return pd.Timestamp(x).strftime("%H:%M")
-    except: return "—"
+        data = pd.Timestamp(valore)
+        return f"{GIORNI_IT[data.weekday()]} {data.day} {MESI_IT[data.month - 1]}"
+    except (TypeError, ValueError):
+        return "Data non disponibile"
+
+
+def ora_it(valore):
+    try:
+        if valore is None or pd.isna(valore):
+            return "—"
+        return pd.Timestamp(valore).strftime("%H:%M")
+    except (TypeError, ValueError):
+        return "—"
+
 
 def fase_lunare(valore):
     try:
-        if valore is None or pd.isna(valore): return "🌙 Luna"
+        if valore is None or pd.isna(valore):
+            return "🌙 Luna"
+
         fase = float(valore)
-        if fase < 0.03 or fase > 0.97: return "🌑 Luna nuova"
-        if fase < 0.22: return "🌒 Falce crescente"
-        if fase < 0.28: return "🌓 Primo quarto"
-        if fase < 0.47: return "🌔 Gibbosa crescente"
-        if fase < 0.53: return "🌕 Luna piena"
-        if fase < 0.72: return "🌖 Gibbosa calante"
-        if fase < 0.78: return "🌗 Ultimo quarto"
+
+        if fase < 0.03 or fase > 0.97:
+            return "🌑 Luna nuova"
+        if fase < 0.22:
+            return "🌒 Falce crescente"
+        if fase < 0.28:
+            return "🌓 Primo quarto"
+        if fase < 0.47:
+            return "🌔 Gibbosa crescente"
+        if fase < 0.53:
+            return "🌕 Luna piena"
+        if fase < 0.72:
+            return "🌖 Gibbosa calante"
+        if fase < 0.78:
+            return "🌗 Ultimo quarto"
+
         return "🌘 Falce calante"
-    except: return "🌙 Luna"
+
+    except (TypeError, ValueError):
+        return "🌙 Luna"
+
+
+def e_notte(ora, alba, tramonto):
+    try:
+        if any(x is None or pd.isna(x) for x in (ora, alba, tramonto)):
+            return False
+
+        timestamp = pd.Timestamp(ora)
+        return timestamp < pd.Timestamp(alba) or timestamp >= pd.Timestamp(tramonto)
+
+    except (TypeError, ValueError):
+        return False
+
+
+# =============================================================================
+# ELABORAZIONE DATI
+# =============================================================================
 
 def calcola_dati_diurni(ore_giorno, alba, tramonto):
-    if ore_giorno.empty: return 0, 0
+    if ore_giorno.empty:
+        return 0, 0
+
     if alba is not None and tramonto is not None:
-        ore_diurne = ore_giorno.loc[(ore_giorno["time"] >= pd.Timestamp(alba)) & (ore_giorno["time"] <= pd.Timestamp(tramonto))]
+        alba_ts = pd.Timestamp(alba)
+        tramonto_ts = pd.Timestamp(tramonto)
+        ore_diurne = ore_giorno.loc[
+            (ore_giorno["time"] >= alba_ts)
+            & (ore_giorno["time"] <= tramonto_ts)
+        ]
     else:
-        ore_diurne = ore_giorno.loc[(ore_giorno["time"].dt.hour >= 7) & (ore_giorno["time"].dt.hour <= 20)]
-    df_target = ore_diurne if not ore_diurne.empty else ore_giorno
-    nubi_media = round(df_target["cloud_cover"].mean()) if "cloud_cover" in df_target else 0
-    codici_severi = [99, 96, 95, 82, 81, 80, 65, 63, 61, 55, 53, 51]
-    for c_sev in codici_severi:
-        if (df_target["weather_code"] == c_sev).sum() >= 2: return c_sev, nubi_media
-    return df_target["weather_code"].mode()[0] if not df_target.empty else 0, nubi_media
+        ore_diurne = ore_giorno.loc[
+            (ore_giorno["time"].dt.hour >= 7)
+            & (ore_giorno["time"].dt.hour <= 20)
+        ]
 
-def risolvi_citta(testo):
-    nome = testo.strip()
-    if not nome: raise ValueError("Inserisci il nome di un comune o località della Calabria.")
-    indice = {c.casefold(): c for c in COMUNI}
-    nome_alias = ALIASES.get(nome.casefold(), nome)
-    if nome_alias.casefold() in indice:
-        citta = indice[nome_alias.casefold()]
-        return citta, COMUNI[citta][0], COMUNI[citta][1]
-    try:
-        geocoder = Nominatim(user_agent="calabria_meteo_lab_v19", timeout=8)
-        risposta = geocoder.geocode(f"{nome}, Calabria, Italia", exactly_one=True, addressdetails=True, timeout=8)
-    except (GeocoderServiceError, GeocoderTimedOut) as exc:
-        raise RuntimeError(f"Località '{nome}' non trovata. Usa uno dei comuni nella lista.") from exc
-    if risposta is None: raise ValueError(f"Località «{nome}» non trovata.")
-    indirizzo = risposta.raw.get("address", {})
-    regione = str(indirizzo.get("state", "") or indirizzo.get("region", "")).casefold()
-    lat, lon = float(risposta.latitude), float(risposta.longitude)
-    if not ("calabria" in regione and (37.75 <= lat <= 40.15) and (15.60 <= lon <= 17.25)):
-        raise ValueError(f"❌ «{nome}» non è in Calabria.")
-    return indirizzo.get("city") or indirizzo.get("town") or nome.title(), lat, lon
+    dati_target = ore_diurne if not ore_diurne.empty else ore_giorno
 
-def scarica_previsione(lat, lon):
-    params = {"latitude": lat, "longitude": lon, "models": MODELLO, "timezone": "Europe/Rome", "forecast_days": GIORNI, "temperature_unit": "celsius", "wind_speed_unit": "kmh", "precipitation_unit": "mm", "current": ",".join(CURRENT), "hourly": ",".join(HOURLY), "daily": ",".join(DAILY)}
-    try:
-        r = requests.get(API_URL, params=params, timeout=25)
-        r.raise_for_status()
-        return r.json()
-    except Exception as exc:
-        raise RuntimeError(f"Errore nella ricezione dei dati: {exc}")
+    nuvolosita_media = 0
+    if "cloud_cover" in dati_target.columns:
+        nuvolosita_media = round(dati_target["cloud_cover"].mean())
+
+    codici_severi = [
+        99, 96, 95, 82, 81, 80,
+        65, 63, 61, 55, 53, 51,
+    ]
+
+    for codice in codici_severi:
+        if (dati_target["weather_code"] == codice).sum() >= 2:
+            return codice, nuvolosita_media
+
+    if dati_target.empty:
+        return 0, nuvolosita_media
+
+    codice_prevalente = dati_target["weather_code"].mode().iloc[0]
+    return codice_prevalente, nuvolosita_media
+
 
 def prepara(dati):
     ore_raw = pd.DataFrame(dati["hourly"])
     giorni = pd.DataFrame(dati["daily"])
+
     ore_raw["time"] = pd.to_datetime(ore_raw["time"])
     giorni["time"] = pd.to_datetime(giorni["time"])
-    codici_prevalenti, nuvolosita_giornaliera = [], []
-    for _, g in giorni.iterrows():
-        ore_del_giorno = ore_raw.loc[ore_raw["time"].dt.date == g["time"].date()]
-        cod_prev, nubi_prev = calcola_dati_diurni(ore_del_giorno, g.get("sunrise"), g.get("sunset"))
-        codici_prevalenti.append(cod_prev)
-        nuvolosita_giornaliera.append(nubi_prev)
+
+    codici_prevalenti = []
+    nuvolosita_giornaliera = []
+
+    for _, riga in giorni.iterrows():
+        data_giorno = riga["time"].date()
+        ore_giorno = ore_raw.loc[ore_raw["time"].dt.date == data_giorno]
+
+        codice, nubi = calcola_dati_diurni(
+            ore_giorno,
+            riga.get("sunrise"),
+            riga.get("sunset"),
+        )
+
+        codici_prevalenti.append(codice)
+        nuvolosita_giornaliera.append(nubi)
+
     giorni["weather_code_prevalente"] = codici_prevalenti
     giorni["cloud_cover_diurno"] = nuvolosita_giornaliera
     giorni["Da"] = giorni["wind_direction_10m_dominant"].map(direzione)
     giorni["Fase lunare"] = giorni["moon_phase"].map(fase_lunare)
+
     ora_locale = datetime.now(FUSO).replace(tzinfo=None)
-    ore = ore_raw.loc[ore_raw["time"] >= pd.Timestamp(ora_locale).floor("h")].copy()
+    ore = ore_raw.loc[
+        ore_raw["time"] >= pd.Timestamp(ora_locale).floor("h")
+    ].copy()
+
     ore["Icona"] = ore["weather_code"].map(lambda c: meteo(c)[0])
     ore["Scenario"] = ore["weather_code"].map(lambda c: meteo(c)[1])
     ore["Da"] = ore["wind_direction_10m"].map(direzione)
+
+    notte = []
+
+    for _, riga in ore.iterrows():
+        data_ora = riga["time"].date()
+        giorno_corrente = giorni.loc[giorni["time"].dt.date == data_ora]
+
+        if giorno_corrente.empty:
+            notte.append(False)
+            continue
+
+        info_giorno = giorno_corrente.iloc[0]
+
+        notte.append(
+            e_notte(
+                riga["time"],
+                info_giorno.get("sunrise"),
+                info_giorno.get("sunset"),
+            )
+        )
+
+    ore["Notte"] = notte
+
     return ore.reset_index(drop=True), giorni.reset_index(drop=True)
 
-def valuta_allerta_giornaliera(riga):
-    precip = float(riga.get("precipitation_sum", 0) or 0)
-    raffiche_max = float(riga.get("wind_gusts_10m_max", 0) or 0)
-    weather_code = int(riga.get("weather_code_prevalente", riga.get("weather_code", 0)))
-    if precip >= 100 or raffiche_max >= 100 or weather_code in [96, 99]:
-        return "rosso", "temporali" if weather_code in [95, 96, 99] or precip >= 80 else ("vento" if raffiche_max >= 100 else "pioggia")
-    if precip >= 50 or raffiche_max >= 70 or weather_code in [95, 96, 99]:
-        return "arancione", "temporali" if weather_code in [95, 96, 99] or precip >= 40 else ("vento" if raffiche_max >= 70 else "pioggia")
-    if precip >= 20 or raffiche_max >= 50 or weather_code in [80, 81, 82]:
-        return "giallo", "temporali" if weather_code in [80, 81, 82, 95, 96, 99] else ("pioggia" if precip >= 20 else "vento")
-    return "verde", "nessuno"
 
-def badge_allerta_html(livello, tipo):
-    colori = {"verde": ("#10b981", "#059669", "Nessuna criticità"), "giallo": ("#fbbf24", "#d97706", "Allerta meteo"), "arancione": ("#f97316", "#ea580c", "Allerta moderata"), "rosso": ("#ef4444", "#dc2626", "Allerta critica")}
-    bg, border, label = colori.get(livello, colori["verde"])
-    icone = {"temporali": "⛈️", "pioggia": "🌧️", "vento": "💨", "nessuno": "✅"}
-    return f'<div style="background:{bg};border-color:{border};color:white;display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:12px;border:2px solid rgba(255,255,255,0.3);font-size:12px;font-weight:700;box-shadow:0 4px 12px rgba(0,0,0,0.15);"><span style="font-size:18px;">{icone.get(tipo,"✅")}</span><span>{label} · {tipo.title()}</span></div>'
+# =============================================================================
+# RISOLUZIONE LOCALITA'
+# =============================================================================
+
+def risolvi_citta(testo):
+    nome = testo.strip()
+
+    if not nome:
+        raise ValueError("Inserisci il nome di un comune o di una località calabrese.")
+
+    indice = {comune.casefold(): comune for comune in COMUNI}
+
+    nome_normalizzato = ALIASES.get(nome.casefold(), nome)
+    chiave = nome_normalizzato.casefold()
+
+    if chiave in indice:
+        comune = indice[chiave]
+        lat, lon = COMUNI[comune]
+        return comune, lat, lon
+
+    try:
+        geocoder = Nominatim(
+            user_agent="calabria_meteo_lab_v20",
+            timeout=10,
+        )
+
+        risposta = geocoder.geocode(
+            f"{nome}, Calabria, Italia",
+            exactly_one=True,
+            addressdetails=True,
+            timeout=10,
+        )
+
+    except (GeocoderServiceError, GeocoderTimedOut) as exc:
+        raise RuntimeError(
+            "Geolocalizzazione non disponibile. Seleziona uno dei comuni presenti nell'elenco."
+        ) from exc
+
+    if risposta is None:
+        raise ValueError(
+            f"Località «{nome}» non trovata. Prova con un comune calabrese."
+        )
+
+    indirizzo = risposta.raw.get("address", {})
+    regione = str(
+        indirizzo.get("state", "") or indirizzo.get("region", "")
+    ).casefold()
+
+    lat = float(risposta.latitude)
+    lon = float(risposta.longitude)
+
+    is_calabria = "calabria" in regione
+    in_bounds = 37.75 <= lat <= 40.15 and 15.60 <= lon <= 17.25
+
+    if not (is_calabria and in_bounds):
+        raise ValueError(
+            f"❌ «{nome}» non è in Calabria. L'applicazione è dedicata esclusivamente alla Calabria."
+        )
+
+    nome_risolto = (
+        indirizzo.get("city")
+        or indirizzo.get("town")
+        or indirizzo.get("village")
+        or nome.title()
+    )
+
+    return nome_risolto, lat, lon
+
+
+# =============================================================================
+# DOWNLOAD PREVISIONE
+# =============================================================================
+
+@st.cache_data(ttl=600, show_spinner=False)
+def scarica_previsione(lat, lon):
+    params = {
+        "latitude": lat,
+        "longitude": lon,
+        "models": MODELLO,
+        "timezone": "Europe/Rome",
+        "forecast_days": GIORNI,
+        "temperature_unit": "celsius",
+        "wind_speed_unit": "kmh",
+        "precipitation_unit": "mm",
+        "current": ",".join(CURRENT),
+        "hourly": ",".join(HOURLY),
+        "daily": ",".join(DAILY),
+    }
+
+    try:
+        risposta = requests.get(API_URL, params=params, timeout=25)
+        risposta.raise_for_status()
+        return risposta.json()
+
+    except requests.RequestException as exc:
+        raise RuntimeError(
+            f"Errore nella ricezione dei dati ICON-2I: {exc}"
+        ) from exc
+
+
+# =============================================================================
+# INDICATORE METEOROLOGICO LOCALE
+# NON E' ALLERTA UFFICIALE DI PROTEZIONE CIVILE
+# =============================================================================
+
+def valuta_rischio_locale(riga):
+    precipitazione = float(riga.get("precipitation_sum", 0) or 0)
+    raffica = float(riga.get("wind_gusts_10m_max", 0) or 0)
+
+    codice = int(
+        riga.get(
+            "weather_code_prevalente",
+            riga.get("weather_code", 0),
+        )
+    )
+
+    if precipitazione >= 100 or raffica >= 100 or codice in [96, 99]:
+        if codice in [95, 96, 99]:
+            return "rosso", "temporali"
+        if raffica >= 100:
+            return "rosso", "vento"
+        return "rosso", "precipitazioni"
+
+    if precipitazione >= 50 or raffica >= 70 or codice in [95, 96, 99]:
+        if codice in [95, 96, 99]:
+            return "arancione", "temporali"
+        if raffica >= 70:
+            return "arancione", "vento"
+        return "arancione", "precipitazioni"
+
+    if precipitazione >= 20 or raffica >= 50 or codice in [80, 81, 82]:
+        if codice in [80, 81, 82]:
+            return "giallo", "rovesci"
+        if raffica >= 50:
+            return "giallo", "vento"
+        return "giallo", "precipitazioni"
+
+    return "verde", "nessuna criticità"
+
+
+def badge_rischio_html(livello, rischio):
+    palette = {
+        "verde": ("#12855c", "✅", "Nessuna criticità stimata"),
+        "giallo": ("#b77906", "⚠️", "Attenzione meteorologica"),
+        "arancione": ("#d85d05", "🟠", "Rischio meteorologico elevato"),
+        "rosso": ("#be2635", "🔴", "Rischio meteorologico molto elevato"),
+    }
+
+    colore, icona, testo = palette.get(livello, palette["verde"])
+
+    return (
+        f'<span class="cml-risk-badge" style="background:{colore};">'
+        f"<span>{icona}</span>"
+        f"<span>{html.escape(testo)} · {html.escape(rischio.title())}</span>"
+        f"</span>"
+    )
+
+
+# =============================================================================
+# INTERFACCIA HTML
+# =============================================================================
 
 def genera_app_completa(luogo, lat, lon, dati, ore, giorni):
-    cur = dati["current"]
-    ico_cur, desc_cur = meteo(cur.get("weather_code"))
-    
-    allerta_max, tipo_max = "verde", "nessuno"
-    for _, r in giorni.iterrows():
-        livello, tipo = valuta_allerta_giornaliera(r)
-        if livello == "rosso":
-            allerta_max, tipo_max = "rosso", tipo
-            break
-        elif livello == "arancione":
-            allerta_max, tipo_max = "arancione", tipo
-    
-    banner_html = ""
-    if allerta_max in ["giallo", "arancione", "rosso"]:
-        colori_banner = {"giallo": ("#fef3c7", "#d97706", "⚠️"), "arancione": ("#ffedd5", "#ea580c", "🟠"), "rosso": ("#fee2e2", "#dc2626", "🔴")}
-        bg, border, icona = colori_banner[allerta_max]
-        banner_html = f'<div style="background:{bg};border-left:4px solid {border};padding:16px 20px;margin:12px 0 24px;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.08);display:flex;align-items:center;gap:12px;"><span style="font-size:24px;">{icona}</span><div><div style="font-weight:800;color:{border};font-size:14px;">ALLERTA METEO {allerta_max.upper()}</div><div style="color:#64748b;font-size:13px;">Rischio {tipo_max} per {luogo}. Consulta le previsioni e prendi precauzioni.</div></div></div>'
-    
-    metriche = [("🌡️", "Percepita", numero(cur.get("apparent_temperature"), 1, " °C")), ("💧", "Umidità", numero(cur.get("relative_humidity_2m"), 0, " %")), ("☁️", "Nuvolosità", numero(cur.get("cloud_cover"), 0, " %")), ("💨", "Vento", numero(cur.get("wind_speed_10m"), 0, " km/h")), ("🧭", "Provenienza", direzione(cur.get("wind_direction_10m"))), ("🌬️", "Raffica", numero(cur.get("wind_gusts_10m"), 0, " km/h")), ("🌀", "Pressione", numero(cur.get("pressure_msl"), 1, " hPa"))]
-    metriche_html = "".join([f'<div style="display:flex;align-items:center;gap:14px;min-height:72px;padding:16px 18px;border:1px solid rgba(241,245,249,0.8);border-radius:16px;background:linear-gradient(135deg,rgba(255,255,255,0.9),rgba(248,250,252,0.8));transition:all 0.25s ease;"><div style="display:flex;align-items:center;justify-content:center;width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#ffffff,#f8fafc);font-size:24px;">{m[0]}</div><div style="display:flex;flex-direction:column;gap:4px;"><div style="color:var(--cml-muted);font-size:11px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;">{m[1]}</div><div style="color:var(--cml-ink);font-size:17px;font-weight:800;">{m[2]}</div></div></div>' for m in metriche])
+    corrente = dati["current"]
+    icona_corrente, descrizione_corrente = meteo(
+        corrente.get("weather_code")
+    )
 
-    etichette = ["OGGI", "DOMANI", "DOPODOMANI"]
-    carte_html = []
-    for idx, (_, r) in enumerate(giorni.iterrows()):
-        tag = etichette[idx] if idx < len(etichette) else "PROSSIMAMENTE"
-        cod_effettivo = r.get("weather_code_prevalente", r["weather_code"])
-        nubi_effettive = r.get("cloud_cover_diurno", 0)
-        ico, desc = meteo(cod_effettivo)
-        fase = html.escape(str(r.get("Fase lunare", "🌙 Luna")))
-        livello_allerta, tipo_rischio = valuta_allerta_giornaliera(r)
-        badge_allerta = badge_allerta_html(livello_allerta, tipo_rischio)
-        badge_bg = {"sereno": "linear-gradient(135deg,#ffd700,#ffb347)", "nuvoloso": "linear-gradient(135deg,#b0c4de,#87a3c9)", "pioggia": "linear-gradient(135deg,#4a90e2,#357abd)", "neve": "linear-gradient(135deg,#6c7a89,#5a6573)", "temporale": "linear-gradient(135deg,#8e44ad,#6c3483)"}
-        bg_key = "temporale" if cod_effettivo in [95,96,99] else "neve" if cod_effettivo in range(71,87) else "pioggia" if cod_effettivo in range(51,68) else "nuvoloso" if cod_effettivo in [2,3,45,48] else "sereno"
-        
-        carte_html.append(f"""
-        <div style="position:relative;overflow:hidden;padding:28px;border:1px solid rgba(255,255,255,0.4);border-radius:24px;background:rgba(255,255,255,0.85);backdrop-filter:blur(20px);color:var(--cml-ink);box-shadow:0 8px 24px rgba(0,0,0,0.08);transition:all 0.3s ease;">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-            <span style="padding:6px 14px;background:linear-gradient(135deg,var(--cml-primary),var(--cml-primary-dark));border-radius:999px;color:#ffffff;font-size:11px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;">{tag}</span>
-            <span style="color:var(--cml-muted);font-size:12px;font-weight:600;">{html.escape(data_it(r["time"]))}</span>
+    metriche = [
+        ("🌡️", "Percepita", numero(corrente.get("apparent_temperature"), 1, " °C")),
+        ("💧", "Umidità", numero(corrente.get("relative_humidity_2m"), 0, " %")),
+        ("☁️", "Nuvolosità", numero(corrente.get("cloud_cover"), 0, " %")),
+        ("💨", "Vento", numero(corrente.get("wind_speed_10m"), 0, " km/h")),
+        ("🧭", "Provenienza", direzione(corrente.get("wind_direction_10m"))),
+        ("🌬️", "Raffica", numero(corrente.get("wind_gusts_10m"), 0, " km/h")),
+        ("🌀", "Pressione", numero(corrente.get("pressure_msl"), 1, " hPa")),
+    ]
+
+    metriche_html = "".join(
+        f"""
+        <div class="cml-metric-card">
+          <div class="cml-metric-icon">{icona}</div>
+          <div>
+            <div class="cml-metric-label">{html.escape(etichetta)}</div>
+            <div class="cml-metric-value">{html.escape(valore)}</div>
           </div>
-          <div style="margin-bottom:16px;">{badge_allerta}</div>
-          <div style="display:flex;align-items:center;gap:20px;margin-bottom:24px;">
-            <div style="display:flex;align-items:center;justify-content:center;width:72px;height:72px;border-radius:20px;font-size:38px;background:{badge_bg.get(bg_key,badge_bg['sereno'])};box-shadow:0 8px 24px rgba(0,0,0,0.15);">{ico}</div>
-            <div style="display:flex;flex-direction:column;gap:6px;">
-              <div style="font-size:18px;font-weight:800;line-height:1.3;">{html.escape(desc)}</div>
-              <div style="display:inline-flex;padding:6px 12px;border-radius:999px;background:linear-gradient(135deg,rgba(224,231,255,0.9),rgba(199,210,254,0.8));color:#4338ca;font-size:11px;font-weight:700;">{fase}</div>
+        </div>
+        """
+        for icona, etichetta, valore in metriche
+    )
+
+    # -------------------------------------------------------------------------
+    # Banner rischio locale: mostra il livello massimo nei tre giorni.
+    # -------------------------------------------------------------------------
+
+    ranking_rischio = {
+        "verde": 0,
+        "giallo": 1,
+        "arancione": 2,
+        "rosso": 3,
+    }
+
+    livello_massimo = "verde"
+    rischio_massimo = "nessuna criticità"
+
+    for _, riga in giorni.iterrows():
+        livello, rischio = valuta_rischio_locale(riga)
+
+        if ranking_rischio[livello] > ranking_rischio[livello_massimo]:
+            livello_massimo = livello
+            rischio_massimo = rischio
+
+    banner_html = ""
+
+    if livello_massimo != "verde":
+        colori_banner = {
+            "giallo": ("#fff8d6", "#a56500", "⚠️"),
+            "arancione": ("#fff0df", "#bc4f00", "🟠"),
+            "rosso": ("#ffe3e5", "#af1d2d", "🔴"),
+        }
+
+        sfondo, colore, icona = colori_banner[livello_massimo]
+
+        banner_html = f"""
+        <div class="cml-alert-banner" style="background:{sfondo};border-left-color:{colore};">
+          <div class="cml-alert-symbol">{icona}</div>
+          <div>
+            <div class="cml-alert-title" style="color:{colore};">
+              ATTENZIONE METEOROLOGICA · LIVELLO {livello_massimo.upper()}
+            </div>
+            <div class="cml-alert-text">
+              Condizioni potenzialmente impegnative per <b>{html.escape(rischio)}</b> nel periodo considerato a {html.escape(luogo)}.
+              Questo indicatore è elaborato dai dati del modello e non sostituisce i bollettini o le allerte ufficiali della Protezione Civile.
             </div>
           </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px;padding:16px;background:linear-gradient(135deg,rgba(248,250,252,0.9),rgba(241,245,249,0.8));border-radius:16px;border:1px solid rgba(226,232,240,0.6);">
-            <div style="display:flex;flex-direction:column;gap:6px;align-items:center;"><span style="color:var(--cml-muted);font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">MINIMA</span><span style="font-size:24px;font-weight:900;color:#0284c7;">↓ {numero(r["temperature_2m_min"],1,"°")}</span></div>
-            <div style="display:flex;flex-direction:column;gap:6px;align-items:center;"><span style="color:var(--cml-muted);font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">MASSIMA</span><span style="font-size:24px;font-weight:900;color:var(--cml-orange);">↑ {numero(r["temperature_2m_max"],1,"°")}</span></div>
-          </div>
-          <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid rgba(226,232,240,0.6);">
-            <div style="display:flex;align-items:center;gap:12px;"><span style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,rgba(240,249,255,0.9),rgba(224,242,254,0.8));border-radius:8px;font-size:16px;">☁️</span><span style="color:var(--cml-muted);font-size:13px;font-weight:600;flex:1;">Nuvolosità diurna</span><span style="color:var(--cml-ink);font-size:14px;font-weight:800;white-space:nowrap;">{nubi_effettive}%</span></div>
-            <div style="display:flex;align-items:center;gap:12px;"><span style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,rgba(240,249,255,0.9),rgba(224,242,254,0.8));border-radius:8px;font-size:16px;">🌧️</span><span style="color:var(--cml-muted);font-size:13px;font-weight:600;flex:1;">Precipitazione</span><span style="color:var(--cml-ink);font-size:14px;font-weight:800;white-space:nowrap;">{numero(r["precipitation_sum"],1," mm")}</span></div>
-            <div style="display:flex;align-items:center;gap:12px;"><span style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,rgba(240,249,255,0.9),rgba(224,242,254,0.8));border-radius:8px;font-size:16px;">💨</span><span style="color:var(--cml-muted);font-size:13px;font-weight:600;flex:1;">Vento max</span><span style="color:var(--cml-ink);font-size:14px;font-weight:800;white-space:nowrap;">{numero(r["wind_speed_10m_max"],0," km/h")}</span></div>
-            <div style="display:flex;align-items:center;gap:12px;"><span style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,rgba(240,249,255,0.9),rgba(224,242,254,0.8));border-radius:8px;font-size:16px;">🌬️</span><span style="color:var(--cml-muted);font-size:13px;font-weight:600;flex:1;">Raffica max</span><span style="color:var(--cml-ink);font-size:14px;font-weight:800;white-space:nowrap;">{numero(r["wind_gusts_10m_max"],0," km/h")}</span></div>
-            <div style="display:flex;align-items:center;gap:12px;"><span style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,rgba(240,249,255,0.9),rgba(224,242,254,0.8));border-radius:8px;font-size:16px;">🧭</span><span style="color:var(--cml-muted);font-size:13px;font-weight:600;flex:1;">Direzione dom.</span><span style="color:var(--cml-ink);font-size:14px;font-weight:800;white-space:nowrap;">{html.escape(str(r["Da"]))}</span></div>
-          </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-            <div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px;background:linear-gradient(135deg,rgba(250,250,250,0.9),rgba(244,246,248,0.8));border-radius:12px;border:1px solid rgba(226,232,240,0.6);"><span style="font-size:20px;">☀️</span><span style="color:var(--cml-muted);font-size:10px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;">Alba</span><span style="color:var(--cml-ink);font-size:14px;font-weight:800;">{ora_it(r.get("sunrise"))}</span></div>
-            <div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px;background:linear-gradient(135deg,rgba(250,250,250,0.9),rgba(244,246,248,0.8));border-radius:12px;border:1px solid rgba(226,232,240,0.6);"><span style="font-size:20px;">🌇</span><span style="color:var(--cml-muted);font-size:10px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;">Tramonto</span><span style="color:var(--cml-ink);font-size:14px;font-weight:800;">{ora_it(r.get("sunset"))}</span></div>
-            <div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px;background:linear-gradient(135deg,rgba(250,250,250,0.9),rgba(244,246,248,0.8));border-radius:12px;border:1px solid rgba(226,232,240,0.6);"><span style="font-size:20px;">🌙</span><span style="color:var(--cml-muted);font-size:10px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;">Sorge</span><span style="color:var(--cml-ink);font-size:14px;font-weight:800;">{ora_it(r.get("moonrise"))}</span></div>
-            <div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px;background:linear-gradient(135deg,rgba(250,250,250,0.9),rgba(244,246,248,0.8));border-radius:12px;border:1px solid rgba(226,232,240,0.6);"><span style="font-size:20px;">🌘</span><span style="color:var(--cml-muted);font-size:10px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;">Tramonta</span><span style="color:var(--cml-ink);font-size:14px;font-weight:800;">{ora_it(r.get("moonset"))}</span></div>
-          </div>
         </div>
-        """)
+        """
 
-    # Prepara dati grafici per tutti i giorni
+    # -------------------------------------------------------------------------
+    # Card giornaliere.
+    # -------------------------------------------------------------------------
+
+    etichette_giorni = ["OGGI", "DOMANI", "DOPODOMANI"]
+    carte_html = []
+
+    for indice, (_, riga) in enumerate(giorni.iterrows()):
+        tag = (
+            etichette_giorni[indice]
+            if indice < len(etichette_giorni)
+            else "PROSSIMAMENTE"
+        )
+
+        codice_effettivo = riga.get(
+            "weather_code_prevalente",
+            riga.get("weather_code"),
+        )
+
+        icona, descrizione = meteo(codice_effettivo)
+        fase = html.escape(str(riga.get("Fase lunare", "🌙 Luna")))
+
+        livello, rischio = valuta_rischio_locale(riga)
+        badge_rischio = badge_rischio_html(livello, rischio)
+
+        if codice_effettivo in [95, 96, 99]:
+            sfondo_icona = "cml-icon-thunder"
+        elif codice_effettivo in range(71, 87):
+            sfondo_icona = "cml-icon-snow"
+        elif codice_effettivo in range(51, 68) or codice_effettivo in range(80, 83):
+            sfondo_icona = "cml-icon-rain"
+        elif codice_effettivo in [2, 3, 45, 48]:
+            sfondo_icona = "cml-icon-cloud"
+        else:
+            sfondo_icona = "cml-icon-sun"
+
+        carte_html.append(
+            f"""
+            <article class="cml-day-card">
+              <div class="cml-day-head">
+                <span class="cml-day-tag">{tag}</span>
+                <span class="cml-day-date">{html.escape(data_it(riga["time"]))}</span>
+              </div>
+
+              <div class="cml-risk-row">
+                {badge_rischio}
+              </div>
+
+              <div class="cml-day-weather">
+                <div class="cml-day-icon {sfondo_icona}">{icona}</div>
+                <div>
+                  <div class="cml-day-description">{html.escape(descrizione)}</div>
+                  <div class="cml-day-moon">{fase}</div>
+                </div>
+              </div>
+
+              <div class="cml-temperature-grid">
+                <div class="cml-temp-box">
+                  <span>MINIMA</span>
+                  <strong class="cml-temp-min">
+                    ↓ {numero(riga["temperature_2m_min"], 1, "°")}
+                  </strong>
+                </div>
+                <div class="cml-temp-box">
+                  <span>MASSIMA</span>
+                  <strong class="cml-temp-max">
+                    ↑ {numero(riga["temperature_2m_max"], 1, "°")}
+                  </strong>
+                </div>
+              </div>
+
+              <div class="cml-day-details">
+                <div><span>☁️ Nuvolosità diurna</span><b>{numero(riga.get("cloud_cover_diurno"), 0, " %")}</b></div>
+                <div><span>🌧️ Precipitazione</span><b>{numero(riga.get("precipitation_sum"), 1, " mm")}</b></div>
+                <div><span>💨 Vento massimo</span><b>{numero(riga.get("wind_speed_10m_max"), 0, " km/h")}</b></div>
+                <div><span>🌬️ Raffica massima</span><b>{numero(riga.get("wind_gusts_10m_max"), 0, " km/h")}</b></div>
+                <div><span>🧭 Direzione dominante</span><b>{html.escape(str(riga.get("Da", "—")))}</b></div>
+              </div>
+
+              <div class="cml-astro-grid">
+                <div><span>☀️ Alba</span><b>{ora_it(riga.get("sunrise"))}</b></div>
+                <div><span>🌇 Tramonto</span><b>{ora_it(riga.get("sunset"))}</b></div>
+                <div><span>🌙 Sorge</span><b>{ora_it(riga.get("moonrise"))}</b></div>
+                <div><span>🌘 Tramonta</span><b>{ora_it(riga.get("moonset"))}</b></div>
+              </div>
+            </article>
+            """
+        )
+
+    # -------------------------------------------------------------------------
+    # Grafico e tabelle dinamiche.
+    # -------------------------------------------------------------------------
+
     date_disponibili = sorted(ore["time"].dt.date.unique())
-    dati_grafici_json = {}
-    for d in date_disponibili:
-        ore_giorno = ore.loc[ore["time"].dt.date == d]
-        ore_list = ore_giorno["time"].dt.strftime("%H:%M").tolist()
-        temp_list = [round(x, 1) if pd.notna(x) else 0 for x in ore_giorno["temperature_2m"].fillna(0).tolist()]
-        pioggia_list = [round(x, 1) if pd.notna(x) else 0 for x in ore_giorno["precipitation"].fillna(0).tolist()]
-        vento_list = [round(x, 0) if pd.notna(x) else 0 for x in ore_giorno["wind_speed_10m"].fillna(0).tolist()]
-        dati_grafici_json[str(d)] = {"ore": ore_list, "temp": temp_list, "pioggia": pioggia_list, "vento": vento_list}
 
-    # Pulsanti tab
-    pulsanti_tab_html = []
-    for idx, d in enumerate(date_disponibili):
-        active_cls = "active" if idx == 0 else ""
-        data_str = str(d)
-        pulsanti_tab_html.append(f'<button class="cml-tab-btn {active_cls}" onclick="mostraGiorno(\'{data_str}\',this)" style="padding:12px 24px;background:rgba(255,255,255,0.9);border:2px solid rgba(226,232,240,0.8);border-radius:14px;font-size:14px;font-weight:700;color:var(--cml-muted);cursor:pointer;transition:all 0.25s ease;white-space:nowrap;">📅 {data_it(d).title()}</button>')
+    if not date_disponibili:
+        raise RuntimeError("Non sono disponibili dati orari futuri per la località selezionata.")
 
-    # Tabelle orarie
-    sezioni_tabelle_html = []
-    for idx, d in enumerate(date_disponibili):
-        display_style = "display: block;" if idx == 0 else "display: none;"
-        data_str = str(d)
-        ore_giorno = ore.loc[ore["time"].dt.date == d]
+    dati_grafici = {}
+    pulsanti_tabs = []
+    tabelle_html = []
+
+    for indice, data_giorno in enumerate(date_disponibili):
+        chiave = str(data_giorno)
+
+        ore_giorno = ore.loc[ore["time"].dt.date == data_giorno].copy()
+
+        dati_grafici[chiave] = {
+            "ore": ore_giorno["time"].dt.strftime("%H:%M").tolist(),
+            "temperatura": [
+                round(float(x), 1) if pd.notna(x) else None
+                for x in ore_giorno["temperature_2m"].tolist()
+            ],
+            "vento": [
+                round(float(x), 1) if pd.notna(x) else None
+                for x in ore_giorno["wind_speed_10m"].tolist()
+            ],
+            "precipitazione": [
+                round(float(x), 1) if pd.notna(x) else None
+                for x in ore_giorno["precipitation"].tolist()
+            ],
+        }
+
+        classe_attiva = "active" if indice == 0 else ""
+        stile_visibilita = "display:block;" if indice == 0 else "display:none;"
+
+        pulsanti_tabs.append(
+            f"""
+            <button
+              class="cml-tab-btn {classe_attiva}"
+              type="button"
+              onclick="mostraGiorno('{chiave}', this)"
+            >
+              📅 {html.escape(data_it(data_giorno).title())}
+            </button>
+            """
+        )
+
         righe_tabella = []
+
         for _, riga in ore_giorno.iterrows():
-            riga_bg = "cml-row-sereno" if riga["weather_code"] in [0,1] else "cml-row-nuvoloso" if riga["weather_code"] in [2,3] else "cml-row-pioggia" if riga["weather_code"] in range(51,68) else "cml-row-neve" if riga["weather_code"] in range(71,87) else "cml-row-temporale"
-            righe_tabella.append(f'<tr class="{riga_bg}"><td style="height:50px;padding:0 12px;border-bottom:1px solid rgba(241,245,249,0.8);text-align:center;color:var(--cml-primary-dark);font-weight:800;font-size:14px;">{riga["time"].strftime("%H:%M")}</td><td style="text-align:left;"><div style="display:flex;align-items:center;gap:12px;"><span style="display:inline-flex;align-items:center;justify-content:center;flex:0 0 34px;width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#ffffff,#f8fafc);font-size:20px;box-shadow:0 2px 6px rgba(0,0,0,0.08);">{riga["Icona"]}</span><span style="display:block;overflow:hidden;text-overflow:ellipsis;line-height:1.3;font-weight:600;">{riga["Scenario"]}</span></div></td><td style="text-align:right;">{numero(riga["temperature_2m"])}</td><td style="text-align:right;">{numero(riga["apparent_temperature"])}</td><td style="text-align:right;">{numero(riga["precipitation"])}</td><td style="text-align:right;">{numero(riga["wind_speed_10m"],0)}</td><td style="text-align:center;color:var(--cml-muted);font-weight:800;">{riga["Da"]}</td><td style="text-align:right;">{numero(riga["wind_gusts_10m"],0)}</td><td style="text-align:right;">{numero(riga["cloud_cover"],0)}</td><td style="text-align:right;">{numero(riga["relative_humidity_2m"],0)}</td></tr>')
-        sezioni_tabelle_html.append(f'<div id="tab-{data_str}" class="cml-day-table-container" style="{display_style}"><div style="width:100%;max-width:100%;overflow-x:auto;border:2px solid rgba(226,232,240,0.8);border-radius:20px;background:rgba(255,255,255,0.95);backdrop-filter:blur(20px);box-shadow:0 8px 32px rgba(0,0,0,0.08);margin-bottom:16px;"><table style="width:100%;min-width:1100px;table-layout:fixed;border-collapse:separate;border-spacing:0;color:var(--cml-ink);font:13px -apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Arial,sans-serif;white-space:nowrap;"><colgroup><col style="width:7%;"><col style="width:22%;"><col style="width:9%;"><col style="width:9%;"><col style="width:9%;"><col style="width:9%;"><col style="width:7%;"><col style="width:10%;"><col style="width:7%;"><col style="width:7%;"></colgroup><thead><tr><th style="height:54px;padding:0 12px;background:linear-gradient(135deg,var(--cml-primary),var(--cml-primary-dark));color:#ffffff;text-align:center;vertical-align:middle;font-size:12px;font-weight:800;letter-spacing:0.5px;line-height:1.2;text-transform:uppercase;position:sticky;top:0;z-index:10;border-top-left-radius:18px;">Ora</th><th style="text-align:left;">Scenario</th><th style="text-align:center;">Temp. °C</th><th style="text-align:center;">Percepita °C</th><th style="text-align:center;">Pioggia mm</th><th style="text-align:center;">Vento km/h</th><th style="text-align:center;">Da</th><th style="text-align:center;">Raffica km/h</th><th style="text-align:center;">Nubi %</th><th style="text-align:center;border-top-right-radius:18px;">Umidità %</th></tr></thead><tbody>{"".join(righe_tabella)}</tbody></table></div></div>')
+            classe_notte = " cml-night-row" if bool(riga.get("Notte", False)) else ""
 
-    # Grafico dinamico
-    primo_giorno = str(date_disponibili[0])
-    grafico_html = f"""
-    <div class="cml-chart-section" style="margin:24px 0;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:14px;">
-        <div>
-          <h3 style="font-size:18px;font-weight:800;color:var(--cml-ink);margin:0;">📊 Andamento orario</h3>
-          <div style="font-size:12px;color:var(--cml-muted);margin-top:2px;">Temperatura, vento e precipitazioni nelle 24 ore</div>
-        </div>
-      </div>
-      <div style="padding:20px;background:white;border-radius:16px;box-shadow:0 4px 20px rgba(0,0,0,0.08);">
-        <canvas id="meteoChart"></canvas>
-      </div>
-    </div>
-    <script>
-    window.datiGraficiPerGiorno = {json.dumps(dati_grafici_json)};
-    const ctx = document.getElementById('meteoChart').getContext('2d');
-    window.meteoChartInstance = new Chart(ctx, {{
-      type: 'line',
-      data: {{
-        labels: {dati_grafici_json[primo_giorno]["ore"]},
-        datasets: [
-          {{label:'Temp. °C',data:{dati_grafici_json[primo_giorno]["temp"]},borderColor:'#f97316',backgroundColor:'rgba(249,115,22,0.1)',yAxisID:'y',tension:0.4,fill:true}},
-          {{label:'Pioggia mm',data:{dati_grafici_json[primo_giorno]["pioggia"]},borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,0.1)',yAxisID:'y1',tension:0.4,fill:true}},
-          {{label:'Vento km/h',data:{dati_grafici_json[primo_giorno]["vento"]},borderColor:'#10b981',backgroundColor:'rgba(16,185,129,0.1)',yAxisID:'y2',tension:0.4,borderDash:[5,5]}}
-        ]
-      }},
-      options: {{
-        responsive: true,
-        interaction: {{mode:'index',intersect:false}},
-        scales: {{
-          x: {{grid:{{color:'rgba(0,0,0,0.05)'}}}},
-          y: {{type:'linear',display:true,position:'left',title:{{display:true,text:'Temperatura (°C)'}},grid:{{color:'rgba(0,0,0,0.05)'}}}},
-          y1: {{type:'linear',display:true,position:'right',title:{{display:true,text:'Pioggia (mm)'}},grid:{{drawOnChartArea:false}},min:0}},
-          y2: {{type:'linear',display:true,position:'right',title:{{display:true,text:'Vento (km/h)'}},grid:{{drawOnChartArea:false}},min:0}}
-        }},
-        plugins: {{legend:{{position:'top'}},tooltip:{{mode:'index',intersect:false}}}}
-      }}
-    }});
-    function aggiornaGrafico(dataStr) {{
-      var datiGrafico = window.datiGraficiPerGiorno[dataStr];
-      if (!datiGrafico) return;
-      var chart = window.meteoChartInstance;
-      if (!chart) return;
-      chart.data.labels = datiGrafico.ore;
-      chart.data.datasets[0].data = datiGrafico.temp;
-      chart.data.datasets[1].data = datiGrafico.pioggia;
-      chart.data.datasets[2].data = datiGrafico.vento;
-      chart.update();
-    }}
-    var vecchiaMostraGiorno = window.mostraGiorno || function(){{}};
-    window.mostraGiorno = function(dataStr, btn) {{
-      vecchiaMostraGiorno(dataStr, btn);
-      aggiornaGrafico(dataStr);
-    }};
-    </script>
-    """
+            righe_tabella.append(
+                f"""
+                <tr class="{classe_notte.strip()}">
+                  <td>{riga["time"].strftime("%H:%M")}</td>
+                  <td class="cml-scenario-cell">
+                    <span class="cml-table-icon">{riga["Icona"]}</span>
+                    <span>{html.escape(str(riga["Scenario"]))}</span>
+                  </td>
+                  <td>{numero(riga["temperature_2m"], 1)}</td>
+                  <td>{numero(riga["apparent_temperature"], 1)}</td>
+                  <td>{numero(riga["precipitation"], 1)}</td>
+                  <td>{numero(riga["wind_speed_10m"], 0)}</td>
+                  <td>{html.escape(str(riga["Da"]))}</td>
+                  <td>{numero(riga["wind_gusts_10m"], 0)}</td>
+                  <td>{numero(riga["cloud_cover"], 0)}</td>
+                  <td>{numero(riga["relative_humidity_2m"], 0)}</td>
+                </tr>
+                """
+            )
 
-    # Ricerca autocomplete
-    ricerca_html = """
-    <script>
-    var inputComune = document.querySelector('input[placeholder*="Località"]');
-    if (inputComune) {
-      var suggerimenti = document.createElement('div');
-      suggerimenti.id = 'suggerimenti-comuni';
-      suggerimenti.style.cssText = 'position:absolute;background:white;border:1px solid #e2e8f0;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.1);max-height:300px;overflow-y:auto;z-index:1000;display:none;width:100%;';
-      inputComune.style.position = 'relative';
-      inputComune.parentNode.insertBefore(suggerimenti, inputComune.nextSibling);
-      var comuniLista = Object.keys({json.dumps(COMUNI)});
-      inputComune.addEventListener('input',function(){
-        var testo = this.value.toLowerCase();
-        if (testo.length < 2) {{ suggerimenti.style.display = 'none'; return; }}
-        var filtrati = comuniLista.filter(function(c){return c.toLowerCase().includes(testo);}).slice(0,8);
-        if (filtrati.length > 0) {{
-          suggerimenti.innerHTML = filtrati.map(function(c){return '<div style="padding:10px 14px;cursor:pointer;border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background=\'#f0f9ff\'" onmouseout="this.style.background=\'white\'" onclick="document.querySelector(\'input[placeholder*=\\\"Località\\\"]\').value=\\'' + c + '\\';this.parentNode.style.display=\'none\';document.querySelector(\'button[type=\\\"submit\\\"]\').click();">' + c + '</div>';}).join('');
-          suggerimenti.style.display = 'block';
-        }} else {{ suggerimenti.style.display = 'none'; }}
-      });
-      document.addEventListener('click',function(e){if(!inputComune.contains(e.target)){suggerimenti.style.display='none';}});
-    }
-    </script>
-    """
+        tabelle_html.append(
+            f"""
+            <div
+              id="tab-{chiave}"
+              class="cml-day-table-container"
+              style="{stile_visibilita}"
+            >
+              <div class="cml-table-wrap">
+                <table class="cml-table">
+                  <thead>
+                    <tr>
+                      <th>Ora</th>
+                      <th>Scenario</th>
+                      <th>Temp. °C</th>
+                      <th>Percepita °C</th>
+                      <th>Pioggia mm</th>
+                      <th>Vento km/h</th>
+                      <th>Da</th>
+                      <th>Raffica km/h</th>
+                      <th>Nubi %</th>
+                      <th>Umidità %</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {''.join(righe_tabella)}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            """
+        )
 
-    html_content = f"""<!DOCTYPE html>
+    chiave_iniziale = str(date_disponibili[0])
+
+    dati_grafici_json = json.dumps(
+        dati_grafici,
+        ensure_ascii=False,
+    )
+
+    # -------------------------------------------------------------------------
+    # HTML finale.
+    # -------------------------------------------------------------------------
+
+    documento_html = f"""
+<!DOCTYPE html>
 <html lang="it">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<link
+  rel="stylesheet"
+  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+/>
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<style>
-:root{{--cml-ink:#0f172a;--cml-muted:#64748b;--cml-line:#e2e8f0;--cml-primary:#0ea5e9;--cml-primary-dark:#0284c7;--cml-orange:#f97316;--cml-blue:#3b82f6;--cml-green:#10b981;--cml-purple:#8b5cf6;--cml-red:#ef4444;--cml-yellow:#f59e0b}}
-*{{box-sizing:border-box;margin:0;padding:0}}
-body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;color:var(--cml-ink);background:linear-gradient(135deg,#f0f9ff 0%,#e0f2fe 50%,#f0f9ff 100%);padding:8px;line-height:1.5;min-height:100vh}}
-.cml-hero{{position:relative;overflow:hidden;border-radius:32px;padding:48px 48px 40px;margin:12px 0 24px;color:#fff;background:rgba(255,255,255,0.15);backdrop-filter:blur(20px);box-shadow:0 20px 60px rgba(0,0,0,0.15);border:1px solid rgba(255,255,255,0.2)}}
-.cml-brand{{display:inline-flex;align-items:center;gap:12px;padding:8px 16px;background:rgba(255,255,255,0.2);backdrop-filter:blur(8px);border-radius:999px;color:#ffffff;font-size:11px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;border:1px solid rgba(255,255,255,0.3)}}
-.cml-brand-mark{{width:12px;height:12px;border-radius:50%;background:linear-gradient(135deg,#fde047,#fbbf24);box-shadow:0 0 0 6px rgba(253,224,71,0.2),0 0 24px rgba(253,224,71,0.8)}}
-.cml-hero h1{{margin:20px 0 12px;font-size:44px;font-weight:800;letter-spacing:-1.5px;line-height:1.1;background:linear-gradient(135deg,#ffffff,#e0f2fe);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}}
-.cml-hero p{{max-width:720px;margin:0;color:rgba(255,255,255,0.9);font-size:15px;line-height:1.7}}
-.cml-current{{overflow:hidden;margin:24px 0 32px;border:1px solid rgba(255,255,255,0.3);border-radius:24px;background:rgba(255,255,255,0.85);backdrop-filter:blur(20px);box-shadow:0 8px 32px rgba(0,0,0,0.1)}}
-.cml-current-main{{display:flex;align-items:center;justify-content:space-between;gap:32px;padding:36px 40px;background:linear-gradient(135deg,rgba(255,255,255,0.9),rgba(240,249,255,0.8));border-bottom:1px solid rgba(226,232,240,0.5)}}
-.cml-kicker{{display:inline-flex;align-items:center;gap:8px;padding:6px 14px;background:rgba(14,165,233,0.15);border-radius:999px;color:var(--cml-primary-dark);font-size:11px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:14px}}
-.cml-place-block h2{{margin:12px 0 10px;color:var(--cml-ink);font-size:34px;font-weight:800}}
-.cml-condition{{display:inline-flex;align-items:center;gap:10px;padding:8px 16px;background:rgba(255,255,255,0.9);border-radius:12px;color:var(--cml-muted);font-size:17px;font-weight:600}}
-.cml-temperature{{display:flex;align-items:flex-start;color:var(--cml-orange);font-weight:900;line-height:0.9}}
-.cml-temperature span{{font-size:86px;letter-spacing:-8px}}
-.cml-temperature small{{margin:12px 0 0 8px;font-size:28px;color:var(--cml-orange)}}
-.cml-metrics{{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;padding:24px 32px}}
-.cml-metric-card{{transition:all 0.25s ease}}
-.cml-metric-card:hover{{background:linear-gradient(135deg,rgba(240,249,255,0.95),rgba(224,242,254,0.9));border-color:var(--cml-primary);transform:translateY(-2px);box-shadow:0 8px 20px rgba(14,165,233,0.2)}}
-.cml-metric-lbl{{color:var(--cml-muted);font-size:11px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase}}
-.cml-metric-val{{color:var(--cml-ink);font-size:17px;font-weight:800}}
-.cml-current-footer{{display:flex;flex-wrap:wrap;gap:12px 28px;padding:16px 32px;border-top:1px solid rgba(226,232,240,0.6);background:rgba(250,250,250,0.6);color:var(--cml-muted);font-size:12px}}
-.cml-current-footer b{{color:var(--cml-ink);font-weight:700}}
-.cml-radar-box{{overflow:hidden;border:1px solid rgba(255,255,255,0.3);border-radius:24px;background:rgba(255,255,255,0.9);backdrop-filter:blur(20px);padding:28px;box-shadow:0 8px 32px rgba(0,0,0,0.08);margin-bottom:32px}}
-.cml-radar-header{{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:14px}}
-.cml-radar-header h2{{font-size:22px;font-weight:800;color:var(--cml-ink);margin:0}}
-.cml-radar-btn{{display:inline-flex;align-items:center;gap:8px;padding:10px 20px;background:linear-gradient(135deg,var(--cml-primary),var(--cml-primary-dark));border:none;border-radius:12px;font-size:13px;font-weight:700;color:#ffffff;cursor:pointer;box-shadow:0 4px 12px rgba(14,165,233,0.3)}}
-#radar-map{{width:100%;height:520px;border-radius:16px;border:2px solid rgba(226,232,240,0.8)}}
-.cml-radar-legend{{display:flex;justify-content:space-between;align-items:center;margin-top:16px;padding:14px 18px;background:linear-gradient(135deg,rgba(240,249,255,0.9),rgba(224,242,254,0.8));border-radius:12px;font-size:12px;color:var(--cml-muted);gap:12px;border:1px solid rgba(186,230,253,0.6)}}
-.cml-section-title{{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin:40px 0 20px}}
-.cml-section-title span{{color:var(--cml-primary);font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase}}
-.cml-section-title h2{{margin:8px 0 6px;color:var(--cml-ink);font-size:28px;font-weight:800}}
-.cml-section-title p{{margin:0;color:var(--cml-muted);font-size:14px}}
-.cml-pill{{padding:8px 16px;border-radius:999px;background:linear-gradient(135deg,rgba(224,242,254,0.9),rgba(186,230,253,0.8));color:var(--cml-primary-dark);font-size:12px;font-weight:800;border:1px solid rgba(186,230,253,0.6)}}
-.cml-days-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:20px;margin-bottom:28px}}
-.cml-alert-badge{{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:12px;border:2px solid rgba(255,255,255,0.3);font-size:12px;font-weight:700;box-shadow:0 4px 12px rgba(0,0,0,0.15)}}
-.cml-hour-header{{position:relative;overflow:hidden;margin-top:16px;padding:32px 32px;border-radius:24px;color:#fff;background:linear-gradient(135deg,rgba(30,58,95,0.95),rgba(59,89,152,0.9) 55%,rgba(74,105,168,0.85));backdrop-filter:blur(10px);box-shadow:0 12px 36px rgba(59,89,152,0.3)}}
-.cml-hour-header span{{color:rgba(186,230,253,0.9);font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase}}
-.cml-hour-header h2{{margin:10px 0 8px;color:#ffffff;font-size:28px;font-weight:800}}
-.cml-hour-header p{{margin:0;color:rgba(219,234,255,0.9);font-size:14px;line-height:1.6}}
-.cml-tabs-bar{{display:flex;gap:12px;margin:20px 0 16px;overflow-x:auto;padding-bottom:6px}}
-.cml-tab-btn{{padding:12px 24px;background:rgba(255,255,255,0.9);border:2px solid rgba(226,232,240,0.8);border-radius:14px;font-size:14px;font-weight:700;color:var(--cml-muted);cursor:pointer;transition:all 0.25s ease;white-space:nowrap}}
-.cml-tab-btn:hover{{background:rgba(240,249,255,0.95);border-color:var(--cml-primary);color:var(--cml-primary-dark);transform:translateY(-2px)}}
-.cml-tab-btn.active{{background:linear-gradient(135deg,var(--cml-primary),var(--cml-primary-dark));color:#ffffff;border-color:var(--cml-primary);box-shadow:0 6px 16px rgba(14,165,233,0.35);transform:translateY(-2px)}}
-.cml-table-wrap{{width:100%;max-width:100%;overflow-x:auto;border:2px solid rgba(226,232,240,0.8);border-radius:20px;background:rgba(255,255,255,0.95);backdrop-filter:blur(20px);box-shadow:0 8px 32px rgba(0,0,0,0.08);margin-bottom:16px}}
-.cml-table{{width:100%;min-width:1100px;table-layout:fixed;border-collapse:separate;border-spacing:0;color:var(--cml-ink);font:13px -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;white-space:nowrap}}
-.cml-table th{{height:54px;padding:0 12px;background:linear-gradient(135deg,var(--cml-primary),var(--cml-primary-dark));color:#ffffff;text-align:center;vertical-align:middle;font-size:12px;font-weight:800;letter-spacing:0.5px;line-height:1.2;text-transform:uppercase;position:sticky;top:0;z-index:10}}
-.cml-table th:first-child{{border-top-left-radius:18px}}
-.cml-table th:last-child{{border-top-right-radius:18px}}
-.cml-table td{{height:50px;padding:0 12px;border-bottom:1px solid rgba(241,245,249,0.8);text-align:center;vertical-align:middle;line-height:1.3;font-variant-numeric:tabular-nums;transition:all 0.15s ease}}
-.cml-table td:first-child{{color:var(--cml-primary-dark);font-weight:800;font-size:14px}}
-.cml-table tbody tr:nth-child(even){{background:rgba(250,250,250,0.6)}}
-.cml-table tbody tr:hover{{background:linear-gradient(135deg,rgba(240,249,255,0.95),rgba(224,242,254,0.9));transform:scale(1.005)}}
-.cml-table tbody tr:last-child td{{border-bottom:0}}
-.cml-table tr.cml-row-sereno:hover{{background:linear-gradient(135deg,rgba(254,243,199,0.9),rgba(253,230,138,0.85))!important}}
-.cml-table tr.cml-row-nuvoloso:hover{{background:linear-gradient(135deg,rgba(224,231,255,0.9),rgba(199,210,254,0.85))!important}}
-.cml-table tr.cml-row-pioggia:hover{{background:linear-gradient(135deg,rgba(219,234,255,0.9),rgba(191,219,254,0.85))!important}}
-.cml-table tr.cml-row-neve:hover{{background:linear-gradient(135deg,rgba(241,245,249,0.9),rgba(226,232,240,0.85))!important}}
-.cml-table tr.cml-row-temporale:hover{{background:linear-gradient(135deg,rgba(233,213,255,0.9),rgba(216,180,254,0.85))!important}}
-.cml-note{{margin:20px 0 24px;padding:18px 22px;border:2px solid rgba(253,230,138,0.8);border-left:5px solid var(--cml-yellow);border-radius:16px;background:linear-gradient(135deg,rgba(254,243,199,0.9),rgba(253,230,138,0.85));backdrop-filter:blur(10px);color:rgba(120,52,15,0.9);font-size:13px;line-height:1.7}}
-.cml-note b{{color:rgba(146,64,14,0.95);font-weight:800}}
-</style>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script>
-function mostraGiorno(dataStr,btn){{var tabs=document.getElementsByClassName("cml-day-table-container");for(var i=0;i<tabs.length;i++){{tabs[i].style.display="none"}}var buttons=document.getElementsByClassName("cml-tab-btn");for(var i=0;i<buttons.length;i++){{buttons[i].classList.remove("active")}}document.getElementById("tab-"+dataStr).style.display="block";btn.classList.add("active")}}
-</script>
+
+<style>
+:root {{
+  --ink: #102b3b;
+  --muted: #607987;
+  --line: #d6e5ea;
+  --blue: #0b7f98;
+  --blue-dark: #07566d;
+  --blue-soft: #e8f5f8;
+  --orange: #f26e17;
+  --green: #15805c;
+  --page: #eef5f8;
+}}
+
+* {{
+  box-sizing: border-box;
+}}
+
+body {{
+  margin: 0;
+  padding: 8px;
+  min-height: 100vh;
+  color: var(--ink);
+  background: var(--page);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  line-height: 1.45;
+}}
+
+.cml-hero {{
+  position: relative;
+  overflow: hidden;
+  margin: 8px 0 22px;
+  padding: 42px 46px 38px;
+  border: 1px solid #07516c;
+  border-radius: 28px;
+  color: #ffffff;
+  background: linear-gradient(135deg, #06324d 0%, #075b78 52%, #087f91 100%);
+  box-shadow: 0 14px 32px rgba(9, 61, 83, 0.22);
+}}
+
+.cml-hero::before {{
+  content: "";
+  position: absolute;
+  top: -170px;
+  right: -120px;
+  width: 360px;
+  height: 360px;
+  border: 42px solid rgba(255, 255, 255, 0.09);
+  border-radius: 50%;
+}}
+
+.cml-hero::after {{
+  content: "";
+  position: absolute;
+  right: 80px;
+  bottom: -220px;
+  width: 260px;
+  height: 260px;
+  border: 32px solid rgba(255, 255, 255, 0.06);
+  border-radius: 50%;
+}}
+
+.cml-hero > * {{
+  position: relative;
+  z-index: 1;
+}}
+
+.cml-brand {{
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 15px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 999px;
+  background: rgba(0, 35, 55, 0.35);
+  color: #d7f7fa;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 2px;
+}}
+
+.cml-brand-mark {{
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: #ffd45c;
+  box-shadow: 0 0 0 5px rgba(255, 212, 92, 0.18);
+}}
+
+.cml-hero h1 {{
+  margin: 19px 0 10px;
+  color: #ffffff;
+  font-size: 44px;
+  font-weight: 800;
+  letter-spacing: -1.5px;
+  line-height: 1.1;
+}}
+
+.cml-hero p {{
+  max-width: 760px;
+  margin: 0;
+  color: #e2f5f8;
+  font-size: 15px;
+  line-height: 1.7;
+}}
+
+.cml-alert-banner {{
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  margin: 0 0 22px;
+  padding: 16px 18px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  border-right: 1px solid rgba(0, 0, 0, 0.06);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  border-left: 5px solid;
+  border-radius: 14px;
+  box-shadow: 0 6px 18px rgba(23, 67, 84, 0.08);
+}}
+
+.cml-alert-symbol {{
+  font-size: 25px;
+  line-height: 1;
+}}
+
+.cml-alert-title {{
+  margin-bottom: 3px;
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.4px;
+}}
+
+.cml-alert-text {{
+  color: #4d6570;
+  font-size: 13px;
+  line-height: 1.55;
+}}
+
+.cml-current {{
+  overflow: hidden;
+  margin: 22px 0 30px;
+  border: 1px solid #d5e4e9;
+  border-radius: 24px;
+  background: #ffffff;
+  box-shadow: 0 10px 30px rgba(23, 67, 84, 0.12);
+}}
+
+.cml-current-main {{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 28px;
+  padding: 34px 38px;
+  background: #ffffff;
+  border-bottom: 1px solid #e2edf0;
+}}
+
+.cml-kicker {{
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 13px;
+  border-radius: 999px;
+  background: #e3f5f8;
+  color: #087087;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+}}
+
+.cml-live-dot {{
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #18a579;
+  box-shadow: 0 0 0 4px rgba(24, 165, 121, 0.16);
+}}
+
+.cml-place-block h2 {{
+  margin: 13px 0 10px;
+  color: var(--ink);
+  font-size: 35px;
+  letter-spacing: -0.7px;
+}}
+
+.cml-condition {{
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 13px;
+  border: 1px solid #e1edf0;
+  border-radius: 11px;
+  color: #4d6570;
+  background: #f8fbfc;
+  font-size: 16px;
+  font-weight: 650;
+}}
+
+.cml-temperature {{
+  display: flex;
+  align-items: flex-start;
+  color: var(--orange);
+  font-weight: 900;
+  line-height: 0.9;
+  white-space: nowrap;
+}}
+
+.cml-temperature span {{
+  font-size: 84px;
+  letter-spacing: -7px;
+}}
+
+.cml-temperature small {{
+  margin: 10px 0 0 8px;
+  font-size: 28px;
+}}
+
+.cml-metrics {{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  padding: 22px 28px;
+}}
+
+.cml-metric-card {{
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  min-height: 70px;
+  padding: 14px 16px;
+  border: 1px solid #dce9ed;
+  border-radius: 15px;
+  background: #f7fbfc;
+  transition: transform 0.18s ease, border-color 0.18s ease;
+}}
+
+.cml-metric-card:hover {{
+  border-color: #89c6d1;
+  transform: translateY(-2px);
+}}
+
+.cml-metric-icon {{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid #e2edef;
+  border-radius: 12px;
+  background: #ffffff;
+  font-size: 23px;
+}}
+
+.cml-metric-label {{
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+}}
+
+.cml-metric-value {{
+  margin-top: 4px;
+  color: var(--ink);
+  font-size: 17px;
+  font-weight: 850;
+}}
+
+.cml-current-footer {{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 25px;
+  padding: 14px 28px;
+  border-top: 1px solid #e3edf0;
+  background: #f8fbfc;
+  color: var(--muted);
+  font-size: 12px;
+}}
+
+.cml-current-footer b {{
+  color: #294e5c;
+}}
+
+.cml-radar-box {{
+  margin-bottom: 32px;
+  padding: 26px;
+  border: 1px solid #d5e4e9;
+  border-radius: 24px;
+  background: #ffffff;
+  box-shadow: 0 8px 28px rgba(23, 67, 84, 0.10);
+}}
+
+.cml-radar-head {{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}}
+
+.cml-radar-head h2 {{
+  margin: 0;
+  color: var(--ink);
+  font-size: 23px;
+}}
+
+.cml-radar-head p {{
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}}
+
+.cml-radar-btn {{
+  border: 0;
+  border-radius: 11px;
+  padding: 10px 16px;
+  background: linear-gradient(135deg, #0c7f96, #075d74);
+  color: #ffffff;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 800;
+}}
+
+#radar-map {{
+  width: 100%;
+  height: 480px;
+  border: 1px solid #d8e7eb;
+  border-radius: 16px;
+}}
+
+.cml-radar-footer {{
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 20px;
+  margin-top: 14px;
+  padding: 12px 15px;
+  border: 1px solid #dcebef;
+  border-radius: 12px;
+  background: #f5fafb;
+  color: var(--muted);
+  font-size: 12px;
+}}
+
+.cml-radar-time {{
+  color: #087087;
+  font-weight: 850;
+}}
+
+.cml-section-title {{
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+  margin: 38px 0 18px;
+}}
+
+.cml-section-title span {{
+  color: #0b7f98;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 1.8px;
+}}
+
+.cml-section-title h2 {{
+  margin: 7px 0 5px;
+  color: var(--ink);
+  font-size: 28px;
+  letter-spacing: -0.6px;
+}}
+
+.cml-section-title p {{
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}}
+
+.cml-pill {{
+  padding: 8px 14px;
+  border: 1px solid #bfe2e8;
+  border-radius: 999px;
+  background: #e7f6f8;
+  color: #087087;
+  font-size: 12px;
+  font-weight: 850;
+  white-space: nowrap;
+}}
+
+.cml-days-grid {{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 18px;
+}}
+
+.cml-day-card {{
+  padding: 23px;
+  border: 1px solid #d5e4e9;
+  border-radius: 22px;
+  background: #ffffff;
+  box-shadow: 0 8px 24px rgba(23, 67, 84, 0.10);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}}
+
+.cml-day-card:hover {{
+  transform: translateY(-3px);
+  box-shadow: 0 14px 30px rgba(23, 67, 84, 0.15);
+}}
+
+.cml-day-head {{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}}
+
+.cml-day-tag {{
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #0e95ab, #087087);
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 1px;
+}}
+
+.cml-day-date {{
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: capitalize;
+}}
+
+.cml-risk-row {{
+  margin: 14px 0;
+}}
+
+.cml-risk-badge {{
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 800;
+}}
+
+.cml-day-weather {{
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}}
+
+.cml-day-icon {{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 68px;
+  height: 68px;
+  border-radius: 19px;
+  font-size: 35px;
+  box-shadow: 0 6px 14px rgba(23, 67, 84, 0.15);
+}}
+
+.cml-icon-sun {{
+  background: linear-gradient(135deg, #ffe99a, #f9b843);
+}}
+
+.cml-icon-cloud {{
+  background: linear-gradient(135deg, #dbe6ea, #93aab5);
+}}
+
+.cml-icon-rain {{
+  background: linear-gradient(135deg, #9ed4ef, #327eae);
+}}
+
+.cml-icon-snow {{
+  background: linear-gradient(135deg, #eff9ff, #b8d5e3);
+}}
+
+.cml-icon-thunder {{
+  background: linear-gradient(135deg, #cbb3e6, #67458b);
+}}
+
+.cml-day-description {{
+  color: var(--ink);
+  font-size: 18px;
+  font-weight: 850;
+}}
+
+.cml-day-moon {{
+  display: inline-flex;
+  margin-top: 6px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #48538f;
+  font-size: 11px;
+  font-weight: 750;
+}}
+
+.cml-temperature-grid {{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 17px;
+  padding: 13px;
+  border: 1px solid #e1ebee;
+  border-radius: 15px;
+  background: #f8fbfc;
+}}
+
+.cml-temp-box {{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}}
+
+.cml-temp-box span {{
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 1px;
+}}
+
+.cml-temp-box strong {{
+  font-size: 24px;
+}}
+
+.cml-temp-min {{
+  color: #167aa9;
+}}
+
+.cml-temp-max {{
+  color: var(--orange);
+}}
+
+.cml-day-details {{
+  display: grid;
+  gap: 9px;
+  margin-bottom: 18px;
+  padding-bottom: 17px;
+  border-bottom: 1px solid #e4edef;
+}}
+
+.cml-day-details div {{
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  color: #536d78;
+  font-size: 13px;
+}}
+
+.cml-day-details b {{
+  color: #234b59;
+  white-space: nowrap;
+}}
+
+.cml-astro-grid {{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 9px;
+}}
+
+.cml-astro-grid div {{
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 9px;
+  border: 1px solid #e3edef;
+  border-radius: 10px;
+  background: #fafcfd;
+  color: #637b85;
+  font-size: 11px;
+}}
+
+.cml-astro-grid b {{
+  color: #254c5a;
+}}
+
+.cml-note {{
+  margin: 18px 0 25px;
+  padding: 15px 18px;
+  border: 1px solid #f0dca8;
+  border-left: 5px solid #dc9c2d;
+  border-radius: 14px;
+  background: #fff8e7;
+  color: #67552d;
+  font-size: 13px;
+  line-height: 1.6;
+}}
+
+.cml-hour-header {{
+  position: relative;
+  overflow: hidden;
+  margin-top: 12px;
+  padding: 29px 31px;
+  border-radius: 22px;
+  background: linear-gradient(135deg, #122a50, #274d85);
+  color: #ffffff;
+  box-shadow: 0 12px 28px rgba(25, 50, 98, 0.22);
+}}
+
+.cml-hour-header::after {{
+  content: "☾";
+  position: absolute;
+  top: 0;
+  right: 27px;
+  color: rgba(255, 255, 255, 0.12);
+  font-size: 88px;
+}}
+
+.cml-hour-header > * {{
+  position: relative;
+  z-index: 1;
+}}
+
+.cml-hour-header span {{
+  color: #aeeaf2;
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 1.8px;
+}}
+
+.cml-hour-header h2 {{
+  margin: 9px 0 6px;
+  font-size: 28px;
+}}
+
+.cml-hour-header p {{
+  margin: 0;
+  color: #dceaff;
+  font-size: 13px;
+}}
+
+.cml-chart-box {{
+  margin: 20px 0 14px;
+  padding: 20px;
+  border: 1px solid #d5e4e9;
+  border-radius: 20px;
+  background: #ffffff;
+  box-shadow: 0 8px 24px rgba(23, 67, 84, 0.10);
+}}
+
+.cml-chart-title {{
+  margin-bottom: 4px;
+  color: var(--ink);
+  font-size: 18px;
+  font-weight: 850;
+}}
+
+.cml-chart-subtitle {{
+  margin-bottom: 15px;
+  color: var(--muted);
+  font-size: 12px;
+}}
+
+.cml-chart-canvas-wrap {{
+  position: relative;
+  height: 330px;
+}}
+
+.cml-tabs-bar {{
+  display: flex;
+  gap: 10px;
+  margin: 18px 0 14px;
+  overflow-x: auto;
+  padding-bottom: 5px;
+}}
+
+.cml-tab-btn {{
+  border: 1px solid #cfe2e7;
+  border-radius: 12px;
+  padding: 10px 16px;
+  background: #ffffff;
+  color: #3b6371;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+  transition: all 0.18s ease;
+}}
+
+.cml-tab-btn:hover {{
+  border-color: #0b7f98;
+  background: #eaf8fa;
+}}
+
+.cml-tab-btn.active {{
+  border-color: #087087;
+  background: linear-gradient(135deg, #0d90a7, #087087);
+  color: #ffffff;
+  box-shadow: 0 5px 12px rgba(8, 112, 135, 0.25);
+}}
+
+.cml-table-wrap {{
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid #d5e4e9;
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 8px 28px rgba(23, 67, 84, 0.10);
+}}
+
+.cml-table {{
+  width: 100%;
+  min-width: 1080px;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13px;
+  white-space: nowrap;
+}}
+
+.cml-table th {{
+  padding: 15px 10px;
+  background: linear-gradient(135deg, #0b7f98, #075d74);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: 0.3px;
+  text-align: center;
+  text-transform: uppercase;
+}}
+
+.cml-table th:first-child {{
+  border-top-left-radius: 17px;
+}}
+
+.cml-table th:last-child {{
+  border-top-right-radius: 17px;
+}}
+
+.cml-table td {{
+  padding: 11px 10px;
+  border-bottom: 1px solid #e7eff1;
+  color: #284d5a;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}}
+
+.cml-table td:first-child {{
+  color: #087087;
+  font-weight: 850;
+  text-align: center;
+}}
+
+.cml-table td:nth-child(2) {{
+  text-align: left;
+}}
+
+.cml-table td:nth-child(7) {{
+  text-align: center;
+  font-weight: 800;
+}}
+
+.cml-table tbody tr:nth-child(even) {{
+  background: #f8fbfc;
+}}
+
+.cml-table tbody tr:hover {{
+  background: #eaf7fa;
+}}
+
+.cml-scenario-cell {{
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 180px;
+  font-weight: 650;
+}}
+
+.cml-table-icon {{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 31px;
+  width: 31px;
+  height: 31px;
+  border: 1px solid #e2edef;
+  border-radius: 9px;
+  background: #ffffff;
+  font-size: 18px;
+}}
+
+.cml-night-row {{
+  background: linear-gradient(90deg, #142549, #203b68) !important;
+}}
+
+.cml-night-row td {{
+  border-bottom-color: rgba(255, 255, 255, 0.10);
+  color: #e5f0ff;
+}}
+
+.cml-night-row td:first-child {{
+  color: #a8eaf5;
+}}
+
+.cml-night-row .cml-scenario-cell {{
+  color: #ffedb2;
+}}
+
+.cml-night-row .cml-table-icon {{
+  border-color: rgba(255, 255, 255, 0.16);
+  background: #142549;
+}}
+
+@media (max-width: 760px) {{
+  body {{
+    padding: 4px;
+  }}
+
+  .cml-hero {{
+    padding: 31px 25px;
+  }}
+
+  .cml-hero h1 {{
+    font-size: 34px;
+  }}
+
+  .cml-current-main {{
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 26px 24px;
+  }}
+
+  .cml-temperature span {{
+    font-size: 69px;
+  }}
+
+  .cml-metrics {{
+    padding: 18px;
+  }}
+
+  .cml-radar-box {{
+    padding: 17px;
+  }}
+
+  #radar-map {{
+    height: 390px;
+  }}
+
+  .cml-section-title {{
+    align-items: flex-start;
+    flex-direction: column;
+  }}
+
+  .cml-hour-header {{
+    padding: 24px;
+  }}
+
+  .cml-chart-canvas-wrap {{
+    height: 280px;
+  }}
+}}
+</style>
 </head>
+
 <body>
 
-<div class="cml-hero">
-  <div class="cml-brand"><span class="cml-brand-mark"></span>CALABRIA · METEOROLOGIA LOCALE</div>
+<section class="cml-hero">
+  <div class="cml-brand">
+    <span class="cml-brand-mark"></span>
+    CALABRIA · METEOROLOGIA LOCALE
+  </div>
   <h1>Calabria Meteo Lab</h1>
-  <p>Previsione puntuale ad alta risoluzione per la Calabria. Cerca una località e leggi subito temperatura, cielo, vento, precipitazioni e sviluppo delle prossime 72 ore.</p>
-</div>
+  <p>
+    Previsioni ad alta risoluzione per la Calabria.
+    Cerca una località e consulta subito temperatura, cielo, vento,
+    precipitazioni e sviluppo delle prossime 72 ore.
+  </p>
+</section>
 
 {banner_html}
 
-<div class="cml-current">
+<section class="cml-current">
   <div class="cml-current-main">
     <div class="cml-place-block">
-      <div class="cml-kicker"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#10b981;margin-right:7px;"></span>ICON-2I · PREVISIONE PUNTUALE</div>
+      <div class="cml-kicker">
+        <span class="cml-live-dot"></span>
+        ICON-2I · PREVISIONE LOCALE
+      </div>
       <h2>📍 {html.escape(luogo)}</h2>
-      <div class="cml-condition">{ico_cur} {html.escape(desc_cur)}</div>
+      <div class="cml-condition">
+        {icona_corrente} {html.escape(descrizione_corrente)}
+      </div>
     </div>
-    <div class="cml-temperature"><span>{numero(cur.get("temperature_2m"),1,"")}</span><small>°C</small></div>
+
+    <div class="cml-temperature">
+      <span>{numero(corrente.get("temperature_2m"), 1, "")}</span>
+      <small>°C</small>
+    </div>
   </div>
-  <div class="cml-metrics">{metriche_html}</div>
+
+  <div class="cml-metrics">
+    {metriche_html}
+  </div>
+
   <div class="cml-current-footer">
-    <span>◷ Valido alle <b>{html.escape(str(cur.get("time","—")))}</b></span>
+    <span>◷ Valido alle <b>{html.escape(str(corrente.get("time", "—")))}</b></span>
     <span>◉ Fuso <b>Europe/Rome</b></span>
     <span>◌ Fonte <b>ItaliaMeteo–ARPAE</b></span>
   </div>
-</div>
+</section>
 
-<div class="cml-radar-box">
-  <div class="cml-radar-header">
-    <div><h2>📡 Radar Precipitazioni Live</h2><div style="font-size:12px;color:var(--cml-muted);margin-top:2px;">Mosaico Nazionale DPC · Riflettività radar in tempo reale</div></div>
-    <div style="display:flex;gap:10px;align-items:center;"><button class="cml-radar-btn" id="btn-play" onclick="togglePlay()">⏸️ Pausa</button></div>
+<section class="cml-radar-box">
+  <div class="cml-radar-head">
+    <div>
+      <h2>📡 Radar precipitazioni live</h2>
+      <p>Sequenza radar disponibile tramite RainViewer, centrata sulla località selezionata.</p>
+    </div>
+    <button class="cml-radar-btn" id="btn-play" type="button" onclick="togglePlayRadar()">
+      ⏸ Pausa
+    </button>
   </div>
+
   <div id="radar-map"></div>
-  <div class="cml-radar-legend">
-    <div>⚡ <b>Rete Radar:</b> Dipartimento Protezione Civile (DPC)</div>
-    <div>Scansione: <span id="radar-timestamp" style="font-weight:800;color:var(--cml-primary-dark);font-size:13px;">Caricamento...</span></div>
+
+  <div class="cml-radar-footer">
+    <span>🛰️ Base cartografica OpenStreetMap · Overlay radar RainViewer</span>
+    <span>Frame: <span id="radar-timestamp" class="cml-radar-time">caricamento...</span></span>
   </div>
-</div>
+</section>
 
-<div class="cml-section-title">
-  <div><span>ORIZZONTE PREVISIONALE</span><h2>📅 I prossimi tre giorni</h2><p>Condizione prevalente diurna, nuvolosità, temperature, precipitazioni, vento e ciclo lunare.</p></div>
+<section class="cml-section-title">
+  <div>
+    <span>ORIZZONTE PREVISIONALE</span>
+    <h2>📅 I prossimi tre giorni</h2>
+    <p>Scenario prevalente diurno, estremi termici, precipitazioni, vento e astronomia locale.</p>
+  </div>
   <div class="cml-pill">72 ore</div>
-</div>
-<div class="cml-days-grid">{''.join(carte_html)}</div>
-<div class="cml-note">ℹ️ Le schede mostrano la <b>condizione prevalente e la nuvolosità media diurna</b> (alba-tramonto). Temperature, vento e pioggia sono valori estremi/cumulati sulle 24h. I livelli di allerta sono calcolati in base alle soglie della Protezione Civile.</div>
+</section>
 
-<div class="cml-hour-header">
+<section class="cml-days-grid">
+  {''.join(carte_html)}
+</section>
+
+<div class="cml-note">
+  ℹ️ Le schede mostrano la condizione prevalente e la nuvolosità media nelle ore diurne.
+  Temperature, precipitazioni e vento rappresentano estremi o cumulati sulle 24 ore.
+  L'indicatore colorato è una valutazione tecnica locale ricavata dai dati previsionali:
+  <b>non è un'allerta ufficiale della Protezione Civile.</b>
+</div>
+
+<section class="cml-hour-header">
   <span>DETTAGLIO ORARIO</span>
   <h2>🕒 Previsione ora per ora</h2>
-  <p>Seleziona un giorno per vedere l'evoluzione oraria del modello ICON-2I.</p>
+  <p>Seleziona un giorno: grafico e tabella cambieranno insieme.</p>
+</section>
+
+<section class="cml-chart-box">
+  <div class="cml-chart-title">📊 Andamento meteorologico orario</div>
+  <div class="cml-chart-subtitle">
+    Temperatura, vento e precipitazione oraria per il giorno selezionato.
+  </div>
+  <div class="cml-chart-canvas-wrap">
+    <canvas id="meteoChart"></canvas>
+  </div>
+</section>
+
+<div class="cml-tabs-bar">
+  {''.join(pulsanti_tabs)}
 </div>
 
-{grafico_html}
+<section>
+  {''.join(tabelle_html)}
+</section>
 
-<div class="cml-tabs-bar">{''.join(pulsanti_tab_html)}</div>
-{''.join(sezioni_tabelle_html)}
-
-<div class="cml-note">ℹ️ <b>Modello ICON-2I:</b> Previsione deterministica ad alta risoluzione (2.2 km) di ItaliaMeteo–ARPAE. Aggiornata 2× al giorno (00/12 UTC), orizzonte 72h.</div>
+<div class="cml-note">
+  ℹ️ <b>ICON-2I:</b> modello deterministico ad alta risoluzione di ItaliaMeteo–ARPAE.
+  I dati sono forniti attraverso Open-Meteo. Il grafico e la tabella riportano
+  la previsione oraria disponibile per la posizione selezionata.
+</div>
 
 <script>
-var lat={lat};var lon={lon};
-var map=L.map('radar-map',{{center:[lat,lon],zoom:8,minZoom:5,maxZoom:18,zoomControl:true}});
-L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png',{{attribution:'&copy; OpenStreetMap contributors',maxZoom:18}}).addTo(map);
-var redPinIcon=L.divIcon({{className:'cml-pin-wrapper',html:'<div style="width:20px;height:20px;background:linear-gradient(135deg,#ef4444,#dc2626);border:3px solid #ffffff;border-radius:50%;box-shadow:0 0 0 3px rgba(239,68,68,0.4);"></div>',iconSize:[20,20],iconAnchor:[10,10]}});
-L.marker([lat,lon],{{icon:redPinIcon,title:'{html.escape(luogo)}'}}).addTo(map);
-var timestamps=[];var radarLayers={{}};var currentFrame=0;var isPlaying=true;var animationTimer=null;
-fetch('https://api.rainviewer.com/public/weather-maps.json').then(res=>res.json()).then(apiData=>{{var frames=apiData.radar.past;timestamps=frames.map(f=>f.time);frames.forEach(f=>{{var layer=L.tileLayer('https://tilecache.rainviewer.com'+f.path+'/256/{{z}}/{{x}}/{{y}}/2/1_1.png',{{opacity:0,zIndex:100,maxNativeZoom:6,maxZoom:18}});layer.addTo(map);radarLayers[f.time]=layer}});currentFrame=timestamps.length-1;showFrame(currentFrame);startAnimation()}});
-function showFrame(index){{if(timestamps.length===0)return;if(radarLayers[timestamps[currentFrame]]){{radarLayers[timestamps[currentFrame]].setOpacity(0)}}currentFrame=index;var time=timestamps[currentFrame];if(radarLayers[time]){{radarLayers[time].setOpacity(0.75)}}var date=new Date(time*1000);var ore=('0'+date.getHours()).slice(-2);var min=('0'+date.getMinutes()).slice(-2);document.getElementById('radar-timestamp').innerText=ore+':'+min+' (Ora Locale)'}}
-function startAnimation(){{if(animationTimer)clearInterval(animationTimer);animationTimer=setInterval(()=>{{var next=(currentFrame+1)%timestamps.length;showFrame(next)}},750)}}
-function togglePlay(){{var btn=document.getElementById('btn-play');if(isPlaying){{clearInterval(animationTimer);btn.innerText='▶️ Play';isPlaying=false}}else{{startAnimation();btn.innerText='⏸️ Pausa';isPlaying=true}}}}
+const datiGraficiPerGiorno = {dati_grafici_json};
+const chiaveGraficoIniziale = "{chiave_iniziale}";
+
+let meteoChartInstance = null;
+
+function creaGrafico(chiave) {{
+  const dati = datiGraficiPerGiorno[chiave];
+
+  if (!dati) {{
+    return;
+  }}
+
+  const canvas = document.getElementById("meteoChart");
+
+  if (!canvas) {{
+    return;
+  }}
+
+  const context = canvas.getContext("2d");
+
+  meteoChartInstance = new Chart(context, {{
+    type: "line",
+    data: {{
+      labels: dati.ore,
+      datasets: [
+        {{
+          label: "Temperatura °C",
+          data: dati.temperatura,
+          yAxisID: "temperatura",
+          borderColor: "#ef6c16",
+          backgroundColor: "rgba(239, 108, 22, 0.12)",
+          pointRadius: 3,
+          pointHoverRadius: 5,
+          borderWidth: 3,
+          tension: 0.35,
+          fill: true
+        }},
+        {{
+          label: "Vento km/h",
+          data: dati.vento,
+          yAxisID: "vento",
+          borderColor: "#0a8b72",
+          backgroundColor: "rgba(10, 139, 114, 0.06)",
+          pointRadius: 2,
+          pointHoverRadius: 4,
+          borderWidth: 2.5,
+          borderDash: [7, 4],
+          tension: 0.3,
+          fill: false
+        }},
+        {{
+          label: "Precipitazione mm",
+          data: dati.precipitazione,
+          yAxisID: "precipitazione",
+          type: "bar",
+          backgroundColor: "rgba(47, 137, 202, 0.68)",
+          borderColor: "#1679ba",
+          borderWidth: 1,
+          borderRadius: 4
+        }}
+      ]
+    }},
+    options: {{
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: {{
+        mode: "index",
+        intersect: false
+      }},
+      plugins: {{
+        legend: {{
+          position: "top",
+          labels: {{
+            usePointStyle: true,
+            padding: 18,
+            font: {{
+              size: 12,
+              weight: "600"
+            }}
+          }}
+        }},
+        tooltip: {{
+          backgroundColor: "rgba(15, 43, 59, 0.95)",
+          padding: 11,
+          cornerRadius: 9
+        }}
+      }},
+      scales: {{
+        x: {{
+          grid: {{
+            color: "rgba(16, 43, 59, 0.06)"
+          }},
+          ticks: {{
+            maxRotation: 0,
+            autoSkip: true
+          }}
+        }},
+        temperatura: {{
+          type: "linear",
+          position: "left",
+          title: {{
+            display: true,
+            text: "Temperatura °C"
+          }},
+          grid: {{
+            color: "rgba(16, 43, 59, 0.08)"
+          }}
+        }},
+        vento: {{
+          type: "linear",
+          position: "right",
+          title: {{
+            display: true,
+            text: "Vento km/h"
+          }},
+          grid: {{
+            drawOnChartArea: false
+          }},
+          min: 0
+        }},
+        precipitazione: {{
+          type: "linear",
+          position: "right",
+          offset: true,
+          title: {{
+            display: true,
+            text: "Pioggia mm"
+          }},
+          grid: {{
+            drawOnChartArea: false
+          }},
+          min: 0
+        }}
+      }}
+    }}
+  }});
+}}
+
+function aggiornaGrafico(chiave) {{
+  const dati = datiGraficiPerGiorno[chiave];
+
+  if (!dati || !meteoChartInstance) {{
+    return;
+  }}
+
+  meteoChartInstance.data.labels = dati.ore;
+  meteoChartInstance.data.datasets[0].data = dati.temperatura;
+  meteoChartInstance.data.datasets[1].data = dati.vento;
+  meteoChartInstance.data.datasets[2].data = dati.precipitazione;
+
+  meteoChartInstance.update();
+}}
+
+function mostraGiorno(chiave, bottone) {{
+  const sezioni = document.getElementsByClassName("cml-day-table-container");
+
+  for (let i = 0; i < sezioni.length; i += 1) {{
+    sezioni[i].style.display = "none";
+  }}
+
+  const pulsanti = document.getElementsByClassName("cml-tab-btn");
+
+  for (let i = 0; i < pulsanti.length; i += 1) {{
+    pulsanti[i].classList.remove("active");
+  }}
+
+  const target = document.getElementById("tab-" + chiave);
+
+  if (target) {{
+    target.style.display = "block";
+  }}
+
+  bottone.classList.add("active");
+  aggiornaGrafico(chiave);
+}}
+
+creaGrafico(chiaveGraficoIniziale);
+
+
+const radarMap = L.map("radar-map", {{
+  center: [{lat}, {lon}],
+  zoom: 8,
+  minZoom: 5,
+  maxZoom: 18,
+  zoomControl: true
+}});
+
+L.tileLayer(
+  "https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png",
+  {{
+    attribution: "&copy; OpenStreetMap contributors",
+    maxZoom: 18
+  }}
+).addTo(radarMap);
+
+const pinIcon = L.divIcon({{
+  className: "cml-radar-pin-wrapper",
+  html: '<div style="width:20px;height:20px;background:#e63b45;border:3px solid #ffffff;border-radius:50%;box-shadow:0 0 0 3px rgba(230,59,69,0.40),0 4px 10px rgba(0,0,0,0.25);"></div>',
+  iconSize: [20, 20],
+  iconAnchor: [10, 10]
+}});
+
+L.marker([{lat}, {lon}], {{
+  icon: pinIcon,
+  title: "{html.escape(luogo)}"
+}}).addTo(radarMap);
+
+let radarTimes = [];
+let radarLayers = {{}};
+let radarFrameIndex = 0;
+let radarPlaying = true;
+let radarTimer = null;
+
+function visualizzaFrameRadar(indice) {{
+  if (radarTimes.length === 0) {{
+    return;
+  }}
+
+  const tempoPrecedente = radarTimes[radarFrameIndex];
+
+  if (radarLayers[tempoPrecedente]) {{
+    radarLayers[tempoPrecedente].setOpacity(0);
+  }}
+
+  radarFrameIndex = indice;
+
+  const tempo = radarTimes[radarFrameIndex];
+
+  if (radarLayers[tempo]) {{
+    radarLayers[tempo].setOpacity(0.72);
+  }}
+
+  const data = new Date(tempo * 1000);
+  const ore = String(data.getHours()).padStart(2, "0");
+  const minuti = String(data.getMinutes()).padStart(2, "0");
+
+  const timestamp = document.getElementById("radar-timestamp");
+
+  if (timestamp) {{
+    timestamp.textContent = ore + ":" + minuti + " (ora locale)";
+  }}
+}}
+
+function avviaRadar() {{
+  if (radarTimer) {{
+    clearInterval(radarTimer);
+  }}
+
+  radarTimer = setInterval(function() {{
+    if (radarTimes.length === 0) {{
+      return;
+    }}
+
+    const prossimo = (radarFrameIndex + 1) % radarTimes.length;
+    visualizzaFrameRadar(prossimo);
+  }}, 800);
+}}
+
+function togglePlayRadar() {{
+  const bottone = document.getElementById("btn-play");
+
+  if (radarPlaying) {{
+    clearInterval(radarTimer);
+    radarPlaying = false;
+    bottone.textContent = "▶ Play";
+  }} else {{
+    avviaRadar();
+    radarPlaying = true;
+    bottone.textContent = "⏸ Pausa";
+  }}
+}}
+
+fetch("https://api.rainviewer.com/public/weather-maps.json")
+  .then(function(response) {{
+    return response.json();
+  }})
+  .then(function(payload) {{
+    const frames = payload?.radar?.past || [];
+
+    radarTimes = frames.map(function(frame) {{
+      return frame.time;
+    }});
+
+    frames.forEach(function(frame) {{
+      const layer = L.tileLayer(
+        "https://tilecache.rainviewer.com" + frame.path + "/256/{{z}}/{{x}}/{{y}}/2/1_1.png",
+        {{
+          opacity: 0,
+          zIndex: 100,
+          maxNativeZoom: 6,
+          maxZoom: 18
+        }}
+      );
+
+      layer.addTo(radarMap);
+      radarLayers[frame.time] = layer;
+    }});
+
+    if (radarTimes.length > 0) {{
+      radarFrameIndex = radarTimes.length - 1;
+      visualizzaFrameRadar(radarFrameIndex);
+      avviaRadar();
+    }} else {{
+      const timestamp = document.getElementById("radar-timestamp");
+
+      if (timestamp) {{
+        timestamp.textContent = "frame non disponibile";
+      }}
+    }}
+  }})
+  .catch(function() {{
+    const timestamp = document.getElementById("radar-timestamp");
+
+    if (timestamp) {{
+      timestamp.textContent = "radar temporaneamente non disponibile";
+    }}
+  }});
 </script>
 
-{ricerca_html}
-
 </body>
-</html>"""
+</html>
+"""
 
-    return html_content
+    return documento_html
 
-st.markdown("### 🔍 Seleziona Località Calabrese")
+
+# =============================================================================
+# INTERFACCIA DI RICERCA STREAMLIT
+# =============================================================================
+
+st.markdown("## 🔎 Seleziona località calabrese")
+
+opzioni_comuni = sorted(COMUNI.keys())
 
 with st.form("search_form", clear_on_submit=False):
-    col_in, col_btn = st.columns([4, 1])
-    with col_in:
-        testo_citta = st.text_input("Località", value="Cosenza", placeholder="Scrivi es. Cosenza, Tropea, Soverato, Reggio Calabria, Catanzaro...", label_visibility="collapsed")
-    with col_btn:
-        invia = st.form_submit_button("Aggiorna Previsione", use_container_width=True, type="primary")
+    colonna_ricerca, colonna_bottone = st.columns([4, 1])
+
+    with colonna_ricerca:
+        localita_scelta = st.selectbox(
+            "Località",
+            options=opzioni_comuni,
+            index=opzioni_comuni.index("Cosenza"),
+            help="Seleziona una località dall'elenco.",
+            label_visibility="collapsed",
+        )
+
+    with colonna_bottone:
+        aggiorna = st.form_submit_button(
+            "Aggiorna previsione",
+            use_container_width=True,
+            type="primary",
+        )
+
+
+# =============================================================================
+# ESECUZIONE
+# =============================================================================
 
 try:
-    luogo, lat, lon = risolvi_citta(testo_citta)
-    with st.spinner(f"Elaborazione modello ICON-2I e Radar Live per {luogo}..."):
-        dati_meteo = scarica_previsione(lat,
+    luogo, latitudine, longitudine = risolvi_citta(localita_scelta)
+
+    with st.spinner(f"Elaborazione previsione ICON-2I e radar per {luogo}..."):
+        dati_meteo = scarica_previsione(latitudine, longitudine)
+        dati_orari, dati_giornalieri = prepara(dati_meteo)
+
+    documento = genera_app_completa(
+        luogo,
+        latitudine,
+        longitudine,
+        dati_meteo,
+        dati_orari,
+        dati_giornalieri,
+    )
+
+    components.html(
+        documento,
+        height=3400,
+        scrolling=True,
+    )
+
+except Exception as errore:
+    st.error(str(errore))

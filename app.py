@@ -37,18 +37,26 @@ GIORNI = 3
 
 COMUNI = {
     "Amantea": (39.1331, 16.0746),
+    "Belvedere Marittimo": (39.7833, 15.8000),
+    "Bisignano": (39.3667, 16.2167),
     "Catanzaro": (38.9098, 16.5877),
+    "Castrovillari": (39.8167, 16.2000),
     "Cirò Marina": (39.3703, 17.1247),
     "Corigliano-Rossano": (39.5900, 16.5190),
     "Cosenza": (39.2983, 16.2537),
     "Crotone": (39.0808, 17.1271),
+    "Diamante": (39.7333, 15.7833),
     "Isola di Capo Rizzuto": (38.9597, 17.0924),
     "Lamezia Terme": (38.9708, 16.3189),
     "Locri": (38.2415, 16.2624),
+    "Paola": (39.3667, 16.0333),
     "Palmi": (38.3594, 15.8510),
     "Praia a Mare": (39.8932, 15.7800),
     "Reggio Calabria": (38.1113, 15.6473),
+    "Rende": (39.3500, 16.2167),
     "Roccella Ionica": (38.3225, 16.4038),
+    "Rossano": (39.5900, 16.5190),
+    "Scalea": (39.7833, 15.7833),
     "Sibari": (39.7470, 16.4550),
     "Soverato": (38.6842, 16.5495),
     "Tropea": (38.6766, 15.8984),
@@ -263,18 +271,18 @@ def risolvi_citta(testo):
         return citta, lat, lon
 
     try:
-        geocoder = Nominatim(user_agent="calabria_meteo_lab_v16", timeout=12)
+        geocoder = Nominatim(user_agent="calabria_meteo_lab_v17", timeout=8)
         risposta = geocoder.geocode(
-            f"{nome}, Italia",
+            f"{nome}, Calabria, Italia",
             exactly_one=True,
             addressdetails=True,
-            timeout=12,
+            timeout=8,
         )
     except (GeocoderServiceError, GeocoderTimedOut) as exc:
-        raise RuntimeError("Servizio di geolocalizzazione momentaneamente non disponibile. Riprova tra poco.") from exc
+        raise RuntimeError(f"Località '{nome}' non trovata nei comuni calabresi. Usa uno dei comuni nella lista.") from exc
 
     if risposta is None:
-        raise ValueError(f"Località «{nome}» non trovata. Inserisci un comune calabrese.")
+        raise ValueError(f"Località «{nome}» non trovata. Prova con: Cosenza, Catanzaro, Reggio Calabria, Tropea, Soverato, etc.")
 
     indirizzo = risposta.raw.get("address", {})
     regione = str(indirizzo.get("state", "") or indirizzo.get("region", "")).casefold()
@@ -285,7 +293,7 @@ def risolvi_citta(testo):
 
     if not (is_calabria and in_bounds):
         reg_txt = f" ({regione.title()})" if regione else ""
-        raise ValueError(f"❌ «{nome}»{reg_txt} non è in Calabria. Questa applicazione funziona esclusivamente per le località calabresi.")
+        raise ValueError(f"❌ «{nome}»{reg_txt} non è in Calabria.")
 
     nome_risolto = indirizzo.get("city") or indirizzo.get("town") or indirizzo.get("village") or nome.title()
     return nome_risolto, lat, lon
@@ -355,26 +363,12 @@ def prepara(dati):
 
     return ore.reset_index(drop=True), giorni.reset_index(drop=True)
 
-# Aggiungi queste funzioni PRIMA di genera_app_completa:
-
 def valuta_allerta_giornaliera(riga_giorno):
-    """
-    Valuta il livello di allerta meteo basato su:
-    - Precipitazioni (mm)
-    - Vento max (km/h)
-    - Raffiche max (km/h)
-    - Weather code (temporali, neve, ecc.)
-    
-    Ritorna: (livello, tipo_rischio)
-    - livello: "verde", "giallo", "arancione", "rosso"
-    - tipo_rischio: "temporali", "pioggia", "vento", "nessuno"
-    """
     precip = float(riga_giorno.get("precipitation_sum", 0) or 0)
     vento_max = float(riga_giorno.get("wind_speed_10m_max", 0) or 0)
     raffiche_max = float(riga_giorno.get("wind_gusts_10m_max", 0) or 0)
     weather_code = int(riga_giorno.get("weather_code_prevalente", riga_giorno.get("weather_code", 0)))
     
-    # Allerta ROSSO (critico)
     if precip >= 100 or raffiche_max >= 100 or weather_code in [96, 99]:
         if weather_code in [95, 96, 99] or precip >= 80:
             return "rosso", "temporali"
@@ -383,7 +377,6 @@ def valuta_allerta_giornaliera(riga_giorno):
         else:
             return "rosso", "pioggia"
     
-    # Allerta ARANCIONE (moderato-severo)
     if precip >= 50 or raffiche_max >= 70 or weather_code in [95, 96, 99]:
         if weather_code in [95, 96, 99] or precip >= 40:
             return "arancione", "temporali"
@@ -392,7 +385,6 @@ def valuta_allerta_giornaliera(riga_giorno):
         else:
             return "arancione", "pioggia"
     
-    # Allerta GIALLA (attenzione)
     if precip >= 20 or raffiche_max >= 50 or weather_code in [80, 81, 82]:
         if weather_code in [80, 81, 82, 95, 96, 99]:
             return "giallo", "temporali"
@@ -401,11 +393,9 @@ def valuta_allerta_giornaliera(riga_giorno):
         else:
             return "giallo", "vento"
     
-    # Verde (nessuna allerta)
     return "verde", "nessuno"
 
 def badge_allerta_html(livello, tipo):
-    """Genera HTML per il badge di allerta"""
     colori = {
         "verde": ("#10b981", "#059669", "Nessuna criticità"),
         "giallo": ("#fbbf24", "#d97706", "Allerta meteo"),
@@ -422,97 +412,11 @@ def badge_allerta_html(livello, tipo):
     }
     icona = icone.get(tipo, "✅")
     
-    return f"""
-    <div class="cml-alert-badge" style="background: {bg}; border-color: {border}; color: white;">
-      <span class="cml-alert-icon">{icona}</span>
-      <span class="cml-alert-text">{label} · {tipo.title()}</span>
-    </div>
-    """
-
-# Poi in genera_app_completa, modifica le carte giornaliere:
-
-carte_html = []
-for idx, (_, r) in enumerate(giorni.iterrows()):
-    tag = etichette[idx] if idx < len(etichette) else "PROSSIMAMENTE"
+    return f'<div class="cml-alert-badge" style="background: {bg}; border-color: {border}; color: white;"><span class="cml-alert-icon">{icona}</span><span class="cml-alert-text">{label} · {tipo.title()}</span></div>'
     
-    cod_effettivo = r.get("weather_code_prevalente", r["weather_code"])
-    nubi_effettive = r.get("cloud_cover_diurno", 0)
-    ico, desc = meteo(cod_effettivo)
-    fase = html.escape(str(r.get("Fase lunare", "🌙 Luna")))
-    
-    # CALCOLO ALLERTA
-    livello_allerta, tipo_rischio = valuta_allerta_giornaliera(r)
-    badge_allerta = badge_allerta_html(livello_allerta, tipo_rischio)
-    
-    # ... resto del codice badge_bg ...
-    
-    carte_html.append(f"""
-    <div class="cml-day-card">
-      <div class="cml-day-header">
-        <span class="cml-day-tag">{tag}</span>
-        <span class="cml-day-date">{html.escape(data_it(r["time"]))}</span>
-      </div>
-      
-      <!-- BADGE ALLERTA -->
-      <div class="cml-alert-container">{badge_allerta}</div>
-      
-      <div class="cml-day-body">
-        <div class="cml-day-icon" style="background: {badge_bg}">{ico}</div>
-        <div class="cml-day-info">
-          <div class="cml-day-desc">{html.escape(desc)}</div>
-          <div class="cml-day-moon">{fase}</div>
-        </div>
-      </div>
-      <!-- ... resto della card ... -->
-    </div>
-    """)
-
-# Aggiungi anche il CSS per i badge:
-
-.cml-alert-container {{
-  margin-bottom: 16px;
-}}
-.cml-alert-badge {{
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 14px;
-  border-radius: 12px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  font-size: 12px;
-  font-weight: 700;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  animation: cml-alert-pulse 2s ease-in-out infinite;
-}}
-@keyframes cml-alert-pulse {{
-  0%, 100% {{ transform: scale(1); }}
-  50% {{ transform: scale(1.03); }}
-}}
-.cml-alert-icon {{
-  font-size: 18px;
-  line-height: 1;
-}}
-.cml-alert-text {{
-  letter-spacing: 0.3px;
-}}
-
 def genera_app_completa(luogo, lat, lon, dati, ore, giorni):
     cur = dati["current"]
     ico_cur, desc_cur = meteo(cur.get("weather_code"))
-    is_night = datetime.now().hour < 6 or datetime.now().hour > 20
-
-    codice_cur = cur.get("weather_code", 0)
-    meteo_type = "sereno"
-    if codice_cur in [0, 1]:
-        meteo_type = "sereno"
-    elif codice_cur in [2, 3, 45, 48]:
-        meteo_type = "nuvoloso"
-    elif codice_cur in range(51, 68):
-        meteo_type = "pioggia"
-    elif codice_cur in range(71, 87):
-        meteo_type = "neve"
-    elif codice_cur in [95, 96, 99]:
-        meteo_type = "temporale"
 
     metriche = [
         ("🌡️", "Percepita", numero(cur.get("apparent_temperature"), 1, " °C"), "Temperatura percepita dal corpo umano"),
@@ -538,6 +442,9 @@ def genera_app_completa(luogo, lat, lon, dati, ore, giorni):
         ico, desc = meteo(cod_effettivo)
         fase = html.escape(str(r.get("Fase lunare", "🌙 Luna")))
         
+        livello_allerta, tipo_rischio = valuta_allerta_giornaliera(r)
+        badge_allerta = badge_allerta_html(livello_allerta, tipo_rischio)
+        
         badge_bg = "linear-gradient(135deg, #ffd700 0%, #ffb347 100%)"
         if cod_effettivo in [0, 1]:
             badge_bg = "linear-gradient(135deg, #ffd700 0%, #ffb347 100%)"
@@ -556,6 +463,7 @@ def genera_app_completa(luogo, lat, lon, dati, ore, giorni):
             <span class="cml-day-tag">{tag}</span>
             <span class="cml-day-date">{html.escape(data_it(r["time"]))}</span>
           </div>
+          <div class="cml-alert-container">{badge_allerta}</div>
           <div class="cml-day-body">
             <div class="cml-day-icon" style="background: {badge_bg}">{ico}</div>
             <div class="cml-day-info">
@@ -716,33 +624,6 @@ def genera_app_completa(luogo, lat, lon, dati, ore, giorni):
         </div>
         """)
 
-    # Costruisci elementi sfondo animato
-    bg_elements = []
-    
-    if meteo_type not in ["pioggia", "temporale", "neve"]:
-        bg_elements.append("<div class='cml-cloud cml-cloud-1'></div>")
-        bg_elements.append("<div class='cml-cloud cml-cloud-2'></div>")
-        bg_elements.append("<div class='cml-cloud cml-cloud-3'></div>")
-    
-    if meteo_type == "pioggia":
-        for i in range(1, 10):
-            bg_elements.append(f"<div class='cml-raindrop cml-raindrop-{i}'></div>")
-    
-    if meteo_type == "neve":
-        snowflakes = ["❄", "❅", "❆", "❄", "❅", "❆", "❄", "❅"]
-        for i, flake in enumerate(snowflakes, 1):
-            bg_elements.append(f"<div class='cml-snowflake cml-snowflake-{i}'>{flake}</div>")
-    
-    if meteo_type == "temporale":
-        bg_elements.append("<div class='cml-lightning cml-lightning-1'></div>")
-        bg_elements.append("<div class='cml-lightning cml-lightning-2'></div>")
-    
-    if is_night:
-        for i in range(1, 6):
-            bg_elements.append(f"<div class='cml-star cml-star-{i}'></div>")
-    
-    bg_elements_html = "".join(bg_elements)
-
     html_content = f"""<!DOCTYPE html>
 <html lang="it">
 <head>
@@ -768,154 +649,10 @@ def genera_app_completa(luogo, lat, lon, dati, ore, giorni):
 body {{
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   color: var(--cml-ink);
-  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 50%, #f0f9ff 100%);
   padding: 8px;
   line-height: 1.5;
   min-height: 100vh;
-  position: relative;
-  overflow-x: hidden;
-}}
-
-.cml-weather-bg {{
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: -1;
-  overflow: hidden;
-  pointer-events: none;
-}}
-.cml-weather-bg.cml-bg-sereno {{
-  background: linear-gradient(180deg, #38bdf8 0%, #7dd3fc 40%, #bae6fd 100%);
-}}
-.cml-weather-bg.cml-bg-nuvoloso {{
-  background: linear-gradient(180deg, #94a3b8 0%, #cbd5e1 40%, #e2e8f0 100%);
-}}
-.cml-weather-bg.cml-bg-pioggia {{
-  background: linear-gradient(180deg, #475569 0%, #64748b 40%, #94a3b8 100%);
-}}
-.cml-weather-bg.cml-bg-neve {{
-  background: linear-gradient(180deg, #cbd5e1 0%, #e2e8f0 40%, #f1f5f9 100%);
-}}
-.cml-weather-bg.cml-bg-temporale {{
-  background: linear-gradient(180deg, #1e293b 0%, #334155 40%, #475569 100%);
-}}
-.cml-weather-bg.cml-bg-notte {{
-  background: linear-gradient(180deg, #0f172a 0%, #1e293b 40%, #334155 100%);
-}}
-
-.cml-cloud {{
-  position: absolute;
-  background: rgba(255, 255, 255, 0.6);
-  border-radius: 50%;
-  filter: blur(8px);
-  animation: cml-cloud-float linear infinite;
-}}
-.cml-cloud-1 {{
-  width: 120px;
-  height: 120px;
-  top: 10%;
-  left: -120px;
-  animation-duration: 25s;
-  animation-delay: 0s;
-}}
-.cml-cloud-2 {{
-  width: 180px;
-  height: 180px;
-  top: 20%;
-  left: -180px;
-  animation-duration: 35s;
-  animation-delay: 5s;
-}}
-.cml-cloud-3 {{
-  width: 100px;
-  height: 100px;
-  top: 35%;
-  left: -100px;
-  animation-duration: 20s;
-  animation-delay: 10s;
-}}
-@keyframes cml-cloud-float {{
-  0% {{ transform: translateX(0) translateY(0); }}
-  50% {{ transform: translateX(300px) translateY(-20px); }}
-  100% {{ transform: translateX(600px) translateY(0); }}
-}}
-
-.cml-raindrop {{
-  position: absolute;
-  width: 2px;
-  height: 20px;
-  background: linear-gradient(180deg, transparent 0%, rgba(255, 255, 255, 0.6) 100%);
-  top: -20px;
-  animation: cml-rain-fall linear infinite;
-}}
-.cml-raindrop-1 {{ left: 10%; animation-duration: 0.8s; animation-delay: 0s; }}
-.cml-raindrop-2 {{ left: 20%; animation-duration: 0.6s; animation-delay: 0.2s; }}
-.cml-raindrop-3 {{ left: 30%; animation-duration: 0.7s; animation-delay: 0.4s; }}
-.cml-raindrop-4 {{ left: 40%; animation-duration: 0.9s; animation-delay: 0.1s; }}
-.cml-raindrop-5 {{ left: 50%; animation-duration: 0.7s; animation-delay: 0.3s; }}
-.cml-raindrop-6 {{ left: 60%; animation-duration: 0.8s; animation-delay: 0.5s; }}
-.cml-raindrop-7 {{ left: 70%; animation-duration: 0.6s; animation-delay: 0.2s; }}
-.cml-raindrop-8 {{ left: 80%; animation-duration: 0.9s; animation-delay: 0.4s; }}
-.cml-raindrop-9 {{ left: 90%; animation-duration: 0.7s; animation-delay: 0.1s; }}
-@keyframes cml-rain-fall {{
-  0% {{ transform: translateY(0); opacity: 1; }}
-  100% {{ transform: translateY(100vh); opacity: 0; }}
-}}
-
-.cml-snowflake {{
-  position: absolute;
-  color: white;
-  font-size: 18px;
-  top: -30px;
-  animation: cml-snow-fall linear infinite;
-  opacity: 0.8;
-}}
-.cml-snowflake-1 {{ left: 15%; animation-duration: 8s; animation-delay: 0s; }}
-.cml-snowflake-2 {{ left: 25%; animation-duration: 10s; animation-delay: 2s; }}
-.cml-snowflake-3 {{ left: 35%; animation-duration: 9s; animation-delay: 1s; }}
-.cml-snowflake-4 {{ left: 45%; animation-duration: 11s; animation-delay: 3s; }}
-.cml-snowflake-5 {{ left: 55%; animation-duration: 8s; animation-delay: 2s; }}
-.cml-snowflake-6 {{ left: 65%; animation-duration: 10s; animation-delay: 1s; }}
-.cml-snowflake-7 {{ left: 75%; animation-duration: 9s; animation-delay: 3s; }}
-.cml-snowflake-8 {{ left: 85%; animation-duration: 11s; animation-delay: 0s; }}
-@keyframes cml-snow-fall {{
-  0% {{ transform: translateY(0) translateX(0) rotate(0deg); opacity: 1; }}
-  100% {{ transform: translateY(100vh) translateX(50px) rotate(360deg); opacity: 0; }}
-}}
-
-.cml-lightning {{
-  position: absolute;
-  width: 3px;
-  background: linear-gradient(180deg, #fef3c7 0%, #fbbf24 50%, transparent 100%);
-  top: -100px;
-  animation: cml-lightning-flash 4s ease-in-out infinite;
-  opacity: 0;
-}}
-.cml-lightning-1 {{ left: 30%; height: 120px; animation-delay: 0s; }}
-.cml-lightning-2 {{ left: 60%; height: 150px; animation-delay: 2s; }}
-@keyframes cml-lightning-flash {{
-  0%, 89%, 100% {{ opacity: 0; }}
-  90%, 95% {{ opacity: 1; }}
-}}
-
-.cml-star {{
-  position: absolute;
-  width: 3px;
-  height: 3px;
-  background: white;
-  border-radius: 50%;
-  animation: cml-star-twinkle 2s ease-in-out infinite;
-}}
-.cml-star-1 {{ top: 15%; left: 20%; animation-delay: 0s; }}
-.cml-star-2 {{ top: 25%; left: 40%; animation-delay: 0.5s; }}
-.cml-star-3 {{ top: 35%; left: 60%; animation-delay: 1s; }}
-.cml-star-4 {{ top: 45%; left: 80%; animation-delay: 1.5s; }}
-.cml-star-5 {{ top: 55%; left: 30%; animation-delay: 0.3s; }}
-@keyframes cml-star-twinkle {{
-  0%, 100% {{ opacity: 0.3; transform: scale(1); }}
-  50% {{ opacity: 1; transform: scale(1.3); }}
 }}
 
 .cml-hero {{
@@ -928,33 +665,16 @@ body {{
   background: rgba(255, 255, 255, 0.15);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
   border: 1px solid rgba(255, 255, 255, 0.2);
 }}
-.cml-hero::before {{
-  content: "";
-  position: absolute;
-  top: -50%;
-  right: -10%;
-  width: 600px;
-  height: 600px;
-  background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
-  border-radius: 50%;
-  animation: cml-pulse 8s ease-in-out infinite;
-}}
-@keyframes cml-pulse {{
-  0%, 100% {{ transform: scale(1); opacity: 0.5; }}
-  50% {{ transform: scale(1.1); opacity: 0.8; }}
-}}
 .cml-brand {{
-  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 12px;
   padding: 8px 16px;
   background: rgba(255, 255, 255, 0.2);
   backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
   border-radius: 999px;
   color: #ffffff;
   font-size: 11px;
@@ -969,14 +689,8 @@ body {{
   border-radius: 50%;
   background: linear-gradient(135deg, #fde047 0%, #fbbf24 100%);
   box-shadow: 0 0 0 6px rgba(253, 224, 71, 0.2), 0 0 24px rgba(253, 224, 71, 0.8);
-  animation: cml-glow 3s ease-in-out infinite;
-}}
-@keyframes cml-glow {{
-  0%, 100% {{ box-shadow: 0 0 0 6px rgba(253, 224, 71, 0.2), 0 0 24px rgba(253, 224, 71, 0.8); }}
-  50% {{ box-shadow: 0 0 0 8px rgba(253, 224, 71, 0.3), 0 0 32px rgba(253, 224, 71, 1); }}
 }}
 .cml-hero h1 {{
-  position: relative;
   margin: 20px 0 12px;
   font-size: 44px;
   font-weight: 800;
@@ -988,7 +702,6 @@ body {{
   background-clip: text;
 }}
 .cml-hero p {{
-  position: relative;
   max-width: 720px;
   margin: 0;
   color: rgba(255, 255, 255, 0.9);
@@ -1003,13 +716,7 @@ body {{
   border-radius: 24px;
   background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1), 0 2px 8px rgba(0, 0, 0, 0.05);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-}}
-.cml-current:hover {{
-  transform: translateY(-2px);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15), 0 4px 12px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 }}
 .cml-current-main {{
   display: flex;
@@ -1034,25 +741,11 @@ body {{
   text-transform: uppercase;
   margin-bottom: 14px;
 }}
-.cml-live-dot {{
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--cml-green);
-  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.2), 0 0 16px rgba(16, 185, 129, 0.6);
-  animation: cml-blink 2s ease-in-out infinite;
-}}
-@keyframes cml-blink {{
-  0%, 100% {{ opacity: 1; }}
-  50% {{ opacity: 0.5; }}
-}}
 .cml-place-block h2 {{
   margin: 12px 0 10px;
   color: var(--cml-ink);
   font-size: 34px;
   font-weight: 800;
-  letter-spacing: -0.5px;
 }}
 .cml-condition {{
   display: inline-flex;
@@ -1064,7 +757,6 @@ body {{
   color: var(--cml-muted);
   font-size: 17px;
   font-weight: 600;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }}
 .cml-temperature {{
   display: flex;
@@ -1072,12 +764,10 @@ body {{
   color: var(--cml-orange);
   font-weight: 900;
   line-height: 0.9;
-  white-space: nowrap;
 }}
 .cml-temperature span {{
   font-size: 86px;
   letter-spacing: -8px;
-  text-shadow: 2px 2px 8px rgba(249, 115, 22, 0.2);
 }}
 .cml-temperature small {{
   margin: 12px 0 0 8px;
@@ -1100,15 +790,12 @@ body {{
   border: 1px solid rgba(241, 245, 249, 0.8);
   border-radius: 16px;
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 250, 252, 0.8) 100%);
-  backdrop-filter: blur(10px);
   transition: all 0.25s ease;
-  cursor: default;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }}
 .cml-metric-card:hover {{
   background: linear-gradient(135deg, rgba(240, 249, 255, 0.95) 0%, rgba(224, 242, 254, 0.9) 100%);
   border-color: var(--cml-primary);
-  transform: translateY(-2px) scale(1.02);
+  transform: translateY(-2px);
   box-shadow: 0 8px 20px rgba(14, 165, 233, 0.2);
 }}
 .cml-metric-icon {{
@@ -1120,14 +807,7 @@ body {{
   border-radius: 12px;
   background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
   font-size: 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   flex-shrink: 0;
-}}
-.cml-metric-content {{
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
 }}
 .cml-metric-lbl {{
   color: var(--cml-muted);
@@ -1140,7 +820,6 @@ body {{
   color: var(--cml-ink);
   font-size: 17px;
   font-weight: 800;
-  letter-spacing: -0.3px;
 }}
 
 .cml-current-footer {{
@@ -1181,12 +860,6 @@ body {{
   font-weight: 800;
   color: var(--cml-ink);
   margin: 0;
-  letter-spacing: -0.3px;
-}}
-.cml-radar-controls {{
-  display: flex;
-  gap: 10px;
-  align-items: center;
 }}
 .cml-radar-btn {{
   display: inline-flex;
@@ -1201,18 +874,12 @@ body {{
   color: #ffffff;
   cursor: pointer;
   box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
-  transition: all 0.25s ease;
-}}
-.cml-radar-btn:hover {{
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(14, 165, 233, 0.4);
 }}
 #radar-map {{
   width: 100%;
   height: 520px;
   border-radius: 16px;
   border: 2px solid rgba(226, 232, 240, 0.8);
-  z-index: 1;
 }}
 .cml-radar-legend {{
   display: flex;
@@ -1224,23 +891,8 @@ body {{
   border-radius: 12px;
   font-size: 12px;
   color: var(--cml-muted);
-  flex-wrap: wrap;
   gap: 12px;
   border: 1px solid rgba(186, 230, 253, 0.6);
-}}
-.cml-radar-time {{
-  font-weight: 800;
-  color: var(--cml-primary-dark);
-  font-size: 13px;
-}}
-
-.cml-map-pin {{
-  width: 20px;
-  height: 20px;
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-  border: 3px solid #ffffff;
-  border-radius: 50%;
-  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.4), 0 4px 12px rgba(0, 0, 0, 0.3);
 }}
 
 .cml-section-title {{
@@ -1262,13 +914,11 @@ body {{
   color: var(--cml-ink);
   font-size: 28px;
   font-weight: 800;
-  letter-spacing: -0.5px;
 }}
 .cml-section-title p {{
   margin: 0;
   color: var(--cml-muted);
   font-size: 14px;
-  line-height: 1.6;
 }}
 .cml-pill {{
   padding: 8px 16px;
@@ -1277,7 +927,6 @@ body {{
   color: var(--cml-primary-dark);
   font-size: 12px;
   font-weight: 800;
-  white-space: nowrap;
   border: 1px solid rgba(186, 230, 253, 0.6);
 }}
 
@@ -1300,15 +949,14 @@ body {{
   transition: all 0.3s ease;
 }}
 .cml-day-card:hover {{
-  transform: translateY(-4px) scale(1.02);
+  transform: translateY(-4px);
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.15);
-  background: rgba(255, 255, 255, 0.95);
 }}
 .cml-day-header {{
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 12px;
 }}
 .cml-day-tag {{
   padding: 6px 14px;
@@ -1319,14 +967,35 @@ body {{
   font-weight: 800;
   letter-spacing: 1.2px;
   text-transform: uppercase;
-  box-shadow: 0 2px 8px rgba(14, 165, 233, 0.3);
 }}
 .cml-day-date {{
   color: var(--cml-muted);
   font-size: 12px;
   font-weight: 600;
-  text-transform: capitalize;
 }}
+
+.cml-alert-container {{
+  margin-bottom: 16px;
+}}
+.cml-alert-badge {{
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  font-size: 12px;
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}}
+.cml-alert-icon {{
+  font-size: 18px;
+  line-height: 1;
+}}
+.cml-alert-text {{
+  letter-spacing: 0.3px;
+}}
+
 .cml-day-body {{
   display: flex;
   align-items: center;
@@ -1352,13 +1021,11 @@ body {{
   display: flex;
   flex-direction: column;
   gap: 6px;
-  min-width: 0;
 }}
 .cml-day-desc {{
   font-size: 18px;
   font-weight: 800;
   line-height: 1.3;
-  color: var(--cml-ink);
 }}
 .cml-day-moon {{
   display: inline-flex;
@@ -1368,7 +1035,6 @@ body {{
   color: #4338ca;
   font-size: 11px;
   font-weight: 700;
-  align-self: flex-start;
 }}
 
 .cml-day-temps {{
@@ -1397,14 +1063,9 @@ body {{
 .cml-temp-val {{
   font-size: 24px;
   font-weight: 900;
-  letter-spacing: -1px;
 }}
-.cml-cold {{
-  color: #0284c7;
-}}
-.cml-warm {{
-  color: var(--cml-orange);
-}}
+.cml-cold {{ color: #0284c7; }}
+.cml-warm {{ color: var(--cml-orange); }}
 
 .cml-day-details {{
   display: flex;
@@ -1465,9 +1126,7 @@ body {{
   border-color: var(--cml-primary);
   transform: translateY(-2px);
 }}
-.cml-astro-icon {{
-  font-size: 20px;
-}}
+.cml-astro-icon {{ font-size: 20px; }}
 .cml-astro-label {{
   color: var(--cml-muted);
   font-size: 10px;
@@ -1491,16 +1150,6 @@ body {{
   background: linear-gradient(135deg, rgba(30, 58, 95, 0.95) 0%, rgba(59, 89, 152, 0.9) 55%, rgba(74, 105, 168, 0.85));
   backdrop-filter: blur(10px);
   box-shadow: 0 12px 36px rgba(59, 89, 152, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-}}
-.cml-hour-header::after {{
-  content: "☾";
-  position: absolute;
-  right: 36px;
-  top: 8px;
-  color: rgba(255, 255, 255, 0.08);
-  font-size: 90px;
-  line-height: 1;
 }}
 .cml-hour-header span {{
   color: rgba(186, 230, 253, 0.9);
@@ -1514,7 +1163,6 @@ body {{
   color: #ffffff;
   font-size: 28px;
   font-weight: 800;
-  letter-spacing: -0.5px;
 }}
 .cml-hour-header p {{
   margin: 0;
@@ -1541,7 +1189,6 @@ body {{
   cursor: pointer;
   transition: all 0.25s ease;
   white-space: nowrap;
-  backdrop-filter: blur(10px);
 }}
 .cml-tab-btn:hover {{
   background: rgba(240, 249, 255, 0.95);
@@ -1604,14 +1251,9 @@ body {{
   position: sticky;
   top: 0;
   z-index: 10;
-  border: 1px solid rgba(255, 255, 255, 0.2);
 }}
-.cml-table th:first-child {{
-  border-top-left-radius: 18px;
-}}
-.cml-table th:last-child {{
-  border-top-right-radius: 18px;
-}}
+.cml-table th:first-child {{ border-top-left-radius: 18px; }}
+.cml-table th:last-child {{ border-top-right-radius: 18px; }}
 
 .cml-table td {{
   height: 50px;
@@ -1628,86 +1270,22 @@ body {{
   font-weight: 800;
   font-size: 14px;
 }}
-.cml-table th:nth-child(2),
-.cml-table td:nth-child(2) {{
-  text-align: left;
-}}
-.cml-table td:nth-child(3),
-.cml-table td:nth-child(4),
-.cml-table td:nth-child(5),
-.cml-table td:nth-child(6),
-.cml-table td:nth-child(8),
-.cml-table td:nth-child(9),
-.cml-table td:nth-child(10) {{
-  text-align: right;
-}}
-.cml-table td:nth-child(7) {{
-  text-align: center;
-  color: var(--cml-muted);
-  font-weight: 800;
-}}
+.cml-table th:nth-child(2), .cml-table td:nth-child(2) {{ text-align: left; }}
+.cml-table td:nth-child(3), .cml-table td:nth-child(4), .cml-table td:nth-child(5), .cml-table td:nth-child(6), .cml-table td:nth-child(8), .cml-table td:nth-child(9), .cml-table td:nth-child(10) {{ text-align: right; }}
+.cml-table td:nth-child(7) {{ text-align: center; color: var(--cml-muted); font-weight: 800; }}
 
-.cml-table tbody tr {{
-  transition: all 0.2s ease;
-}}
-.cml-table tbody tr:nth-child(even) {{
-  background: rgba(250, 250, 250, 0.6);
-}}
+.cml-table tbody tr:nth-child(even) {{ background: rgba(250, 250, 250, 0.6); }}
 .cml-table tbody tr:hover {{
   background: linear-gradient(135deg, rgba(240, 249, 255, 0.95) 0%, rgba(224, 242, 254, 0.9) 100%);
   transform: scale(1.005);
 }}
-.cml-table tbody tr:last-child td {{
-  border-bottom: 0;
-}}
+.cml-table tbody tr:last-child td {{ border-bottom: 0; }}
 
-.cml-table tr.cml-row-sereno:hover {{
-  background: linear-gradient(135deg, rgba(254, 243, 199, 0.9) 0%, rgba(253, 230, 138, 0.85) 100%) !important;
-}}
-.cml-table tr.cml-row-nuvoloso:hover {{
-  background: linear-gradient(135deg, rgba(224, 231, 255, 0.9) 0%, rgba(199, 210, 254, 0.85) 100%) !important;
-}}
-.cml-table tr.cml-row-pioggia:hover {{
-  background: linear-gradient(135deg, rgba(219, 234, 255, 0.9) 0%, rgba(191, 219, 254, 0.85) 100%) !important;
-}}
-.cml-table tr.cml-row-neve:hover {{
-  background: linear-gradient(135deg, rgba(241, 245, 249, 0.9) 0%, rgba(226, 232, 240, 0.85) 100%) !important;
-}}
-.cml-table tr.cml-row-temporale:hover {{
-  background: linear-gradient(135deg, rgba(233, 213, 255, 0.9) 0%, rgba(216, 180, 254, 0.85) 100%) !important;
-}}
-
-.cml-table-condition {{
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 12px;
-  width: 100%;
-  min-width: 0;
-}}
-.cml-table-icon {{
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 34px;
-  width: 34px;
-  min-width: 34px;
-  height: 34px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-  font-size: 20px;
-  line-height: 1;
-  text-align: center;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
-}}
-.cml-table-scenario {{
-  display: block;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  line-height: 1.3;
-  font-weight: 600;
-}}
+.cml-table tr.cml-row-sereno:hover {{ background: linear-gradient(135deg, rgba(254, 243, 199, 0.9) 0%, rgba(253, 230, 138, 0.85) 100%) !important; }}
+.cml-table tr.cml-row-nuvoloso:hover {{ background: linear-gradient(135deg, rgba(224, 231, 255, 0.9) 0%, rgba(199, 210, 254, 0.85) 100%) !important; }}
+.cml-table tr.cml-row-pioggia:hover {{ background: linear-gradient(135deg, rgba(219, 234, 255, 0.9) 0%, rgba(191, 219, 254, 0.85) 100%) !important; }}
+.cml-table tr.cml-row-neve:hover {{ background: linear-gradient(135deg, rgba(241, 245, 249, 0.9) 0%, rgba(226, 232, 240, 0.85) 100%) !important; }}
+.cml-table tr.cml-row-temporale:hover {{ background: linear-gradient(135deg, rgba(233, 213, 255, 0.9) 0%, rgba(216, 180, 254, 0.85) 100%) !important; }}
 
 .cml-table tr.cml-night-row {{
   background: linear-gradient(90deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.9) 100%) !important;
@@ -1722,18 +1300,35 @@ body {{
   font-size: 22px;
   box-shadow: 0 2px 8px rgba(253, 230, 138, 0.3);
 }}
-.cml-table tr.cml-night-row .cml-table-scenario {{
-  color: #fde68a !important;
-  font-weight: 800;
+.cml-table tr.cml-night-row .cml-table-scenario {{ color: #fde68a !important; font-weight: 800; }}
+.cml-table tr.cml-night-row td:first-child {{ color: rgba(125, 211, 252, 0.95) !important; }}
+.cml-table tr.cml-night-row td:nth-child(7) {{ color: rgba(186, 230, 253, 0.95) !important; }}
+
+.cml-table-condition {{
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  width: 100%;
 }}
-.cml-table tr.cml-night-row td:first-child {{
-  color: rgba(125, 211, 252, 0.95) !important;
+.cml-table-icon {{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  font-size: 20px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
 }}
-.cml-table tr.cml-night-row td:nth-child(7) {{
-  color: rgba(186, 230, 253, 0.95) !important;
-}}
-.cml-table tr.cml-night-row:hover {{
-  background: linear-gradient(90deg, rgba(30, 41, 59, 0.95) 0%, rgba(51, 65, 85, 0.9) 100%) !important;
+.cml-table-scenario {{
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+  font-weight: 600;
 }}
 
 .cml-note {{
@@ -1747,12 +1342,8 @@ body {{
   color: rgba(120, 52, 15, 0.9);
   font-size: 13px;
   line-height: 1.7;
-  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.15);
 }}
-.cml-note b {{
-  color: rgba(146, 64, 14, 0.95);
-  font-weight: 800;
-}}
+.cml-note b {{ color: rgba(146, 64, 14, 0.95); font-weight: 800; }}
 </style>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -1773,10 +1364,6 @@ function mostraGiorno(dataId, btn) {{
 </head>
 <body>
 
-<div class="cml-weather-bg cml-bg-{meteo_type}">
-  {bg_elements_html}
-</div>
-
 <div class="cml-hero">
   <div class="cml-brand">
     <span class="cml-brand-mark"></span>
@@ -1794,7 +1381,7 @@ function mostraGiorno(dataId, btn) {{
   <div class="cml-current-main">
     <div class="cml-place-block">
       <div class="cml-kicker">
-        <span class="cml-live-dot"></span>
+        <span class="cml-live-dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#10b981;margin-right:7px;"></span>
         ICON-2I · PREVISIONE PUNTUALE
       </div>
       <h2>📍 {html.escape(luogo)}</h2>
@@ -1821,14 +1408,14 @@ function mostraGiorno(dataId, btn) {{
       <h2>📡 Radar Precipitazioni Live</h2>
       <div style="font-size:12px;color:var(--cml-muted);margin-top:2px;">Mosaico Nazionale DPC · Riflettività radar in tempo reale</div>
     </div>
-    <div class="cml-radar-controls">
+    <div style="display:flex;gap:10px;align-items:center;">
       <button class="cml-radar-btn" id="btn-play" onclick="togglePlay()">⏸️ Pausa</button>
     </div>
   </div>
   <div id="radar-map"></div>
   <div class="cml-radar-legend">
     <div>⚡ <b>Rete Radar:</b> Dipartimento Protezione Civile (DPC)</div>
-    <div>Scansione: <span id="radar-timestamp" class="cml-radar-time">Caricamento...</span></div>
+    <div>Scansione: <span id="radar-timestamp" style="font-weight:800;color:var(--cml-primary-dark);font-size:13px;">Caricamento...</span></div>
   </div>
 </div>
 
@@ -1842,7 +1429,7 @@ function mostraGiorno(dataId, btn) {{
 </div>
 <div class="cml-days-grid">{''.join(carte_html)}</div>
 <div class="cml-note">
-  ℹ️ Le schede mostrano la <b>condizione prevalente e la nuvolosità media diurna</b> (alba-tramonto). Temperature, vento e pioggia sono valori estremi/cumulati sulle 24h.
+  ℹ️ Le schede mostrano la <b>condizione prevalente e la nuvolosità media diurna</b> (alba-tramonto). Temperature, vento e pioggia sono valori estremi/cumulati sulle 24h. I livelli di allerta sono calcolati in base alle soglie della Protezione Civile.
 </div>
 
 <div class="cml-hour-header">
@@ -1880,7 +1467,7 @@ L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
 
 var redPinIcon = L.divIcon({{
   className: 'cml-pin-wrapper',
-  html: '<div class="cml-map-pin"></div>',
+  html: '<div class="cml-map-pin" style="width:20px;height:20px;background:linear-gradient(135deg,#ef4444,#dc2626);border:3px solid #ffffff;border-radius:50%;box-shadow:0 0 0 3px rgba(239,68,68,0.4);"></div>',
   iconSize: [20, 20],
   iconAnchor: [10, 10]
 }});
@@ -1916,18 +1503,14 @@ fetch('https://api.rainviewer.com/public/weather-maps.json')
 
 function showFrame(index) {{
   if (timestamps.length === 0) return;
-  
   if (radarLayers[timestamps[currentFrame]]) {{
     radarLayers[timestamps[currentFrame]].setOpacity(0);
   }}
-
   currentFrame = index;
   var time = timestamps[currentFrame];
-  
   if (radarLayers[time]) {{
     radarLayers[time].setOpacity(0.75);
   }}
-
   var date = new Date(time * 1000);
   var ore = ('0' + date.getHours()).slice(-2);
   var min = ('0' + date.getMinutes()).slice(-2);

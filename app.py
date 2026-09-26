@@ -354,7 +354,148 @@ def prepara(dati):
     )
 
     return ore.reset_index(drop=True), giorni.reset_index(drop=True)
+
+# Aggiungi queste funzioni PRIMA di genera_app_completa:
+
+def valuta_allerta_giornaliera(riga_giorno):
+    """
+    Valuta il livello di allerta meteo basato su:
+    - Precipitazioni (mm)
+    - Vento max (km/h)
+    - Raffiche max (km/h)
+    - Weather code (temporali, neve, ecc.)
     
+    Ritorna: (livello, tipo_rischio)
+    - livello: "verde", "giallo", "arancione", "rosso"
+    - tipo_rischio: "temporali", "pioggia", "vento", "nessuno"
+    """
+    precip = float(riga_giorno.get("precipitation_sum", 0) or 0)
+    vento_max = float(riga_giorno.get("wind_speed_10m_max", 0) or 0)
+    raffiche_max = float(riga_giorno.get("wind_gusts_10m_max", 0) or 0)
+    weather_code = int(riga_giorno.get("weather_code_prevalente", riga_giorno.get("weather_code", 0)))
+    
+    # Allerta ROSSO (critico)
+    if precip >= 100 or raffiche_max >= 100 or weather_code in [96, 99]:
+        if weather_code in [95, 96, 99] or precip >= 80:
+            return "rosso", "temporali"
+        elif raffiche_max >= 100:
+            return "rosso", "vento"
+        else:
+            return "rosso", "pioggia"
+    
+    # Allerta ARANCIONE (moderato-severo)
+    if precip >= 50 or raffiche_max >= 70 or weather_code in [95, 96, 99]:
+        if weather_code in [95, 96, 99] or precip >= 40:
+            return "arancione", "temporali"
+        elif raffiche_max >= 70:
+            return "arancione", "vento"
+        else:
+            return "arancione", "pioggia"
+    
+    # Allerta GIALLA (attenzione)
+    if precip >= 20 or raffiche_max >= 50 or weather_code in [80, 81, 82]:
+        if weather_code in [80, 81, 82, 95, 96, 99]:
+            return "giallo", "temporali"
+        elif precip >= 20:
+            return "giallo", "pioggia"
+        else:
+            return "giallo", "vento"
+    
+    # Verde (nessuna allerta)
+    return "verde", "nessuno"
+
+def badge_allerta_html(livello, tipo):
+    """Genera HTML per il badge di allerta"""
+    colori = {
+        "verde": ("#10b981", "#059669", "Nessuna criticità"),
+        "giallo": ("#fbbf24", "#d97706", "Allerta meteo"),
+        "arancione": ("#f97316", "#ea580c", "Allerta moderata"),
+        "rosso": ("#ef4444", "#dc2626", "Allerta critica"),
+    }
+    bg, border, label = colori.get(livello, colori["verde"])
+    
+    icone = {
+        "temporali": "⛈️",
+        "pioggia": "🌧️",
+        "vento": "💨",
+        "nessuno": "✅",
+    }
+    icona = icone.get(tipo, "✅")
+    
+    return f"""
+    <div class="cml-alert-badge" style="background: {bg}; border-color: {border}; color: white;">
+      <span class="cml-alert-icon">{icona}</span>
+      <span class="cml-alert-text">{label} · {tipo.title()}</span>
+    </div>
+    """
+
+# Poi in genera_app_completa, modifica le carte giornaliere:
+
+carte_html = []
+for idx, (_, r) in enumerate(giorni.iterrows()):
+    tag = etichette[idx] if idx < len(etichette) else "PROSSIMAMENTE"
+    
+    cod_effettivo = r.get("weather_code_prevalente", r["weather_code"])
+    nubi_effettive = r.get("cloud_cover_diurno", 0)
+    ico, desc = meteo(cod_effettivo)
+    fase = html.escape(str(r.get("Fase lunare", "🌙 Luna")))
+    
+    # CALCOLO ALLERTA
+    livello_allerta, tipo_rischio = valuta_allerta_giornaliera(r)
+    badge_allerta = badge_allerta_html(livello_allerta, tipo_rischio)
+    
+    # ... resto del codice badge_bg ...
+    
+    carte_html.append(f"""
+    <div class="cml-day-card">
+      <div class="cml-day-header">
+        <span class="cml-day-tag">{tag}</span>
+        <span class="cml-day-date">{html.escape(data_it(r["time"]))}</span>
+      </div>
+      
+      <!-- BADGE ALLERTA -->
+      <div class="cml-alert-container">{badge_allerta}</div>
+      
+      <div class="cml-day-body">
+        <div class="cml-day-icon" style="background: {badge_bg}">{ico}</div>
+        <div class="cml-day-info">
+          <div class="cml-day-desc">{html.escape(desc)}</div>
+          <div class="cml-day-moon">{fase}</div>
+        </div>
+      </div>
+      <!-- ... resto della card ... -->
+    </div>
+    """)
+
+# Aggiungi anche il CSS per i badge:
+
+.cml-alert-container {{
+  margin-bottom: 16px;
+}}
+.cml-alert-badge {{
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  font-size: 12px;
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  animation: cml-alert-pulse 2s ease-in-out infinite;
+}}
+@keyframes cml-alert-pulse {{
+  0%, 100% {{ transform: scale(1); }}
+  50% {{ transform: scale(1.03); }}
+}}
+.cml-alert-icon {{
+  font-size: 18px;
+  line-height: 1;
+}}
+.cml-alert-text {{
+  letter-spacing: 0.3px;
+}}
+
 def genera_app_completa(luogo, lat, lon, dati, ore, giorni):
     cur = dati["current"]
     ico_cur, desc_cur = meteo(cur.get("weather_code"))

@@ -67,7 +67,7 @@ GIORNI_PREVISIONE = 3
 
 # Il pannello mare viene mostrato solo se la cella marina modellistica
 # selezionata dall'API è abbastanza vicina alla località terrestre.
-SOGLIA_COSTA_KM <= 5.0
+SOGLIA_COSTA_KM = 5.0
 
 COMUNI_RAPIDI = {
     "Amantea": (39.1331, 16.0746),

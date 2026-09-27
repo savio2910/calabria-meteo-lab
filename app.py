@@ -410,17 +410,18 @@ def icona_meteo_html(codice, notte=False):
         f'{elementi}</svg>'
     )
 
-def sintesi_oraria_html(ore, dati_mare=None):
+def sintesi_oraria_html(ore):
     """
-    Genera una sintesi in parole chiare per le prossime 24 ore:
+    Genera tre righe di sintesi a partire dal DataFrame 'ore':
       - Prossimo cambiamento significativo
       - Fascia più piovosa (2 ore consecutive)
       - Raffica massima e orario
-      - Timeline delle prossime 12 ore con barre delle precipitazioni
-      - Se disponibili, informazioni sintetiche sul mare
     """
     if ore.empty:
         return ""
+
+    # Assumiamo che 'ore' abbia già le colonne:
+    # time, temperature_2m, precipitation, wind_gusts_10m, Scenario, Icona, Da, Notte
 
     # Filtriamo alle prossime 24 ore
     ora_rif = ore["time"].min()
@@ -433,6 +434,10 @@ def sintesi_oraria_html(ore, dati_mare=None):
         return ""
 
     # 1) Prossimo cambiamento significativo
+    # Definiamo cambiamento quando:
+    #   - scenario cambia (es. da sereno a nuvoloso/pioggia) OPPURE
+    #   - |ΔT| >= 2 °C in un'ora OPPURE
+    #   - |Δvento| >= 15 km/h in un'ora
     scenario_prev = None
     cambio_idx = None
 
@@ -497,94 +502,6 @@ def sintesi_oraria_html(ore, dati_mare=None):
         f"Raffica massima prevista: {max_gust:.0f} km/h intorno alle {ora_max_gust}."
     )
 
-    # 4) Mare (solo se disponibili dati marini)
-    testo_mare = ""
-    if dati_mare is not None and isinstance(dati_mare, dict) and dati_mare.get("hourly"):
-        try:
-            ore_mare = pd.DataFrame(dati_mare["hourly"])
-            ore_mare["time"] = pd.to_datetime(ore_mare["time"])
-
-            ore_mare_24 = ore_mare.loc[
-                (ore_mare["time"] >= ora_rif)
-                & (ore_mare["time"] < ora_rif + pd.Timedelta(hours=24))
-            ].copy()
-
-            if not ore_mare_24.empty and "wave_height" in ore_mare_24.columns:
-                onda_max = float(ore_mare_24["wave_height"].max())
-                idx_onda_max = int(ore_mare_24["wave_height"].idxmax())
-                ora_onda_max = pd.Timestamp(
-                    ore_mare_24.loc[idx_onda_max, "time"]
-                ).strftime("%H:%M")
-
-                if "wave_direction" in ore_mare_24.columns:
-                    dir_onda = ore_mare_24["wave_direction"].dropna()
-                    if not dir_onda.empty:
-                        dir_media = float(dir_onda.mean())
-                        direzioni = ["N", "NE", "E", "SE", "S", "SO", "O", "NO"]
-                        idx_dir = int((dir_media + 22.5) // 45) % 8
-                        dir_testo = direzioni[idx_dir]
-                    else:
-                        dir_testo = "—"
-                else:
-                    dir_testo = "—"
-
-                if onda_max < 0.50:
-                    stato = "calmo o quasi calmo"
-                elif onda_max < 1.25:
-                    stato = "poco mosso"
-                elif onda_max < 2.50:
-                    stato = "mosso"
-                elif onda_max < 4.00:
-                    stato = "molto mosso"
-                else:
-                    stato = "agitato o molto agitato"
-
-                testo_mare = (
-                    f"Mare {stato}, onda massima prevista {onda_max:.2f} m "
-                    f"intorno alle {ora_onda_max}, direzione prevalente {dir_testo}."
-                )
-        except Exception:
-            testo_mare = ""
-
-    # 5) Timeline delle prossime 12 ore con barre delle precipitazioni
-    ore_12 = ore_24.loc[
-        ore_24["time"] < ora_rif + pd.Timedelta(hours=12)
-    ].copy()
-
-    timeline_html = ""
-    if not ore_12.empty and "precipitation" in ore_12.columns:
-        precip_12 = ore_12["precipitation"].fillna(0.0).values
-        max_precip = float(precip_12.max()) if precip_12.max() > 0 else 1.0
-
-        barre = []
-        for i, p in enumerate(precip_12):
-            altezza = int((float(p) / max_precip) * 100) if max_precip > 0 else 0
-            barre.append(
-                f'<div class="cml-timeline-bar" style="height:{altezza}%;" '
-                f'title="{ore_12.iloc[i]["time"].strftime("%H:%M")} · {p:.1f} mm"></div>'
-            )
-
-        timeline_html = f"""
-        <div class="cml-timeline">
-          <div class="cml-timeline-label">Prossime 12 ore</div>
-          <div class="cml-timeline-bars">
-            {''.join(barre)}
-          </div>
-        </div>
-        """
-
-    # Composizione HTML
-    righe = [
-        f"<li><span class=\"cml-nowcast-bullet\">🔹</span><span>{html.escape(testo_cambio)}</span></li>",
-        f"<li><span class=\"cml-nowcast-bullet\">🔹</span><span>{html.escape(testo_pioggia)}</span></li>",
-        f"<li><span class=\"cml-nowcast-bullet\">🔹</span><span>{html.escape(testo_vento)}</span></li>",
-    ]
-
-    if testo_mare:
-        righe.append(
-            f"<li><span class=\"cml-nowcast-bullet\">🔹</span><span>{html.escape(testo_mare)}</span></li>"
-        )
-
     return f"""
     <section class="cml-nowcast-box">
       <div class="cml-nowcast-head">
@@ -597,10 +514,19 @@ def sintesi_oraria_html(ore, dati_mare=None):
       </div>
 
       <ul class="cml-nowcast-list">
-        {''.join(righe)}
+        <li>
+          <span class="cml-nowcast-bullet">🔹</span>
+          <span>{html.escape(testo_cambio)}</span>
+        </li>
+        <li>
+          <span class="cml-nowcast-bullet">🔹</span>
+          <span>{html.escape(testo_pioggia)}</span>
+        </li>
+        <li>
+          <span class="cml-nowcast-bullet">🔹</span>
+          <span>{html.escape(testo_vento)}</span>
+        </li>
       </ul>
-
-      {timeline_html}
 
       <div class="cml-nowcast-note">
         ℹ️ Questa sintesi è generata in modo automatico dai dati orari
@@ -608,6 +534,7 @@ def sintesi_oraria_html(ore, dati_mare=None):
       </div>
     </section>
     """
+
 # =============================================================================
 # NORMALIZZAZIONE E COMUNI COSTIERI
 # =============================================================================
@@ -1235,7 +1162,7 @@ def genera_app_completa(
     icona_corrente, descrizione_corrente = meteo(
         corrente.get("weather_code")
     )
-    sintesi_html = sintesi_oraria_html(ore, dati_mare=dati_mare)
+    sintesi_html = sintesi_oraria_html(ore)
     ora_corrente = corrente.get("time")
     alba_corrente = None
     tramonto_corrente = None
@@ -1764,12 +1691,6 @@ def genera_app_completa(
     documento_html = f"""
 <!DOCTYPE html>
 <html lang="it">
-<style>
-body {
-  font-family: "Inter", -apple-system, BlinkMacSystemFont,
-    "Segoe UI", Roboto, Arial, sans-serif;
-}
-</style>
 <head>
 <meta charset="utf-8">
 <meta
@@ -1819,16 +1740,6 @@ body {{
   box-shadow: 0 14px 32px rgba(9, 61, 83, 0.22);
 }}
 
-.cml-hero,
-.cml-current,
-.cml-marine-box,
-.cml-radar-box,
-.cml-nowcast-box,
-.cml-day-card,
-.cml-chart-box,
-.cml-table-wrap {{
-  box-shadow: 0 10px 30px rgba(23, 67, 84, 0.12);
-}}
 .cml-hero::before {{
   content: "";
   position: absolute;
@@ -2210,9 +2121,7 @@ body {{
   border: 0;
   border-radius: 11px;
   padding: 10px 16px;
-  background:
-  radial-gradient(1200px 600px at 10% -10%, rgba(255,255,255,0.12), transparent 60%),
-  linear-gradient(135deg, #052a42 0%, #085f7a 55%, #0a8a9e 100%);
+  background: linear-gradient(135deg, #0c7f96, #075d74);
   color: #ffffff;
   cursor: pointer;
   font-size: 13px;
@@ -2240,6 +2149,7 @@ body {{
   font-size: 12px;
 }}
 
+.cml-nowcast-box {
 .cml-nowcast-box {{
   margin: 0 0 30px;
   padding: 26px;
@@ -2247,30 +2157,40 @@ body {{
   border-radius: 24px;
   background: #ffffff;
   box-shadow: 0 8px 28px rgba(23, 67, 84, 0.10);
+}
 }}
 
+.cml-nowcast-head {
 .cml-nowcast-head {{
   margin-bottom: 16px;
+}
 }}
 
+.cml-nowcast-head h2 {
 .cml-nowcast-head h2 {{
   margin: 6px 0 4px;
   color: #102b3b;
   font-size: 23px;
+}
 }}
 
+.cml-nowcast-head p {
 .cml-nowcast-head p {{
   margin: 0;
   color: #607987;
   font-size: 12px;
+}
 }}
 
+.cml-nowcast-list {
 .cml-nowcast-list {{
   list-style: none;
   margin: 0;
   padding: 0;
+}
 }}
 
+.cml-nowcast-list li {
 .cml-nowcast-list li {{
   display: flex;
   align-items: flex-start;
@@ -2279,13 +2199,17 @@ body {{
   color: #2a4b58;
   font-size: 14px;
   line-height: 1.5;
+}
 }}
 
+.cml-nowcast-bullet {
 .cml-nowcast-bullet {{
   flex: 0 0 20px;
   font-size: 16px;
+}
 }}
 
+.cml-nowcast-note {
 .cml-nowcast-note {{
   margin-top: 14px;
   padding: 11px 14px;
@@ -2296,69 +2220,7 @@ body {{
   color: #67552d;
   font-size: 12px;
   line-height: 1.5;
-}}
-
-.cml-view-switch {{
-  display: flex;
-  justify-content: flex-end;
-  margin: 8px 0 16px;
-}}
-
-.cml-view-switch button {{
-  border: 1px solid #0b7f98;
-  border-radius: 11px;
-  padding: 9px 14px;
-  background: #e7f6f8;
-  color: #087087;
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 800;
-}}
-
-.cml-view-switch button:hover {{
-  background: #d4f0f4;
-}}
-
-.cml-lettura-rapida .cml-chart-box,
-.cml-lettura-rapida .cml-tabs-bar,
-.cml-lettura-rapida .cml-day-table-container,
-.cml-lettura-rapida .cml-hour-header {{
-  display: none !important;
-}}
-
-.cml-timeline {{
-  margin-top: 14px;
-  padding: 12px 14px;
-  border: 1px solid #d5e4e9;
-  border-radius: 14px;
-  background: #f8fbfc;
-}}
-
-.cml-timeline-label {{
-  margin-bottom: 8px;
-  color: #102b3b;
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.5px;
-}}
-
-.cml-timeline-bars {{
-  display: flex;
-  align-items: flex-end;
-  gap: 3px;
-  height: 60px;
-}}
-
-.cml-timeline-bar {{
-  flex: 1;
-  min-width: 6px;
-  background: linear-gradient(to top, #2f89ca, #5aaef2);
-  border-radius: 3px 3px 0 0;
-  transition: opacity 0.2s ease;
-}}
-
-.cml-timeline-bar:hover {{
-  opacity: 0.75;
+}
 }}
 
 .cml-radar-time {{
@@ -2429,28 +2291,12 @@ body {{
 .cml-day-tag {{
   padding: 6px 12px;
   border-radius: 999px;
-  background:
-  radial-gradient(1200px 600px at 10% -10%, rgba(255,255,255,0.12), transparent 60%),
-  linear-gradient(135deg, #052a42 0%, #085f7a 55%, #0a8a9e 100%);
+  background: linear-gradient(135deg, #0e95ab, #087087);
   color: #ffffff;
   font-size: 10px;
   font-weight: 900;
   letter-spacing: 1px;
 }}
-
-.cml-day-card,
-.cml-metric-card,
-.cml-marine-card {{
-  transition: transform 0.18s ease, box-shadow 0.18s ease;
-}}
-
-.cml-day-card:hover,
-.cml-metric-card:hover,
-.cml-marine-card:hover {{
-  transform: translateY(-2px);
-  box-shadow: 0 14px 36px rgba(23, 67, 84, 0.16);
-}}
-
 
 .cml-day-date {{
   color: var(--muted);
@@ -2910,26 +2756,9 @@ body {{
   }}
 }}
 </style>
-
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-
-<style>
-body {{
-  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-}}
-</style>
-
 </head>
 
 <body>
-
-<div class="cml-view-switch">
-  <button id="btn-lettura-rapida" type="button" onclick="toggleLetturaRapida()">
-    👁️ Lettura rapida
-  </button>
-</div>
 
 <section class="cml-hero">
   <div class="cml-brand">
@@ -3166,19 +2995,20 @@ function creaGrafico(chiave) {{
         intersect: false
       }},
 
-        plugins: {{
-          legend: {{
-            position: "top",
-        
-            labels: {{
-              usePointStyle: true,
-              padding: 18,
-              font: {{
-                size: 12,
-                weight: "600"
-              }}
+      plugins: {{
+        legend: {{
+          position: "top",
+
+          labels: {{
+            usePointStyle: true,
+            padding: 18,
+
+            font: {{
+              size: 12,
+              weight: "600"
             }}
-          }},
+          }}
+        }},
 
         tooltip: {{
           backgroundColor: "rgba(15, 43, 59, 0.95)",
@@ -3467,20 +3297,6 @@ fetch(
         "radar temporaneamente non disponibile";
     }}
   }});
-  
-function toggleLetturaRapida() {{
-  const corpo = document.body;
-  const pulsante = document.getElementById("btn-lettura-rapida");
-
-  corpo.classList.toggle("cml-lettura-rapida");
-
-  if (corpo.classList.contains("cml-lettura-rapida")) {{
-    pulsante.textContent = "📖 Lettura dettagliata";
-  }} else {{
-    pulsante.textContent = "👁️ Lettura rapida";
-  }}
-}}
-
 </script>
 
 </body>

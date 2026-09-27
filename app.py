@@ -1701,71 +1701,124 @@ body {{
   display: none !important;
 }}
 
-/* ===================== SFONDO SATELLITARE HOME ===================== */
+/* ===================== HOME ===================== */
 
-#cml-home {{
+.cml-home-hero {{
   position: relative;
   overflow: hidden;
-  min-height: 100vh;
-  padding: 18px 0 45px;
-  isolation: isolate;
-
+  margin: 8px 0 28px;
+  padding: 58px 48px;
+  border: 1px solid #07516c;
+  border-radius: 28px;
+  color: #ffffff;
   background:
-    linear-gradient(
-      rgba(4, 35, 57, 0.58),
-      rgba(5, 73, 91, 0.68)
-    ),
-    url("https://tilecache.rainviewer.com")
-    center / cover no-repeat;
-
-  animation: cml-satellite-pan 35s ease-in-out infinite alternate;
+    radial-gradient(circle at 85% 15%, rgba(255, 210, 92, 0.20), transparent 28%),
+    linear-gradient(135deg, #06324d 0%, #075b78 52%, #087f91 100%);
+  box-shadow: 0 14px 32px rgba(9, 61, 83, 0.22);
 }}
 
-#cml-home::before {{
+.cml-home-hero::before {{
   content: "";
   position: absolute;
-  inset: 0;
-  z-index: -1;
-
-  background:
-    linear-gradient(
-      135deg,
-      rgba(2, 36, 59, 0.72),
-      rgba(7, 104, 122, 0.52)
-    ),
-    url("https://tilecache.rainviewer.com");
-
-  background-position: center;
-  background-size: cover;
-  opacity: 0.42;
-  mix-blend-mode: screen;
-  pointer-events: none;
+  right: -85px;
+  bottom: -105px;
+  width: 310px;
+  height: 310px;
+  border: 36px solid rgba(255, 255, 255, 0.08);
+  border-radius: 50%;
 }}
 
-#cml-home::after {{
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-
-  background:
-    radial-gradient(
-      circle at 20% 10%,
-      rgba(255, 255, 255, 0.16),
-      transparent 32%
-    ),
-    linear-gradient(
-      to bottom,
-      rgba(2, 31, 52, 0.18),
-      rgba(2, 31, 52, 0.65)
-    );
-
-  pointer-events: none;
-}}
-
-#cml-home > * {{
+.cml-home-hero > * {{
   position: relative;
-  z-index: 2;
+  z-index: 1;
+}}
+
+.cml-home-hero h1 {{
+  max-width: 800px;
+  margin: 20px 0 13px;
+  color: #ffffff;
+  font-size: 48px;
+  font-weight: 850;
+  letter-spacing: -1.5px;
+  line-height: 1.08;
+}}
+
+.cml-home-hero p {{
+  max-width: 730px;
+  margin: 0;
+  color: #e2f5f8;
+  font-size: 16px;
+  line-height: 1.7;
+}}
+
+.cml-home-actions {{
+  display: grid;
+  grid-template-columns: repeat(2, minmax(260px, 1fr));
+  gap: 20px;
+  max-width: 980px;
+  margin: 0 auto 32px;
+}}
+
+.cml-home-choice {{
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-height: 220px;
+  padding: 28px;
+  border: 1px solid #d2e4e9;
+  border-radius: 24px;
+  background: #ffffff;
+  color: #102b3b;
+  cursor: pointer;
+  text-align: left;
+  box-shadow: 0 10px 28px rgba(23, 67, 84, 0.12);
+  transition: transform 0.18s ease, box-shadow 0.18s ease,
+              border-color 0.18s ease;
+}}
+
+.cml-home-choice:hover,
+.cml-home-choice:focus-visible {{
+  transform: translateY(-4px);
+  border-color: #087087;
+  outline: none;
+  box-shadow: 0 15px 32px rgba(8, 112, 135, 0.22);
+}}
+
+.cml-home-choice-icon {{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 62px;
+  height: 62px;
+  margin-bottom: 18px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #d9f4f7, #a8e1e7);
+  font-size: 31px;
+}}
+
+.cml-home-choice.radar .cml-home-choice-icon {{
+  background: linear-gradient(135deg, #dce7ff, #adc5ec);
+}}
+
+.cml-home-choice h2 {{
+  margin: 0 0 8px;
+  color: #102b3b;
+  font-size: 24px;
+}}
+
+.cml-home-choice p {{
+  margin: 0;
+  color: #607987;
+  font-size: 14px;
+  line-height: 1.6;
+}}
+
+.cml-home-choice span {{
+  margin-top: auto;
+  padding-top: 20px;
+  color: #087087;
+  font-size: 13px;
+  font-weight: 850;
 }}
 
 /* ===================== NAV BAR ===================== */

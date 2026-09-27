@@ -3586,9 +3586,9 @@ fetch(
     }}
   }});
 
-document.addEventListener("DOMContentLoaded", function() {
+document.addEventListener("DOMContentLoaded", function() {{
   mostraVista("home");
-});
+}});
 
 </script>
 

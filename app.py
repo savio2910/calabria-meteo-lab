@@ -3235,9 +3235,9 @@ function creaGrafici(chiave) {{
    * 1. GRAFICO TEMPERATURA
    */
 
-  const graficoTemperatura = new Chart(
+    const graficoTemperatura = new Chart(
     canvasTemperatura.getContext("2d"),
-    {
+    {{
       type: "line",
 
       data: {{
@@ -3247,10 +3247,8 @@ function creaGrafici(chiave) {{
           {{
             label: "Temperatura °C",
             data: dati.temperatura,
-
             borderColor: "#ef6c16",
             backgroundColor: "rgba(239, 108, 22, 0.16)",
-
             pointRadius: 3,
             pointHoverRadius: 5,
             borderWidth: 3,
@@ -3261,17 +3259,48 @@ function creaGrafici(chiave) {{
       }},
 
       options: {{
-        ...opzioniComuni,
+        responsive: true,
+        maintainAspectRatio: false,
+
+        interaction: {{
+          mode: "index",
+          intersect: false
+        }},
+
+        plugins: {{
+          legend: {{
+            position: "top",
+            labels: {{
+              usePointStyle: true,
+              padding: 18,
+              font: {{
+                size: 12,
+                weight: "600"
+              }}
+            }}
+          }},
+          tooltip: {{
+            backgroundColor: "rgba(15, 43, 59, 0.95)",
+            padding: 11,
+            cornerRadius: 9
+          }}
+        }},
 
         scales: {{
-          ...opzioniComuni.scales,
-
+          x: {{
+            grid: {{
+              color: "rgba(16, 43, 59, 0.06)"
+            }},
+            ticks: {{
+              maxRotation: 0,
+              autoSkip: true
+            }}
+          }},
           y: {{
             title: {{
               display: true,
               text: "Temperatura °C"
             }},
-
             grid: {{
               color: "rgba(16, 43, 59, 0.08)"
             }}
@@ -3280,7 +3309,6 @@ function creaGrafici(chiave) {{
       }}
     }}
   );
-
   /*
    * 2. GRAFICO NUVOLOSITÀ E PRECIPITAZIONI
    */
@@ -3369,7 +3397,7 @@ function creaGrafici(chiave) {{
    * 3. GRAFICO VENTO
    */
 
-  const graficoVento = new Chart(
+    const graficoVento = new Chart(
     canvasVento.getContext("2d"),
     {{
       type: "line",
@@ -3381,24 +3409,19 @@ function creaGrafici(chiave) {{
           {{
             label: "Vento medio km/h",
             data: dati.vento,
-
             borderColor: "#0a8b72",
             backgroundColor: "rgba(10, 139, 114, 0.12)",
-
             pointRadius: 3,
             pointHoverRadius: 5,
             borderWidth: 3,
             tension: 0.3,
             fill: true
           }},
-
           {{
             label: "Raffiche km/h",
             data: dati.raffiche,
-
             borderColor: "#9c3f84",
             backgroundColor: "rgba(156, 63, 132, 0.08)",
-
             pointRadius: 3,
             pointHoverRadius: 5,
             borderWidth: 2.5,
@@ -3410,19 +3433,49 @@ function creaGrafici(chiave) {{
       }},
 
       options: {{
-        ...opzioniComuni,
+        responsive: true,
+        maintainAspectRatio: false,
+
+        interaction: {{
+          mode: "index",
+          intersect: false
+        }},
+
+        plugins: {{
+          legend: {{
+            position: "top",
+            labels: {{
+              usePointStyle: true,
+              padding: 18,
+              font: {{
+                size: 12,
+                weight: "600"
+              }}
+            }}
+          }},
+          tooltip: {{
+            backgroundColor: "rgba(15, 43, 59, 0.95)",
+            padding: 11,
+            cornerRadius: 9
+          }}
+        }},
 
         scales: {{
-          ...opzioniComuni.scales,
-
+          x: {{
+            grid: {{
+              color: "rgba(16, 43, 59, 0.06)"
+            }},
+            ticks: {{
+              maxRotation: 0,
+              autoSkip: true
+            }}
+          }},
           y: {{
             beginAtZero: true,
-
             title: {{
               display: true,
               text: "Velocità km/h"
             }},
-
             grid: {{
               color: "rgba(16, 43, 59, 0.08)"
             }}

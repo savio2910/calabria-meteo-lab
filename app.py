@@ -1179,6 +1179,7 @@ def genera_app_completa(
         corrente.get("weather_code"),
         e_notte(ora_corrente, alba_corrente, tramonto_corrente),
     )
+
     metriche = [
         (
             "🌡️",
@@ -1271,37 +1272,15 @@ def genera_app_completa(
     ):
         corrente_mare = dati_mare["current"]
 
-        altezza_onda = corrente_mare.get(
-            "wave_height"
-        )
+        altezza_onda = corrente_mare.get("wave_height")
+        direzione_onda = corrente_mare.get("wave_direction")
+        periodo_onda = corrente_mare.get("wave_period")
+        periodo_picco = corrente_mare.get("wave_peak_period")
+        altezza_mare_vento = corrente_mare.get("wind_wave_height")
+        altezza_swell = corrente_mare.get("swell_wave_height")
+        temperatura_mare = corrente_mare.get("sea_surface_temperature")
 
-        direzione_onda = corrente_mare.get(
-            "wave_direction"
-        )
-
-        periodo_onda = corrente_mare.get(
-            "wave_period"
-        )
-
-        periodo_picco = corrente_mare.get(
-            "wave_peak_period"
-        )
-
-        altezza_mare_vento = corrente_mare.get(
-            "wind_wave_height"
-        )
-
-        altezza_swell = corrente_mare.get(
-            "swell_wave_height"
-        )
-
-        temperatura_mare = corrente_mare.get(
-            "sea_surface_temperature"
-        )
-
-        stato_mare, icona_mare, classe_mare = (
-            stato_mare_da_onda(altezza_onda)
-        )
+        stato_mare, icona_mare, classe_mare = stato_mare_da_onda(altezza_onda)
 
         mare_html = f"""
         <section class="cml-marine-box">
@@ -1384,12 +1363,11 @@ def genera_app_completa(
         </section>
         """
 
-    etichette_giorni = [
-        "OGGI",
-        "DOMANI",
-        "DOPODOMANI",
-    ]
+    # ---------------------------------------------------------
+    # SCHEDE GIORNALIERE
+    # ---------------------------------------------------------
 
+    etichette_giorni = ["OGGI", "DOMANI", "DOPODOMANI"]
     carte_html = []
 
     for indice, (_, riga) in enumerate(giorni.iterrows()):
@@ -1405,17 +1383,9 @@ def genera_app_completa(
         )
 
         icona, descrizione = meteo(codice_effettivo)
-
-        fase = html.escape(
-            str(riga.get("Fase lunare", "🌙 Luna"))
-        )
-
+        fase = html.escape(str(riga.get("Fase lunare", "🌙 Luna")))
         livello, rischio = valuta_rischio_locale(riga)
-
-        badge_rischio = badge_rischio_html(
-            livello,
-            rischio,
-        )
+        badge_rischio = badge_rischio_html(livello, rischio)
 
         if codice_effettivo in [95, 96, 99]:
             classe_icona = "cml-icon-thunder"
@@ -1538,9 +1508,11 @@ def genera_app_completa(
             """
         )
 
-    date_disponibili = sorted(
-        ore["time"].dt.date.unique()
-    )
+    # ---------------------------------------------------------
+    # DETTAGLI ORARI (TABELLA PRIMA, GRAFICO DOPO)
+    # ---------------------------------------------------------
+
+    date_disponibili = sorted(ore["time"].dt.date.unique())
 
     if not date_disponibili:
         raise RuntimeError(
@@ -1558,32 +1530,24 @@ def genera_app_completa(
         ].copy()
 
         dati_grafici[chiave] = {
-            "ore": ore_giorno["time"].dt.strftime(
-                "%H:%M"
-            ).tolist(),
+            "ore": ore_giorno["time"].dt.strftime("%H:%M").tolist(),
             "temperatura": [
                 round(float(valore), 1)
                 if pd.notna(valore)
                 else None
-                for valore in ore_giorno[
-                    "temperature_2m"
-                ].tolist()
+                for valore in ore_giorno["temperature_2m"].tolist()
             ],
             "vento": [
                 round(float(valore), 1)
                 if pd.notna(valore)
                 else None
-                for valore in ore_giorno[
-                    "wind_speed_10m"
-                ].tolist()
+                for valore in ore_giorno["wind_speed_10m"].tolist()
             ],
             "precipitazione": [
                 round(float(valore), 1)
                 if pd.notna(valore)
                 else None
-                for valore in ore_giorno[
-                    "precipitation"
-                ].tolist()
+                for valore in ore_giorno["precipitation"].tolist()
             ],
         }
 
@@ -1627,61 +1591,62 @@ def genera_app_completa(
                 """
             )
 
-            tabelle_html.append(
-                f"""
-                <div id="dettaglio-{chiave}" class="cml-day-inline-detail" hidden
-                     onclick="event.stopPropagation()">
-    
-                  <h3>
-                    🕒 Previsione oraria ·
-                    {html.escape(data_it(data_giorno).title())}
-                  </h3>
-    
-                  <div class="cml-table-wrap">
-                    <table class="cml-table">
-                      <thead>
-                        <tr>
-                          <th>Ora</th>
-                          <th>Scenario</th>
-                          <th>Temp. °C</th>
-                          <th>Percepita °C</th>
-                          <th>Pioggia mm</th>
-                          <th>Vento km/h</th>
-                          <th>Da</th>
-                          <th>Raffica km/h</th>
-                          <th>Nubi %</th>
-                          <th>Umidità %</th>
-                        </tr>
-                      </thead>
-    
-                      <tbody>
-                        {''.join(righe_tabella)}
-                      </tbody>
-                    </table>
-                  </div>
-    
-                  <div class="cml-chart-box">
-                    <div class="cml-chart-title">
-                      📊 Andamenti orari
-                    </div>
-    
-                    <div class="cml-chart-subtitle">
-                      Temperatura, vento e precipitazioni del giorno selezionato.
-                    </div>
-    
-                    <div class="cml-chart-canvas-wrap">
-                      <canvas id="meteoChart-{chiave}"></canvas>
-                    </div>
-                  </div>
-    
+        tabelle_html.append(
+            f"""
+            <div id="dettaglio-{chiave}" class="cml-day-inline-detail" hidden
+                 onclick="event.stopPropagation()">
+
+              <h3>
+                🕒 Previsione oraria ·
+                {html.escape(data_it(data_giorno).title())}
+              </h3>
+
+              <div class="cml-table-wrap">
+                <table class="cml-table">
+                  <thead>
+                    <tr>
+                      <th>Ora</th>
+                      <th>Scenario</th>
+                      <th>Temp. °C</th>
+                      <th>Percepita °C</th>
+                      <th>Pioggia mm</th>
+                      <th>Vento km/h</th>
+                      <th>Da</th>
+                      <th>Raffica km/h</th>
+                      <th>Nubi %</th>
+                      <th>Umidità %</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {''.join(righe_tabella)}
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="cml-chart-box">
+                <div class="cml-chart-title">
+                  📊 Andamenti orari
                 </div>
-                """
-             )
+
+                <div class="cml-chart-subtitle">
+                  Temperatura, vento e precipitazioni del giorno selezionato.
+                </div>
+
+                <div class="cml-chart-canvas-wrap">
+                  <canvas id="meteoChart-{chiave}"></canvas>
+                </div>
+              </div>
+
+            </div>
+            """
+        )
 
     dettagli_per_data = {
         str(data): dettaglio
         for data, dettaglio in zip(date_disponibili, tabelle_html)
     }
+
     carte_html = [
         carta.replace(
             f"<!--DETTAGLIO-{riga['time'].date()}-->",
@@ -1693,26 +1658,20 @@ def genera_app_completa(
         for carta, (_, riga) in zip(carte_html, giorni.iterrows())
     ]
 
-    dati_grafici_json = json.dumps(
-        dati_grafici,
-        ensure_ascii=False,
-    )
+    dati_grafici_json = json.dumps(dati_grafici, ensure_ascii=False)
+
+    # ---------------------------------------------------------
+    # HTML COMPLETO CON HOME / PREVISIONI / RADAR
+    # ---------------------------------------------------------
 
     documento_html = f"""
 <!DOCTYPE html>
 <html lang="it">
 <head>
 <meta charset="utf-8">
-<meta
-  name="viewport"
-  content="width=device-width, initial-scale=1"
->
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
-<link
-  rel="stylesheet"
-  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
->
-
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -1737,6 +1696,170 @@ body {{
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
   line-height: 1.45;
 }}
+
+.cml-view[hidden] {{
+  display: none !important;
+}}
+
+/* ===================== HOME ===================== */
+
+.cml-home-hero {{
+  position: relative;
+  overflow: hidden;
+  margin: 8px 0 28px;
+  padding: 58px 48px;
+  border: 1px solid #07516c;
+  border-radius: 28px;
+  color: #ffffff;
+  background:
+    radial-gradient(circle at 85% 15%, rgba(255, 210, 92, 0.20), transparent 28%),
+    linear-gradient(135deg, #06324d 0%, #075b78 52%, #087f91 100%);
+  box-shadow: 0 14px 32px rgba(9, 61, 83, 0.22);
+}}
+
+.cml-home-hero::before {{
+  content: "";
+  position: absolute;
+  right: -85px;
+  bottom: -105px;
+  width: 310px;
+  height: 310px;
+  border: 36px solid rgba(255, 255, 255, 0.08);
+  border-radius: 50%;
+}}
+
+.cml-home-hero > * {{
+  position: relative;
+  z-index: 1;
+}}
+
+.cml-home-hero h1 {{
+  max-width: 800px;
+  margin: 20px 0 13px;
+  color: #ffffff;
+  font-size: 48px;
+  font-weight: 850;
+  letter-spacing: -1.5px;
+  line-height: 1.08;
+}}
+
+.cml-home-hero p {{
+  max-width: 730px;
+  margin: 0;
+  color: #e2f5f8;
+  font-size: 16px;
+  line-height: 1.7;
+}}
+
+.cml-home-actions {{
+  display: grid;
+  grid-template-columns: repeat(2, minmax(260px, 1fr));
+  gap: 20px;
+  max-width: 980px;
+  margin: 0 auto 32px;
+}}
+
+.cml-home-choice {{
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-height: 220px;
+  padding: 28px;
+  border: 1px solid #d2e4e9;
+  border-radius: 24px;
+  background: #ffffff;
+  color: #102b3b;
+  cursor: pointer;
+  text-align: left;
+  box-shadow: 0 10px 28px rgba(23, 67, 84, 0.12);
+  transition: transform 0.18s ease, box-shadow 0.18s ease,
+              border-color 0.18s ease;
+}}
+
+.cml-home-choice:hover,
+.cml-home-choice:focus-visible {{
+  transform: translateY(-4px);
+  border-color: #087087;
+  outline: none;
+  box-shadow: 0 15px 32px rgba(8, 112, 135, 0.22);
+}}
+
+.cml-home-choice-icon {{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 62px;
+  height: 62px;
+  margin-bottom: 18px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #d9f4f7, #a8e1e7);
+  font-size: 31px;
+}}
+
+.cml-home-choice.radar .cml-home-choice-icon {{
+  background: linear-gradient(135deg, #dce7ff, #adc5ec);
+}}
+
+.cml-home-choice h2 {{
+  margin: 0 0 8px;
+  color: #102b3b;
+  font-size: 24px;
+}}
+
+.cml-home-choice p {{
+  margin: 0;
+  color: #607987;
+  font-size: 14px;
+  line-height: 1.6;
+}}
+
+.cml-home-choice span {{
+  margin-top: auto;
+  padding-top: 20px;
+  color: #087087;
+  font-size: 13px;
+  font-weight: 850;
+}}
+
+/* ===================== NAV BAR ===================== */
+
+.cml-nav-bar {{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin: 8px 0 20px;
+  padding: 12px 15px;
+  border: 1px solid #d5e4e9;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 6px 18px rgba(23, 67, 84, 0.08);
+}}
+
+.cml-back-btn {{
+  border: 0;
+  border-radius: 10px;
+  padding: 10px 14px;
+  background: #e7f6f8;
+  color: #087087;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 850;
+  transition: background 0.16s ease, transform 0.16s ease;
+}}
+
+.cml-back-btn:hover {{
+  background: #cdeef2;
+  transform: translateX(-2px);
+}}
+
+.cml-nav-title {{
+  color: #102b3b;
+  font-size: 14px;
+  font-weight: 850;
+}}
+
+/* ===================== HERO E CONDIZIONI ===================== */
 
 .cml-hero {{
   position: relative;
@@ -1955,6 +2078,8 @@ body {{
   color: #294e5c;
 }}
 
+/* ===================== MARE ===================== */
+
 .cml-marine-box {{
   margin: 0 0 30px;
   padding: 26px;
@@ -2020,37 +2145,14 @@ body {{
   font-size: 17px;
 }}
 
-.cml-mare-calmo {{
-  background: #0d77a7;
-}}
-
-.cml-mare-quasi-calmo {{
-  background: #168db7;
-}}
-
-.cml-mare-poco-mosso {{
-  background: #278b5e;
-}}
-
-.cml-mare-mosso {{
-  background: #c18a1c;
-}}
-
-.cml-mare-molto-mosso {{
-  background: #d16418;
-}}
-
-.cml-mare-agitato {{
-  background: #c3313d;
-}}
-
-.cml-mare-molto-agitato {{
-  background: #8b1e29;
-}}
-
-.cml-mare-nd {{
-  background: #6d7d86;
-}}
+.cml-mare-calmo {{ background: #0d77a7; }}
+.cml-mare-quasi-calmo {{ background: #168db7; }}
+.cml-mare-poco-mosso {{ background: #278b5e; }}
+.cml-mare-mosso {{ background: #c18a1c; }}
+.cml-mare-molto-mosso {{ background: #d16418; }}
+.cml-mare-agitato {{ background: #c3313d; }}
+.cml-mare-molto-agitato {{ background: #8b1e29; }}
+.cml-mare-nd {{ background: #6d7d86; }}
 
 .cml-marine-grid {{
   display: grid;
@@ -2096,6 +2198,8 @@ body {{
   font-size: 12px;
   line-height: 1.6;
 }}
+
+/* ===================== RADAR ===================== */
 
 .cml-radar-box {{
   margin-bottom: 32px;
@@ -2159,6 +2263,13 @@ body {{
   font-size: 12px;
 }}
 
+.cml-radar-time {{
+  color: #087087;
+  font-weight: 850;
+}}
+
+/* ===================== NOWCAST ===================== */
+
 .cml-nowcast-box {{
   margin: 0 0 30px;
   padding: 26px;
@@ -2169,45 +2280,27 @@ body {{
 }}
 
 .cml-nowcast-head {{
-.cml-nowcast-head {{
-.cml-nowcast-head {{
   margin-bottom: 16px;
 }}
-}}
-}}
 
-.cml-nowcast-head h2 {{
-.cml-nowcast-head h2 {{
 .cml-nowcast-head h2 {{
   margin: 6px 0 4px;
   color: #102b3b;
   font-size: 23px;
 }}
-}}
-}}
 
-.cml-nowcast-head p {{
-.cml-nowcast-head p {{
 .cml-nowcast-head p {{
   margin: 0;
   color: #607987;
   font-size: 12px;
 }}
-}}
-}}
 
-.cml-nowcast-list {{
-.cml-nowcast-list {{
 .cml-nowcast-list {{
   list-style: none;
   margin: 0;
   padding: 0;
 }}
-}}
-}}
 
-.cml-nowcast-list li {{
-.cml-nowcast-list li {{
 .cml-nowcast-list li {{
   display: flex;
   align-items: flex-start;
@@ -2217,20 +2310,12 @@ body {{
   font-size: 14px;
   line-height: 1.5;
 }}
-}}
-}}
 
-.cml-nowcast-bullet {{
-.cml-nowcast-bullet {{
 .cml-nowcast-bullet {{
   flex: 0 0 20px;
   font-size: 16px;
 }}
-}}
-}}
 
-.cml-nowcast-note {{
-.cml-nowcast-note {{
 .cml-nowcast-note {{
   margin-top: 14px;
   padding: 11px 14px;
@@ -2242,13 +2327,8 @@ body {{
   font-size: 12px;
   line-height: 1.5;
 }}
-}}
-}}
 
-.cml-radar-time {{
-  color: #087087;
-  font-weight: 850;
-}}
+/* ===================== SECTION TITLE ===================== */
 
 .cml-section-title {{
   display: flex;
@@ -2288,6 +2368,8 @@ body {{
   font-weight: 850;
   white-space: nowrap;
 }}
+
+/* ===================== CARDS GIORNI ===================== */
 
 .cml-days-grid {{
   display: grid;
@@ -2395,25 +2477,11 @@ body {{
   box-shadow: 0 6px 14px rgba(23, 67, 84, 0.15);
 }}
 
-.cml-icon-sun {{
-  background: linear-gradient(135deg, #ffe99a, #f9b843);
-}}
-
-.cml-icon-cloud {{
-  background: linear-gradient(135deg, #dbe6ea, #93aab5);
-}}
-
-.cml-icon-rain {{
-  background: linear-gradient(135deg, #9ed4ef, #327eae);
-}}
-
-.cml-icon-snow {{
-  background: linear-gradient(135deg, #eff9ff, #b8d5e3);
-}}
-
-.cml-icon-thunder {{
-  background: linear-gradient(135deg, #cbb3e6, #67458b);
-}}
+.cml-icon-sun {{ background: linear-gradient(135deg, #ffe99a, #f9b843); }}
+.cml-icon-cloud {{ background: linear-gradient(135deg, #dbe6ea, #93aab5); }}
+.cml-icon-rain {{ background: linear-gradient(135deg, #9ed4ef, #327eae); }}
+.cml-icon-snow {{ background: linear-gradient(135deg, #eff9ff, #b8d5e3); }}
+.cml-icon-thunder {{ background: linear-gradient(135deg, #cbb3e6, #67458b); }}
 
 .cml-day-description {{
   color: var(--ink);
@@ -2524,48 +2592,7 @@ body {{
   line-height: 1.6;
 }}
 
-.cml-hour-header {{
-  position: relative;
-  overflow: hidden;
-  margin-top: 12px;
-  padding: 29px 31px;
-  border-radius: 22px;
-  background: linear-gradient(135deg, #122a50, #274d85);
-  color: #ffffff;
-  box-shadow: 0 12px 28px rgba(25, 50, 98, 0.22);
-}}
-
-.cml-hour-header::after {{
-  content: "☾";
-  position: absolute;
-  top: 0;
-  right: 27px;
-  color: rgba(255, 255, 255, 0.12);
-  font-size: 88px;
-}}
-
-.cml-hour-header > * {{
-  position: relative;
-  z-index: 1;
-}}
-
-.cml-hour-header span {{
-  color: #aeeaf2;
-  font-size: 10px;
-  font-weight: 850;
-  letter-spacing: 1.8px;
-}}
-
-.cml-hour-header h2 {{
-  margin: 9px 0 6px;
-  font-size: 28px;
-}}
-
-.cml-hour-header p {{
-  margin: 0;
-  color: #dceaff;
-  font-size: 13px;
-}}
+/* ===================== CHART ===================== */
 
 .cml-chart-box {{
   margin: 20px 0 14px;
@@ -2594,37 +2621,7 @@ body {{
   height: 330px;
 }}
 
-.cml-tabs-bar {{
-  display: flex;
-  gap: 10px;
-  margin: 18px 0 14px;
-  overflow-x: auto;
-  padding-bottom: 5px;
-}}
-
-.cml-tab-btn {{
-  border: 1px solid #cfe2e7;
-  border-radius: 12px;
-  padding: 10px 16px;
-  background: #ffffff;
-  color: #3b6371;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 800;
-  white-space: nowrap;
-}}
-
-.cml-tab-btn:hover {{
-  border-color: #0b7f98;
-  background: #eaf8fa;
-}}
-
-.cml-tab-btn.active {{
-  border-color: #087087;
-  background: linear-gradient(135deg, #0d90a7, #087087);
-  color: #ffffff;
-  box-shadow: 0 5px 12px rgba(8, 112, 135, 0.25);
-}}
+/* ===================== TABELLA ===================== */
 
 .cml-table-wrap {{
   width: 100%;
@@ -2740,7 +2737,6 @@ body {{
   font-size: 22px;
 }}
 
-
 .cml-night-row td {{
   border-bottom-color: rgba(255, 255, 255, 0.10);
   color: #e5f0ff;
@@ -2759,186 +2755,7 @@ body {{
   background: #142549;
 }}
 
-/* =========================================================
-   NAVIGAZIONE HOME / PREVISIONI / RADAR
-   ========================================================= */
-
-.cml-view[hidden] {{
-  display: none !important;
-}}
-
-.cml-home-hero {{
-  position: relative;
-  overflow: hidden;
-  margin: 8px 0 28px;
-  padding: 58px 48px;
-  border: 1px solid #07516c;
-  border-radius: 28px;
-  color: #ffffff;
-  background:
-    radial-gradient(circle at 85% 15%, rgba(255, 210, 92, 0.20), transparent 28%),
-    linear-gradient(135deg, #06324d 0%, #075b78 52%, #087f91 100%);
-  box-shadow: 0 14px 32px rgba(9, 61, 83, 0.22);
-}}
-
-.cml-home-hero::before {{
-  content: "";
-  position: absolute;
-  right: -85px;
-  bottom: -105px;
-  width: 310px;
-  height: 310px;
-  border: 36px solid rgba(255, 255, 255, 0.08);
-  border-radius: 50%;
-}}
-
-.cml-home-hero > * {{
-  position: relative;
-  z-index: 1;
-}}
-
-.cml-home-hero h1 {{
-  max-width: 800px;
-  margin: 20px 0 13px;
-  color: #ffffff;
-  font-size: 48px;
-  font-weight: 850;
-  letter-spacing: -1.5px;
-  line-height: 1.08;
-}}
-
-.cml-home-hero p {{
-  max-width: 730px;
-  margin: 0;
-  color: #e2f5f8;
-  font-size: 16px;
-  line-height: 1.7;
-}}
-
-.cml-home-actions {{
-  display: grid;
-  grid-template-columns: repeat(2, minmax(260px, 1fr));
-  gap: 20px;
-  max-width: 980px;
-  margin: 0 auto 32px;
-}}
-
-.cml-home-choice {{
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  min-height: 220px;
-  padding: 28px;
-  border: 1px solid #d2e4e9;
-  border-radius: 24px;
-  background: #ffffff;
-  color: #102b3b;
-  cursor: pointer;
-  text-align: left;
-  box-shadow: 0 10px 28px rgba(23, 67, 84, 0.12);
-  transition: transform 0.18s ease, box-shadow 0.18s ease,
-              border-color 0.18s ease;
-}}
-
-.cml-home-choice:hover,
-.cml-home-choice:focus-visible {{
-  transform: translateY(-4px);
-  border-color: #087087;
-  outline: none;
-  box-shadow: 0 15px 32px rgba(8, 112, 135, 0.22);
-}}
-
-.cml-home-choice-icon {{
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 62px;
-  height: 62px;
-  margin-bottom: 18px;
-  border-radius: 18px;
-  background: linear-gradient(135deg, #d9f4f7, #a8e1e7);
-  font-size: 31px;
-}}
-
-.cml-home-choice.radar .cml-home-choice-icon {{
-  background: linear-gradient(135deg, #dce7ff, #adc5ec);
-}}
-
-.cml-home-choice h2 {{
-  margin: 0 0 8px;
-  color: #102b3b;
-  font-size: 24px;
-}}
-
-.cml-home-choice p {{
-  margin: 0;
-  color: #607987;
-  font-size: 14px;
-  line-height: 1.6;
-}}
-
-.cml-home-choice span {{
-  margin-top: auto;
-  padding-top: 20px;
-  color: #087087;
-  font-size: 13px;
-  font-weight: 850;
-}}
-
-.cml-nav-bar {{
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  margin: 8px 0 20px;
-  padding: 12px 15px;
-  border: 1px solid #d5e4e9;
-  border-radius: 16px;
-  background: #ffffff;
-  box-shadow: 0 6px 18px rgba(23, 67, 84, 0.08);
-}}
-
-.cml-back-btn {{
-  border: 0;
-  border-radius: 10px;
-  padding: 10px 14px;
-  background: #e7f6f8;
-  color: #087087;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 850;
-  transition: background 0.16s ease, transform 0.16s ease;
-}}
-
-.cml-back-btn:hover {{
-  background: #cdeef2;
-  transform: translateX(-2px);
-}}
-
-.cml-nav-title {{
-  color: #102b3b;
-  font-size: 14px;
-  font-weight: 850;
-}}
-
-@media (max-width: 760px) {{
-  .cml-home-hero {{
-    padding: 38px 25px;
-  }}
-
-  .cml-home-hero h1 {{
-    font-size: 36px;
-  }}
-
-  .cml-home-actions {{
-    grid-template-columns: 1fr;
-  }}
-
-  .cml-nav-bar {{
-    align-items: flex-start;
-    flex-direction: column;
-  }}
-}}
+/* ===================== MEDIA ===================== */
 
 @media (max-width: 760px) {{
   body {{
@@ -2991,15 +2808,30 @@ body {{
   .cml-chart-canvas-wrap {{
     height: 280px;
   }}
+
+  .cml-home-hero {{
+    padding: 38px 25px;
+  }}
+
+  .cml-home-hero h1 {{
+    font-size: 36px;
+  }}
+
+  .cml-home-actions {{
+    grid-template-columns: 1fr;
+  }}
+
+  .cml-nav-bar {{
+    align-items: flex-start;
+    flex-direction: column;
+  }}
 }}
 </style>
 </head>
 
 <body>
 
-<!-- =====================================================
-     HOME INIZIALE
-     ===================================================== -->
+<!-- ===================== HOME ===================== -->
 <section id="cml-home" class="cml-view">
 
   <section class="cml-home-hero">
@@ -3057,9 +2889,7 @@ body {{
 </section>
 
 
-<!-- =====================================================
-     PAGINA PREVISIONI
-     ===================================================== -->
+<!-- ===================== PREVISIONI ===================== -->
 <section id="cml-previsioni" class="cml-view" hidden>
 
   <div class="cml-nav-bar">
@@ -3141,7 +2971,6 @@ body {{
   </section>
 
   {mare_html}
-
   {sintesi_html}
 
   <section class="cml-three-days">
@@ -3180,9 +3009,7 @@ body {{
 </section>
 
 
-<!-- =====================================================
-     PAGINA RADAR
-     ===================================================== -->
+<!-- ===================== RADAR ===================== -->
 <section id="cml-radar" class="cml-view" hidden>
 
   <div class="cml-nav-bar">
@@ -3243,26 +3070,35 @@ body {{
 
 </section>
 
+
+<!-- ===================== SCRIPT ===================== -->
 <script>
 const datiGraficiPerGiorno = {dati_grafici_json};
+
+let meteoChartInstance = null;
+let radarMap = null;
+
+/* ---------- NAVIGAZIONE HOME / PREVISIONI / RADAR ---------- */
 
 function mostraVista(nome) {{
   document.querySelectorAll(".cml-view").forEach(function(vista) {{
     vista.setAttribute("hidden", "");
   }});
 
-  const vistaDaMostrare = document.getElementById(
-    "cml-" + nome
-  );
+  const vistaDaMostrare = document.getElementById("cml-" + nome);
 
   if (vistaDaMostrare) {{
     vistaDaMostrare.removeAttribute("hidden");
   }}
 
-  if (nome === "radar" && typeof radarMap !== "undefined") {{
+  if (
+    nome === "radar"
+    && typeof radarMap !== "undefined"
+    && radarMap
+  ) {{
     setTimeout(function() {{
       radarMap.invalidateSize();
-    }}), 200);
+    }}, 200);
   }}
 
   window.scrollTo({{
@@ -3271,7 +3107,7 @@ function mostraVista(nome) {{
   }});
 }}
 
-let meteoChartInstance = null;
+/* ---------- GRAFICO METEO ---------- */
 
 function creaGrafico(chiave) {{
   const dati = datiGraficiPerGiorno[chiave];
@@ -3428,34 +3264,47 @@ function creaGrafico(chiave) {{
   }});
 }}
 
+/* ---------- APERTURA SCHEDA GIORNO ---------- */
+
 function mostraGiorno(chiave, scheda, event) {{
   if (event && event.target.closest(".cml-day-inline-detail")) return;
+
   const dettaglio = document.getElementById("dettaglio-" + chiave);
+
   if (!dettaglio) return;
+
   const eraAperta = !dettaglio.hidden;
 
   document.querySelectorAll(".cml-day-card").forEach(function(card) {{
     card.classList.remove("active");
     card.setAttribute("aria-expanded", "false");
   }});
+
   document.querySelectorAll(".cml-day-inline-detail").forEach(function(panel) {{
     panel.hidden = true;
   }});
+
   if (meteoChartInstance) {{
     meteoChartInstance.destroy();
     meteoChartInstance = null;
   }}
+
   if (eraAperta) return;
 
   dettaglio.hidden = false;
   scheda.classList.add("active");
   scheda.setAttribute("aria-expanded", "true");
+
   if (typeof Chart !== "undefined") {{
-    requestAnimationFrame(function() {{ creaGrafico(chiave); }});
+    requestAnimationFrame(function() {{
+      creaGrafico(chiave);
+    }});
   }}
 }}
 
-let radarMap = L.map("radar-map", {{
+/* ---------- MAPPA RADAR ---------- */
+
+radarMap = L.map("radar-map", {{
   center: [{latitudine}, {longitudine}],
   zoom: 8,
   minZoom: 5,
@@ -3497,9 +3346,7 @@ function visualizzaFrameRadar(indice) {{
     return;
   }}
 
-  const tempoPrecedente = radarTimes[
-    radarFrameIndex
-  ];
+  const tempoPrecedente = radarTimes[radarFrameIndex];
 
   if (radarLayers[tempoPrecedente]) {{
     radarLayers[tempoPrecedente].setOpacity(0);
@@ -3515,21 +3362,13 @@ function visualizzaFrameRadar(indice) {{
 
   const data = new Date(tempo * 1000);
 
-  const ore = String(
-    data.getHours()
-  ).padStart(2, "0");
+  const ore = String(data.getHours()).padStart(2, "0");
+  const minuti = String(data.getMinutes()).padStart(2, "0");
 
-  const minuti = String(
-    data.getMinutes()
-  ).padStart(2, "0");
-
-  const timestamp = document.getElementById(
-    "radar-timestamp"
-  );
+  const timestamp = document.getElementById("radar-timestamp");
 
   if (timestamp) {{
-    timestamp.textContent =
-      ore + ":" + minuti + " (ora locale)";
+    timestamp.textContent = ore + ":" + minuti + " (ora locale)";
   }}
 }}
 
@@ -3543,17 +3382,13 @@ function avviaRadar() {{
       return;
     }}
 
-    const prossimo =
-      (radarFrameIndex + 1) % radarTimes.length;
-
+    const prossimo = (radarFrameIndex + 1) % radarTimes.length;
     visualizzaFrameRadar(prossimo);
   }}, 800);
 }}
 
 function togglePlayRadar() {{
-  const bottone = document.getElementById(
-    "btn-play"
-  );
+  const bottone = document.getElementById("btn-play");
 
   if (radarPlaying) {{
     clearInterval(radarTimer);
@@ -3573,23 +3408,58 @@ fetch(
     return response.json();
   }})
   .then(function(payload) {{
-    // ... tuo codice ...
+    const frames = (
+      payload
+      && payload.radar
+      && payload.radar.past
+    ) ? payload.radar.past : [];
+
+    radarTimes = frames.map(function(frame) {{
+      return frame.time;
+    }});
+
+    frames.forEach(function(frame) {{
+      const layer = L.tileLayer(
+        "https://tilecache.rainviewer.com"
+          + frame.path
+          + "/256/{{z}}/{{x}}/{{y}}/2/1_1.png",
+        {{
+          opacity: 0,
+          zIndex: 100,
+          maxNativeZoom: 6,
+          maxZoom: 18
+        }}
+      );
+
+      layer.addTo(radarMap);
+      radarLayers[frame.time] = layer;
+    }});
+
+    if (radarTimes.length > 0) {{
+      radarFrameIndex = radarTimes.length - 1;
+      visualizzaFrameRadar(radarFrameIndex);
+      avviaRadar();
+    }} else {{
+      const timestamp = document.getElementById("radar-timestamp");
+
+      if (timestamp) {{
+        timestamp.textContent = "frame non disponibile";
+      }}
+    }}
   }})
   .catch(function() {{
-    const timestamp = document.getElementById(
-      "radar-timestamp"
-    );
+    const timestamp = document.getElementById("radar-timestamp");
 
     if (timestamp) {{
-      timestamp.textContent =
-        "radar temporaneamente non disponibile";
+      timestamp.textContent = "radar temporaneamente non disponibile";
     }}
   }});
+
+/* ---------- AVVIO INIZIALE ---------- */
 
 document.addEventListener("DOMContentLoaded", function() {{
   mostraVista("home");
 }});
-
 </script>
 
 </body>

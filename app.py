@@ -1275,7 +1275,6 @@ def genera_app_completa(
         altezza_onda = corrente_mare.get("wave_height")
         direzione_onda = corrente_mare.get("wave_direction")
         periodo_onda = corrente_mare.get("wave_period")
-        periodo_picco = corrente_mare.get("wave_peak_period")
         altezza_mare_vento = corrente_mare.get("wind_wave_height")
         altezza_swell = corrente_mare.get("swell_wave_height")
         temperatura_mare = corrente_mare.get("sea_surface_temperature")
@@ -1328,13 +1327,7 @@ def genera_app_completa(
               <strong>{numero(periodo_onda, 1, " s")}</strong>
               <small>Intervallo medio d'onda</small>
             </div>
-
-            <div class="cml-marine-card">
-              <span>📈 Periodo di picco</span>
-              <strong>{numero(periodo_picco, 1, " s")}</strong>
-              <small>Energia dominante</small>
-            </div>
-
+            
             <div class="cml-marine-card">
               <span>💨 Mare del vento</span>
               <strong>{numero(altezza_mare_vento, 2, " m")}</strong>

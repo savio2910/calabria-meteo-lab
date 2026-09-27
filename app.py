@@ -1662,18 +1662,6 @@ def genera_box_effetti_orografici_html(
 
     # Costruzione HTML
     return f"""
-    <section class="cml-physical-box">
-      <span class="cml-eyebrow">INTERPRETAZIONE FISICA LOCALE</span>
-      <h2>&#9976; Effetti orografici e stratificazione per {html.escape(luogo)}</h2>
-      <ul>
-        <li><b>Sollevamento orografico:</b> {livello_sollevamento.title()}. {html.escape(testo_sollevamento)}</li>
-        <li><b>Vento e orografia:</b> {html.escape(testo_vento)}</li>
-        <li><b>Precipitazione e orografia:</b> {html.escape(testo_precip)}</li>
-        <li><b>Stratificazione notturna:</b> {html.escape(testo_inversione)}</li>
-        <li>{html.escape(testo_costa)}</li>
-      </ul>
-    </section>
-    """
     
 def badge_rischio_html(livello, rischio):
     palette = {
@@ -3514,18 +3502,6 @@ body {{
 <!-- ===================== HOME ===================== -->
     # Costruzione HTML
     return f"""
-    <section class="cml-physical-box">
-      <span class="cml-eyebrow">INTERPRETAZIONE FISICA LOCALE</span>
-      <h2>&#9976 Effetti orografici e stratificazione per {html.escape(luogo)}</h2>
-      <ul>
-        <li><b>Sollevamento orografico:</b> {livello_sollevamento.title()}. {html.escape(testo_sollevamento)}</li>
-        <li><b>Vento e orografia:</b> {html.escape(testo_vento)}</li>
-        <li><b>Precipitazione e orografia:</b> {html.escape(testo_precip)}</li>
-        <li><b>Stratificazione notturna:</b> {html.escape(testo_inversione)}</li>
-        <li>{html.escape(testo_costa)}</li>
-      </ul>
-    </section>
-    """
 
 <section id="cml-home" class="cml-view">
 

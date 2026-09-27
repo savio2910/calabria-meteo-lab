@@ -1548,7 +1548,133 @@ def valuta_rischio_locale(riga):
 
     return "verde", "nessuna criticità"
 
+def genera_box_effetti_orografici_html(
+    luogo,
+    latitudine,
+    longitudine,
+    quota_localita,
+    quota_griglia,
+    ore,
+    comuni_costieri,
+):
+    """
+    Genera un HTML con effetti orografici locali dinamici.
+    """
+    if ore.empty:
+        return ""
 
+    # Prendiamo un campione di ore diurne e notturne per le diagnosi
+    ora_rif = ore["time"].min()
+    ore_24 = ore.loc[
+        (ore["time"] >= ora_rif)
+        & (ore["time"] < ora_rif + pd.Timedelta(hours=24))
+    ].copy()
+
+    if ore_24.empty:
+        return ""
+
+    # Dati medi/representativi per le diagnosi
+    vento_10m_medio = float(ore_24["wind_speed_10m"].mean())
+    direzione_10m_media = float(ore_24["wind_direction_10m"].mean())
+    umidita_2m_media = float(ore_24["relative_humidity_2m"].mean())
+    precipitazione_oraria_media = float(ore_24["precipitation"].mean())
+    cloud_cover_medio = float(ore_24["cloud_cover"].mean())
+
+    # Per inversione, usiamo un'ora notturna rappresentativa
+    ore_notte = ore_24.loc[
+        (ore_24["Notte"] == True)
+    ]
+    if ore_notte.empty:
+        ore_notte = ore_24
+
+    riga_notte = ore_notte.iloc
+
+    # Direzione e coordinate della griglia: per ora approssimiamo
+    lat_griglia = latitudine
+    lon_griglia = longitudine
+
+    vento_verso_rilievo, pendenza = componente_vento_verso_rilievo_semplice(
+        vento_10m_medio,
+        direzione_10m_media,
+        latitudine,
+        longitudine,
+        lat_griglia,
+        lon_griglia,
+        quota_localita,
+        quota_griglia,
+    )
+
+    livello_sollevamento, testo_sollevamento = stima_sollevamento_orografico(
+        vento_verso_rilievo,
+        umidita_2m_media,
+        precipitazione_oraria_media,
+        pendenza,
+        omega_850=None,
+    )
+
+    livello_vento, testo_vento = stima_effetto_vento_orografico(
+        vento_10m_medio,
+        vento_verso_rilievo,
+        pendenza,
+    )
+
+    testo_precip = stima_effetto_precipitazione_orografica(
+        livello_sollevamento,
+        precipitazione_oraria_media,
+    )
+
+    # Inversione termica
+    t_2m = float(riga_notte["temperature_2m"])
+    t_925 = t_2m  # placeholder
+    t_850 = t_2m  # placeholder
+    umidita_2m_notte = float(riga_notte["relative_humidity_2m"])
+    vento_10m_notte = float(riga_notte["wind_speed_10m"])
+    cloud_cover_notte = float(riga_notte["cloud_cover"])
+
+    testo_inversione = diagnostica_inversione(
+        t_2m,
+        t_925,
+        t_850,
+        umidita_2m_notte,
+        vento_10m_notte,
+        cloud_cover_notte,
+    )
+
+    # Costiera vs interna
+    is_costiero = comune_e_costiero(luogo, comuni_costieri)
+
+    if is_costiero and livello_sollevamento == "nullo":
+        testo_costa = (
+            f"{luogo} è un comune costiero e, con la direzione del vento prevista, "
+            "non si prevedono significativi effetti di sollevamento orografico."
+        )
+    elif is_costiero:
+        testo_costa = (
+            f"Sebbene {luogo} sia un comune costiero, la direzione del vento e la "
+            "configurazione orografica locale possono produrre un debole/moderato "
+            "sollevamento orografico in alcune situazioni."
+        )
+    else:
+        testo_costa = (
+            f"{luogo} è un comune interno: gli effetti orografici possono essere più "
+            "marcati, specie sui versanti esposti al flusso umido."
+        )
+
+    # Costruzione HTML
+    return f"""
+    <section class="cml-physical-box">
+      <span class="cml-eyebrow">INTERPRETAZIONE FISICA LOCALE</span>
+      <h2>&#9976; Effetti orografici e stratificazione per {html.escape(luogo)}</h2>
+      <ul>
+        <li><b>Sollevamento orografico:</b> {livello_sollevamento.title()}. {html.escape(testo_sollevamento)}</li>
+        <li><b>Vento e orografia:</b> {html.escape(testo_vento)}</li>
+        <li><b>Precipitazione e orografia:</b> {html.escape(testo_precip)}</li>
+        <li><b>Stratificazione notturna:</b> {html.escape(testo_inversione)}</li>
+        <li>{html.escape(testo_costa)}</li>
+      </ul>
+    </section>
+    """
+    
 def badge_rischio_html(livello, rischio):
     palette = {
         "verde": (
@@ -3386,121 +3512,6 @@ body {{
 <body>
 
 <!-- ===================== HOME ===================== -->
-def genera_box_effetti_orografici_html(
-    luogo,
-    latitudine,
-    longitudine,
-    quota_localita,
-    quota_griglia,
-    ore,
-    comuni_costieri,
-):
-    """
-    Genera un HTML con effetti orografici locali dinamici.
-    """
-    if ore.empty:
-        return ""
-
-    # Prendiamo un campione di ore diurne e notturne per le diagnosi
-    ora_rif = ore["time"].min()
-    ore_24 = ore.loc[
-        (ore["time"] >= ora_rif)
-        & (ore["time"] < ora_rif + pd.Timedelta(hours=24))
-    ].copy()
-
-    if ore_24.empty:
-        return ""
-
-    # Dati medi/representativi per la diagnosi
-    vento_10m_medio = float(ore_24["wind_speed_10m"].mean())
-    direzione_10m_media = float(ore_24["wind_direction_10m"].mean())
-    umidita_2m_media = float(ore_24["relative_humidity_2m"].mean())
-    precipitazione_oraria_media = float(ore_24["precipitation"].mean())
-    cloud_cover_medio = float(ore_24["cloud_cover"].mean())
-
-    # Per inversione, usiamo un'ora notturna rappresentativa
-    ore_notte = ore_24.loc[
-        (ore_24["Notte"] == True)
-    ]
-    if ore_notte.empty:
-        ore_notte = ore_24
-
-    riga_notte = ore_notte.iloc[0]
-
-    # Direzione e coordinate della griglia: le prendi da dati_terrestri se le hai,
-    # altrimenti approssimi con la stessa località (in tal caso effetto nullo).
-    # Per ora, assumiamo che la griglia sia circa nella stessa posizione:
-    lat_griglia = latitudine
-    lon_griglia = longitudine
-
-    vento_verso_rilievo, pendenza = componente_vento_verso_rilievo_semplice(
-        vento_10m_medio,
-        direzione_10m_media,
-        latitudine,
-        longitudine,
-        lat_griglia,
-        lon_griglia,
-        quota_localita,
-        quota_griglia,
-    )
-
-    livello_sollevamento, testo_sollevamento = stima_sollevamento_orografico(
-        vento_verso_rilievo,
-        umidita_2m_media,
-        precipitazione_oraria_media,
-        pendenza,
-        omega_850=None,
-    )
-
-    livello_vento, testo_vento = stima_effetto_vento_orografico(
-        vento_10m_medio,
-        vento_verso_rilievo,
-        pendenza,
-    )
-
-    testo_precip = stima_effetto_precipitazione_orografica(
-        livello_sollevamento,
-        precipitazione_oraria_media,
-    )
-
-    # Inversione termica
-    t_2m = float(riga_notte["temperature_2m"])
-    # Se in futuro aggiungi livelli in quota, passi anche t_925, t_850
-    t_925 = t_2m  # placeholder
-    t_850 = t_2m  # placeholder
-    umidita_2m_notte = float(riga_notte["relative_humidity_2m"])
-    vento_10m_notte = float(riga_notte["wind_speed_10m"])
-    cloud_cover_notte = float(riga_notte["cloud_cover"])
-
-    testo_inversione = diagnostica_inversione(
-        t_2m,
-        t_925,
-        t_850,
-        umidita_2m_notte,
-        vento_10m_notte,
-        cloud_cover_notte,
-    )
-
-    # Costiera vs interna
-    is_costiero = comune_e_costiero(luogo, comuni_costieri)
-
-    if is_costiero and livello_sollevamento == "nullo":
-        testo_costa = (
-            f"{luogo} è un comune costiero e, con la direzione del vento prevista, "
-            "non si prevedono significativi effetti di sollevamento orografico."
-        )
-    elif is_costiero:
-        testo_costa = (
-            f"Sebbene {luogo} sia un comune costiero, la direzione del vento e la "
-            "configurazione orografica locale possono produrre un debole/moderato "
-            "sollevamento orografico in alcune situazioni."
-        )
-    else:
-        testo_costa = (
-            f"{luogo} è un comune interno: gli effetti orografici possono essere più "
-            "marcati, specie sui versanti esposti al flusso umido."
-        )
-
     # Costruzione HTML
     return f"""
     <section class="cml-physical-box">

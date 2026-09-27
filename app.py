@@ -33,9 +33,9 @@ st.markdown(
       footer {visibility: hidden;}
 
       .block-container {
-        max-width: 1400px !important;
-        padding-top: 1rem !important;
-        padding-bottom: 2rem !important;
+      max-width: none !important;
+      width: 100% !important;
+      padding: 0.5rem 1rem 2rem 1rem !important;
       }
 
       [data-testid="stAppViewContainer"] {
@@ -1703,11 +1703,13 @@ body {{
 
 /* ===================== HOME ===================== */
 
-.cml-home-hero {{
+.cml-home-hero {
   position: relative;
   overflow: hidden;
-  margin: 8px 0 28px;
-  padding: 58px 48px;
+  width: 100%;
+  min-height: 380px;
+  margin: 0 0 32px;
+  padding: 90px 7vw;
   border: 1px solid #07516c;
   border-radius: 28px;
   color: #ffffff;
@@ -1753,18 +1755,20 @@ body {{
 
 .cml-home-actions {{
   display: grid;
-  grid-template-columns: repeat(2, minmax(260px, 1fr));
-  gap: 20px;
-  max-width: 980px;
-  margin: 0 auto 32px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  width: 100%;
+  max-width: none;
+  margin: 0 0 32px;
 }}
 
 .cml-home-choice {{
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  min-height: 220px;
-  padding: 28px;
+  min-height: 430px;
+  width: 100%;
+  padding: 46px;
   border: 1px solid #d2e4e9;
   border-radius: 24px;
   background: #ffffff;

@@ -2897,7 +2897,7 @@ body {{
     <div>
       <span>ORIZZONTE PREVISIONALE</span>
       <h2>📅 I prossimi tre giorni</h2>
-      <p>Premi una scheda per vedere nella scheda stessa la previsione oraria e il grafico.</p>
+      <p>Premi sul giorno che ti interessa per vedere la previsione oraria e il grafico.</p>
     </div>
     <div class="cml-pill">72 ore</div>
   </div>

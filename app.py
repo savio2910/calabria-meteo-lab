@@ -2921,24 +2921,24 @@ body {{
   font-weight: 850;
 }
 
-@media (max-width: 760px) {
-  .cml-home-hero {
+@media (max-width: 760px) {{
+  .cml-home-hero {{
     padding: 38px 25px;
-  }
+  }}
 
-  .cml-home-hero h1 {
+  .cml-home-hero h1 {{
     font-size: 36px;
-  }
+  }}
 
-  .cml-home-actions {
+  .cml-home-actions {{
     grid-template-columns: 1fr;
-  }
+  }}
 
-  .cml-nav-bar {
+  .cml-nav-bar {{
     align-items: flex-start;
     flex-direction: column;
-  }
-}
+  }}
+}}
 
 @media (max-width: 760px) {{
   body {{

@@ -61,6 +61,7 @@ st.markdown(
 
 API_METEO_URL = "https://api.open-meteo.com/v1/forecast"
 API_MARE_URL = "https://marine-api.open-meteo.com/v1/marine"
+API_ELEVATION_URL = "https://api.open-meteo.com/v1/elevation"
 
 MODELLO_TERRESTRE = "italia_meteo_arpae_icon_2i"
 FUSO_ORARIO = ZoneInfo("Europe/Rome")
@@ -165,16 +166,18 @@ VARIABILI_CORRENTI = [
     "wind_gusts_10m",
 ]
 
-VARIABILI_ORARIE = [
+VARIABILI_CORRENTI = [
     "temperature_2m",
     "relative_humidity_2m",
     "apparent_temperature",
-    "precipitation",
     "weather_code",
     "cloud_cover",
+    "pressure_msl",
+    "surface_pressure",
     "wind_speed_10m",
     "wind_direction_10m",
     "wind_gusts_10m",
+    "elevation",
 ]
 
 VARIABILI_GIORNALIERE = [
@@ -190,6 +193,56 @@ VARIABILI_GIORNALIERE = [
     "wind_speed_10m_max",
     "wind_gusts_10m_max",
     "wind_direction_10m_dominant",
+]
+
+VARIABILI_TERRESTRI_FISICHE = [
+    "temperature_2m",
+    "relative_humidity_2m",
+    "dew_point_2m",
+    "apparent_temperature",
+    "precipitation",
+    "rain",
+    "showers",
+    "snowfall",
+    "weather_code",
+    "cloud_cover",
+    "cloud_cover_low",
+    "cloud_cover_mid",
+    "cloud_cover_high",
+    "pressure_msl",
+    "surface_pressure",
+    "wind_speed_10m",
+    "wind_direction_10m",
+    "wind_gusts_10m",
+    "cape",
+    "convective_inhibition",
+    "lightning_potential",
+    "freezing_level_height",
+    "wet_bulb_temperature_2m",
+    "vapour_pressure_deficit",
+]
+
+VARIABILI_PRESSIONE = [
+    "temperature_925hPa",
+    "relative_humidity_925hPa",
+    "wind_speed_925hPa",
+    "wind_direction_925hPa",
+    "vertical_velocity_925hPa",
+    "geopotential_height_925hPa",
+
+    "temperature_850hPa",
+    "relative_humidity_850hPa",
+    "wind_speed_850hPa",
+    "wind_direction_850hPa",
+    "vertical_velocity_850hPa",
+    "geopotential_height_850hPa",
+
+    "temperature_700hPa",
+    "relative_humidity_700hPa",
+    "wind_speed_700hPa",
+    "wind_direction_700hPa",
+    "vertical_velocity_700hPa",
+    "geopotential_height_700hPa",
 ]
 
 VARIABILI_MARINE_CORRENTI = [
@@ -244,6 +297,15 @@ def numero(valore, decimali=1, unita=""):
     except (TypeError, ValueError):
         return "—"
 
+def numero_quota(valore):
+    try:
+        if valore is None or pd.isna(valore):
+            return "—"
+
+        return f"{float(valore):.0f} m"
+
+    except (TypeError, ValueError):
+        return "—"
 
 def direzione(gradi):
     try:
@@ -286,6 +348,55 @@ def data_it(valore):
     except (TypeError, ValueError):
         return "Data non disponibile"
 
+def componente_verso_montagna(
+    velocita_kmh,
+    direzione_vento_gradi,
+    gradiente_quota_m,
+    direzione_gradiente_gradi,
+):
+    vento_rad = math.radians(direzione_vento_gradi)
+    gradiente_rad = math.radians(direzione_gradiente_gradi)
+
+    delta = vento_rad - gradiente_rad
+
+    componente = velocita_kmh * math.cos(delta)
+
+    direzione_moto = (direzione_provenienza + 180.0) % 360.0
+
+    return componente
+
+def limita(valore, minimo=0.0, massimo=1.0):
+    return max(minimo, min(massimo, valore))
+
+
+def indice_orografico(
+    vento_verso_rilievo,
+    umidita_bassa,
+    precipitazione,
+    pendenza,
+    omega_850=None,
+):
+    i_vento = limita(vento_verso_rilievo / 40.0)
+    i_umidita = limita((umidita_bassa - 65.0) / 30.0)
+    i_precipitazione = limita(precipitazione / 10.0)
+    i_pendenza = limita(pendenza / 0.20)
+
+    if omega_850 is None or pd.isna(omega_850):
+        i_sollevamento = 0.0
+    else:
+        # omega negativo = moto ascendente in coordinate di pressione
+        i_sollevamento = limita((-float(omega_850)) / 0.5)
+
+    indice = (
+        0.30 * i_vento
+        + 0.25 * i_umidita
+        + 0.20 * i_precipitazione
+        + 0.15 * i_pendenza
+        + 0.10 * i_sollevamento
+    )
+
+    return round(limita(indice), 3)
+
 
 def ora_it(valore):
     try:
@@ -324,6 +435,65 @@ def fase_lunare(valore):
 
     except (TypeError, ValueError):
         return "🌙 Luna"
+
+def diagnostica_inversione(
+    t_2m,
+    t_925,
+    t_850,
+    umidita_2m,
+    vento_10m,
+    cloud_cover,
+):
+    if any(
+        valore is None or pd.isna(valore)
+        for valore in [t_2m, t_925, t_850]
+    ):
+        return "Dati insufficienti"
+
+    delta_925_2m = float(t_925) - float(t_2m)
+    delta_850_2m = float(t_850) - float(t_2m)
+
+    notte_stabile = (
+        float(vento_10m) < 8
+        and float(cloud_cover) < 45
+    )
+
+    if delta_925_2m > 7 and notte_stabile:
+        return "Possibile inversione termica negli strati bassi"
+
+    if delta_925_2m > 4 and float(umidita_2m) > 85:
+        return "Strato basso stabile e umido, possibile inversione/nebbia"
+
+    if delta_925_2m < 1:
+        return "Profilo quasi neutro o ben rimescolato"
+
+    return "Stratificazione non classificata"
+
+def diagnostica_convezione(cape, cin, lpi, precipitazione_convettiva):
+    segnali = 0
+
+    if cape is not None and cape >= 500:
+        segnali += 1
+
+    if cin is not None and cin > -100:
+        segnali += 1
+
+    if lpi is not None and lpi > 0:
+        segnali += 1
+
+    if (
+        precipitazione_convettiva is not None
+        and precipitazione_convettiva >= 2
+    ):
+        segnali += 1
+
+    if segnali >= 3:
+        return "Convezione potenzialmente significativa"
+
+    if segnali == 2:
+        return "Instabilità convettiva presente"
+
+    return "Segnale convettivo debole o assente"
 
 
 def e_notte(ora, alba, tramonto):
@@ -726,6 +896,43 @@ def risolvi_localita(testo):
 # DOWNLOAD PREVISIONI
 # =============================================================================
 
+@st.cache_data(ttl=60 * 60 * 24, show_spinner=False)
+def scarica_elevazione(latitudine, longitudine):
+    parametri = {
+        "latitude": latitudine,
+        "longitude": longitudine,
+    }
+
+    try:
+        risposta = requests.get(
+            API_ELEVATION_URL,
+            params=parametri,
+            timeout=20,
+        )
+
+        risposta.raise_for_status()
+        dati = risposta.json()
+
+    except requests.RequestException as exc:
+        raise RuntimeError(
+            f"Errore nel recupero della quota topografica: {exc}"
+        ) from exc
+
+    elevazioni = dati.get("elevation")
+
+    if not elevazioni:
+        raise RuntimeError(
+            "L'API non ha restituito una quota valida."
+        )
+
+    try:
+        return float(elevazioni[0])
+
+    except (TypeError, ValueError, IndexError) as exc:
+        raise RuntimeError(
+            "La quota restituita dall'API non è numerica."
+        ) from exc
+        
 @st.cache_data(ttl=600, show_spinner=False)
 def scarica_previsione_terrestre(latitudine, longitudine):
     parametri = {
@@ -751,13 +958,89 @@ def scarica_previsione_terrestre(latitudine, longitudine):
 
         risposta.raise_for_status()
 
-        return risposta.json()
+        dati = risposta.json()
 
     except requests.RequestException as exc:
         raise RuntimeError(
             f"Errore nella ricezione dei dati ICON-2I: {exc}"
         ) from exc
 
+    dati["_query_latitude"] = latitudine
+    dati["_query_longitude"] = longitudine
+
+    return dati
+
+def estrai_quota_griglia(dati_terrestri):
+    corrente = dati_terrestri.get("current", {})
+
+    quota = corrente.get("elevation")
+
+    if quota is None:
+        quota = dati_terrestri.get("elevation")
+
+    try:
+        return float(quota)
+
+    except (TypeError, ValueError):
+        return None
+
+def analizza_rappresentativita_altimetrica(
+    quota_localita,
+    quota_griglia,
+):
+    risultato = {
+        "quota_localita": quota_localita,
+        "quota_griglia": quota_griglia,
+        "differenza_quota": None,
+        "differenza_assoluta": None,
+        "classe": "non disponibile",
+        "messaggio": (
+            "Quota non disponibile: impossibile valutare "
+            "la rappresentatività altimetrica."
+        ),
+    }
+
+    if quota_localita is None or quota_griglia is None:
+        return risultato
+
+    differenza = float(quota_griglia) - float(quota_localita)
+    differenza_assoluta = abs(differenza)
+
+    risultato["differenza_quota"] = differenza
+    risultato["differenza_assoluta"] = differenza_assoluta
+
+    if differenza_assoluta < 50:
+        classe = "ottima"
+        messaggio = (
+            "La quota della località è molto simile a quella "
+            "della cella modellistica."
+        )
+
+    elif differenza_assoluta < 150:
+        classe = "buona"
+        messaggio = (
+            "La previsione è generalmente rappresentativa, "
+            "ma può risentire di differenze locali."
+        )
+
+    elif differenza_assoluta < 300:
+        classe = "moderata"
+        messaggio = (
+            "La differenza di quota è significativa: temperatura, "
+            "umidità e vento possono differire localmente."
+        )
+
+    else:
+        classe = "debole"
+        messaggio = (
+            "La differenza di quota è elevata: la previsione della "
+            "cella può non rappresentare bene il centro abitato."
+        )
+
+    risultato["classe"] = classe
+    risultato["messaggio"] = messaggio
+
+    return risultato
 
 def distanza_haversine_km(lat1, lon1, lat2, lon2):
     raggio_terra_km = 6371.0088
@@ -1156,8 +1439,60 @@ def genera_app_completa(
     giorni,
     dati_mare=None,
     distanza_mare_km=None,
+    analisi_quota=None,
 ):
     corrente = dati_terrestri["current"]
+
+    if analisi_quota is None:
+        analisi_quota = {
+            "quota_localita": None,
+            "quota_griglia": None,
+            "differenza_quota": None,
+            "differenza_assoluta": None,
+            "classe": "non disponibile",
+            "messaggio": "Analisi altimetrica non disponibile.",
+        }
+
+    quota_localita_html = numero_quota(
+        analisi_quota.get("quota_localita")
+    )
+
+    quota_griglia_html = numero_quota(
+        analisi_quota.get("quota_griglia")
+    )
+
+    differenza_quota = analisi_quota.get(
+        "differenza_quota"
+    )
+
+    if (
+        differenza_quota is None
+        or pd.isna(differenza_quota)
+    ):
+        differenza_quota_html = "—"
+    else:
+        segno = "+" if differenza_quota >= 0 else ""
+        differenza_quota_html = (
+            f"{segno}{float(differenza_quota):.0f} m"
+        )
+
+    classe_quota = html.escape(
+        str(
+            analisi_quota.get(
+                "classe",
+                "non disponibile",
+            )
+        )
+    )
+
+    messaggio_quota = html.escape(
+        str(
+            analisi_quota.get(
+                "messaggio",
+                "Analisi altimetrica non disponibile.",
+            )
+        )
+    )
 
     icona_corrente, descrizione_corrente = meteo(
         corrente.get("weather_code")
@@ -2874,6 +3209,17 @@ body {{
 <body>
 
 <!-- ===================== HOME ===================== -->
+<section class="cml-physical-box">
+  <span class="cml-eyebrow">INTERPRETAZIONE FISICA</span>
+  <h2>⛰️ Perché il tempo può cambiare in questa zona</h2>
+  <ul>
+    <li>Possibile sollevamento orografico sul versante esposto.</li>
+    <li>Umidità elevata nei bassi strati.</li>
+    <li>Vento più intenso sopra i rilievi rispetto al suolo.</li>
+    <li>Segnale di stabilità notturna e possibile inversione nelle valli.</li>
+  </ul>
+</section>
+
 <section id="cml-home" class="cml-view">
 
   <section class="cml-home-hero">
@@ -3012,7 +3358,54 @@ body {{
     </div>
   </section>
 
-  {mare_html}
+    {mare_html}
+
+      <section class="cml-altitude-box">
+        <div class="cml-altitude-head">
+          <div>
+            <span class="cml-eyebrow">
+              RAPPRESENTATIVITÀ TOPOGRAFICA
+            </span>
+    
+            <h2>⛰️ Quota della località e della griglia</h2>
+    
+            <p>
+              Confronto tra il modello digitale del terreno
+              e la quota della cella meteorologica ICON-2I.
+            </p>
+          </div>
+    
+          <span class="cml-altitude-class
+            cml-altitude-{classe_quota}">
+            {classe_quota.title()}
+          </span>
+        </div>
+    
+        <div class="cml-altitude-grid">
+          <div class="cml-altitude-card">
+            <span>📍 Quota località</span>
+            <strong>{quota_localita_html}</strong>
+            <small>DEM topografico</small>
+          </div>
+    
+          <div class="cml-altitude-card">
+            <span>🧮 Quota cella ICON-2I</span>
+            <strong>{quota_griglia_html}</strong>
+            <small>Griglia modellistica</small>
+          </div>
+    
+          <div class="cml-altitude-card">
+            <span>↕️ Differenza</span>
+            <strong>{differenza_quota_html}</strong>
+            <small>Griglia meno località</small>
+          </div>
+        </div>
+    
+        <div class="cml-altitude-note">
+          ℹ️ {messaggio_quota}
+        </div>
+      </section>
+
   {sintesi_html}
 
   <section class="cml-three-days">
@@ -3766,6 +4159,19 @@ try:
             latitudine,
             longitudine,
         )
+        quota_localita = scarica_elevazione(
+            latitudine,
+            longitudine,
+        )
+        
+        quota_griglia = estrai_quota_griglia(
+            dati_terrestri,
+        )
+        
+        analisi_quota = analizza_rappresentativita_altimetrica(
+            quota_localita,
+            quota_griglia,
+        )
 
         dati_orari, dati_giornalieri = (
             prepara_dati_terrestri(
@@ -3806,6 +4212,7 @@ try:
         dati_giornalieri,
         dati_mare,
         distanza_mare_km,
+        analisi_quota,
     )
 
     components.html(

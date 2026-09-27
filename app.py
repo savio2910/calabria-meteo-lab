@@ -410,18 +410,17 @@ def icona_meteo_html(codice, notte=False):
         f'{elementi}</svg>'
     )
 
-def sintesi_oraria_html(ore):
+def sintesi_oraria_html(ore, dati_mare=None):
     """
-    Genera tre righe di sintesi a partire dal DataFrame 'ore':
-      - Prossimo cambiamento significativo
+    Genera una sintesi in parole chiare per le prossime 24 ore:
+      - Prossimo cambiamento significativo (scenario, temperatura, vento)
       - Fascia più piovosa (2 ore consecutive)
       - Raffica massima e orario
+      - Tendenza della pressione (min/max e variazione)
+      - Se disponibili, informazioni sintetiche sul mare
     """
     if ore.empty:
         return ""
-
-    # Assumiamo che 'ore' abbia già le colonne:
-    # time, temperature_2m, precipitation, wind_gusts_10m, Scenario, Icona, Da, Notte
 
     # Filtriamo alle prossime 24 ore
     ora_rif = ore["time"].min()
@@ -434,10 +433,6 @@ def sintesi_oraria_html(ore):
         return ""
 
     # 1) Prossimo cambiamento significativo
-    # Definiamo cambiamento quando:
-    #   - scenario cambia (es. da sereno a nuvoloso/pioggia) OPPURE
-    #   - |ΔT| >= 2 °C in un'ora OPPURE
-    #   - |Δvento| >= 15 km/h in un'ora
     scenario_prev = None
     cambio_idx = None
 
@@ -502,6 +497,97 @@ def sintesi_oraria_html(ore):
         f"Raffica massima prevista: {max_gust:.0f} km/h intorno alle {ora_max_gust}."
     )
 
+    # 4) Pressione: minimo, massimo e tendenza
+    if "pressure_msl" in ore_24.columns:
+        press = ore_24["pressure_msl"].dropna()
+        if not press.empty:
+            p_min = float(press.min())
+            p_max = float(press.max())
+            p_inizio = float(press.iloc[0])
+            p_fine = float(press.iloc[-1])
+            delta_p = p_fine - p_inizio
+
+            if delta_p > 1.5:
+                tendenza_p = "in aumento"
+            elif delta_p < -1.5:
+                tendenza_p = "in calo"
+            else:
+                tendenza_p = "quasi stazionaria"
+
+            testo_pressione = (
+                f"Pressione tra {p_min:.1f} e {p_max:.1f} hPa, "
+                f"tendenza {tendenza_p} nelle prossime ore."
+            )
+        else:
+            testo_pressione = "Pressione non disponibile."
+    else:
+        testo_pressione = "Pressione non disponibile."
+
+    # 5) Mare (solo se disponibili dati marini)
+    testo_mare = ""
+    if dati_mare is not None and isinstance(dati_mare, dict) and dati_mare.get("hourly"):
+        try:
+            ore_mare = pd.DataFrame(dati_mare["hourly"])
+            ore_mare["time"] = pd.to_datetime(ore_mare["time"])
+
+            # Filtriamo alle stesse 24 ore della previsione terrestre
+            ore_mare_24 = ore_mare.loc[
+                (ore_mare["time"] >= ora_rif)
+                & (ore_mare["time"] < ora_rif + pd.Timedelta(hours=24))
+            ].copy()
+
+            if not ore_mare_24.empty and "wave_height" in ore_mare_24.columns:
+                onda_max = float(ore_mare_24["wave_height"].max())
+                idx_onda_max = int(ore_mare_24["wave_height"].idxmax())
+                ora_onda_max = pd.Timestamp(
+                    ore_mare_24.loc[idx_onda_max, "time"]
+                ).strftime("%H:%M")
+
+                # Direzione dominante dell'onda (media pesata o semplice)
+                if "wave_direction" in ore_mare_24.columns:
+                    dir_onda = ore_mare_24["wave_direction"].dropna()
+                    if not dir_onda.empty:
+                        dir_media = float(dir_onda.mean())
+                        direzioni = ["N", "NE", "E", "SE", "S", "SO", "O", "NO"]
+                        idx_dir = int((dir_media + 22.5) // 45) % 8
+                        dir_testo = direzioni[idx_dir]
+                    else:
+                        dir_testo = "—"
+                else:
+                    dir_testo = "—"
+
+                # Stato del mare qualitativo
+                if onda_max < 0.50:
+                    stato = "calmo o quasi calmo"
+                elif onda_max < 1.25:
+                    stato = "poco mosso"
+                elif onda_max < 2.50:
+                    stato = "mosso"
+                elif onda_max < 4.00:
+                    stato = "molto mosso"
+                else:
+                    stato = "agitato o molto agitato"
+
+                testo_mare = (
+                    f"Mare {stato}, onda massima prevista {onda_max:.2f} m "
+                    f"intorno alle {ora_onda_max}, direzione prevalente {dir_testo}."
+                )
+        except Exception:
+            testo_mare = ""
+
+    # Composizione HTML
+    righe = [
+        f"<li><span class=\"cml-nowcast-bullet\">🔹</span><span>{html.escape(testo_cambio)}</span></li>",
+        f"<li><span class=\"cml-nowcast-bullet\">🔹</span><span>{html.escape(testo_pioggia)}</span></li>",
+        f"<li><span class=\"cml-nowcast-bullet\">🔹</span><span>{html.escape(testo_vento)}</span></li>",
+        f"<li><span class=\"cml-nowcast-bullet\">🔹</span><span>{html.escape(testo_pressione)}</span></li>",
+    ]
+
+    if testo_mare:
+        righe.append(
+            f"<li><span class=\"cml-nowcast-bullet\">🔹</span><span>{html.escape(testo_mare)}</span></li>"
+        )
+
     return f"""
     <section class="cml-nowcast-box">
       <div class="cml-nowcast-head">
@@ -514,18 +600,7 @@ def sintesi_oraria_html(ore):
       </div>
 
       <ul class="cml-nowcast-list">
-        <li>
-          <span class="cml-nowcast-bullet">🔹</span>
-          <span>{html.escape(testo_cambio)}</span>
-        </li>
-        <li>
-          <span class="cml-nowcast-bullet">🔹</span>
-          <span>{html.escape(testo_pioggia)}</span>
-        </li>
-        <li>
-          <span class="cml-nowcast-bullet">🔹</span>
-          <span>{html.escape(testo_vento)}</span>
-        </li>
+        {''.join(righe)}
       </ul>
 
       <div class="cml-nowcast-note">
@@ -1162,7 +1237,7 @@ def genera_app_completa(
     icona_corrente, descrizione_corrente = meteo(
         corrente.get("weather_code")
     )
-    sintesi_html = sintesi_oraria_html(ore)
+    sintesi_html = sintesi_oraria_html(ore, dati_mare=None)
     ora_corrente = corrente.get("time")
     alba_corrente = None
     tramonto_corrente = None

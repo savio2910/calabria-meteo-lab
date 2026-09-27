@@ -1433,7 +1433,12 @@ def genera_app_completa(
 
         carte_html.append(
             f"""
-            <article class="cml-day-card">
+            <article class="cml-day-card" id="scheda-{riga['time'].date()}"
+              role="button" tabindex="0" aria-expanded="false"
+              aria-controls="dettaglio-{riga['time'].date()}"
+              aria-label="Mostra la previsione oraria per {html.escape(data_it(riga['time']), quote=True)}"
+              onclick="mostraGiorno('{riga['time'].date()}', this, event)"
+              onkeydown="if (event.target === this && (event.key === 'Enter' || event.key === ' ')) {{ event.preventDefault(); mostraGiorno('{riga['time'].date()}', this, event); }}">
               <div class="cml-day-head">
                 <span class="cml-day-tag">{tag}</span>
 
@@ -1528,6 +1533,7 @@ def genera_app_completa(
                   <b>{ora_it(riga.get("moonset"))}</b>
                 </div>
               </div>
+              <!--DETTAGLIO-{riga['time'].date()}-->
             </article>
             """
         )
@@ -1542,7 +1548,6 @@ def genera_app_completa(
         )
 
     dati_grafici = {}
-    pulsanti_tabs = []
     tabelle_html = []
 
     for indice, data_giorno in enumerate(date_disponibili):
@@ -1581,30 +1586,6 @@ def genera_app_completa(
                 ].tolist()
             ],
         }
-
-        classe_attiva = (
-            "active"
-            if indice == 0
-            else ""
-        )
-
-        pulsanti_tabs.append(
-            f"""
-            <button
-              class="cml-tab-btn {classe_attiva}"
-              type="button"
-              onclick="mostraGiorno('{chiave}', this)"
-            >
-              📅 {html.escape(data_it(data_giorno).title())}
-            </button>
-            """
-        )
-
-        stile_visibilita = (
-            "display:block;"
-            if indice == 0
-            else "display:none;"
-        )
 
         righe_tabella = []
 
@@ -1648,40 +1629,47 @@ def genera_app_completa(
 
         tabelle_html.append(
             f"""
-            <div
-              id="tab-{chiave}"
-              class="cml-day-table-container"
-              style="{stile_visibilita}"
-            >
+            <div id="dettaglio-{chiave}" class="cml-day-inline-detail" hidden
+                 onclick="event.stopPropagation()">
+              <h3>🕒 Previsione oraria · {html.escape(data_it(data_giorno).title())}</h3>
+              <div class="cml-chart-box">
+                <div class="cml-chart-title">📊 Andamenti orari</div>
+                <div class="cml-chart-subtitle">Temperatura, vento e precipitazioni del giorno selezionato.</div>
+                <div class="cml-chart-canvas-wrap">
+                  <canvas id="meteoChart-{chiave}"></canvas>
+                </div>
+              </div>
               <div class="cml-table-wrap">
                 <table class="cml-table">
                   <thead>
                     <tr>
-                      <th>Ora</th>
-                      <th>Scenario</th>
-                      <th>Temp. °C</th>
-                      <th>Percepita °C</th>
-                      <th>Pioggia mm</th>
-                      <th>Vento km/h</th>
-                      <th>Da</th>
-                      <th>Raffica km/h</th>
-                      <th>Nubi %</th>
-                      <th>Umidità %</th>
+                      <th>Ora</th><th>Scenario</th><th>Temp. °C</th>
+                      <th>Percepita °C</th><th>Pioggia mm</th>
+                      <th>Vento km/h</th><th>Da</th><th>Raffica km/h</th>
+                      <th>Nubi %</th><th>Umidità %</th>
                     </tr>
                   </thead>
-
-                  <tbody>
-                    {''.join(righe_tabella)}
-                  </tbody>
+                  <tbody>{''.join(righe_tabella)}</tbody>
                 </table>
               </div>
             </div>
             """
         )
 
-    chiave_iniziale = str(
-        date_disponibili[0]
-    )
+    dettagli_per_data = {
+        str(data): dettaglio
+        for data, dettaglio in zip(date_disponibili, tabelle_html)
+    }
+    carte_html = [
+        carta.replace(
+            f"<!--DETTAGLIO-{riga['time'].date()}-->",
+            dettagli_per_data.get(
+                str(riga['time'].date()),
+                '<div class="cml-day-inline-empty">Nessuna ora futura disponibile per questo giorno.</div>',
+            ),
+        )
+        for carta, (_, riga) in zip(carte_html, giorni.iterrows())
+    ]
 
     dati_grafici_json = json.dumps(
         dati_grafici,
@@ -2286,11 +2274,45 @@ body {{
 }}
 
 .cml-day-card {{
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
   padding: 23px;
   border: 1px solid #d5e4e9;
   border-radius: 22px;
   background: #ffffff;
   box-shadow: 0 8px 24px rgba(23, 67, 84, 0.10);
+}}
+
+.cml-day-card:hover, .cml-day-card:focus-visible {{
+  border-color: #087087;
+  outline: 2px solid transparent;
+  box-shadow: 0 10px 28px rgba(8, 112, 135, 0.23);
+}}
+
+.cml-day-card.active {{
+  grid-column: 1 / -1;
+  border-color: #087087;
+}}
+
+.cml-day-inline-detail[hidden] {{ display: none !important; }}
+
+.cml-day-inline-detail {{
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 2px solid #d5e4e9;
+  cursor: default;
+}}
+
+.cml-day-inline-detail h3 {{
+  margin: 0 0 10px;
+  color: #102b3b;
+  font-size: 21px;
+}}
+
+.cml-day-inline-empty {{
+  margin-top: 16px;
+  color: #607987;
+  font-size: 13px;
 }}
 
 .cml-day-head {{
@@ -2870,60 +2892,24 @@ body {{
   </div>
 </section>
 
-<section class="cml-section-title">
-  <div>
-    <span>ORIZZONTE PREVISIONALE</span>
-
-    <h2>📅 I prossimi tre giorni</h2>
-
-    <p>
-      Scenario prevalente diurno, estremi termici,
-      precipitazioni, vento e astronomia locale.
-    </p>
+<section class="cml-three-days">
+  <div class="cml-section-title">
+    <div>
+      <span>ORIZZONTE PREVISIONALE</span>
+      <h2>📅 I prossimi tre giorni</h2>
+      <p>Premi una scheda per vedere nella scheda stessa la previsione oraria e il grafico.</p>
+    </div>
+    <div class="cml-pill">72 ore</div>
   </div>
 
-  <div class="cml-pill">72 ore</div>
-</section>
-
-<section class="cml-days-grid">
-  {''.join(carte_html)}
-</section>
-
-<div class="cml-note">
-  ℹ️ Le schede mostrano la condizione prevalente e la nuvolosità media nelle ore diurne.
-  Temperature, precipitazioni e vento rappresentano estremi o cumulati sulle 24 ore.
-</div>
-
-<section class="cml-hour-header">
-  <span>DETTAGLIO ORARIO</span>
-
-  <h2>🕒 Previsione ora per ora</h2>
-
-  <p>
-    Seleziona un giorno: grafico e tabella cambieranno insieme.
-  </p>
-</section>
-
-<section class="cml-chart-box">
-  <div class="cml-chart-title">
-    📊 Andamento meteorologico orario
+  <div class="cml-days-grid">
+    {''.join(carte_html)}
   </div>
 
-  <div class="cml-chart-subtitle">
-    Temperatura, vento e precipitazione oraria per il giorno selezionato.
+  <div class="cml-note">
+    ℹ️ Le schede mostrano la condizione prevalente e la nuvolosità media nelle ore diurne.
+    Temperature, precipitazioni e vento rappresentano estremi o cumulati sulle 24 ore.
   </div>
-
-  <div class="cml-chart-canvas-wrap">
-    <canvas id="meteoChart"></canvas>
-  </div>
-</section>
-
-<div class="cml-tabs-bar">
-  {''.join(pulsanti_tabs)}
-</div>
-
-<section>
-  {''.join(tabelle_html)}
 </section>
 
 <div class="cml-note">
@@ -2933,7 +2919,6 @@ body {{
 
 <script>
 const datiGraficiPerGiorno = {dati_grafici_json};
-const chiaveGraficoIniziale = "{chiave_iniziale}";
 
 let meteoChartInstance = null;
 
@@ -2944,7 +2929,7 @@ function creaGrafico(chiave) {{
     return;
   }}
 
-  const canvas = document.getElementById("meteoChart");
+  const canvas = document.getElementById("meteoChart-" + chiave);
 
   if (!canvas) {{
     return;
@@ -3092,52 +3077,32 @@ function creaGrafico(chiave) {{
   }});
 }}
 
-function aggiornaGrafico(chiave) {{
-  const dati = datiGraficiPerGiorno[chiave];
+function mostraGiorno(chiave, scheda, event) {{
+  if (event && event.target.closest(".cml-day-inline-detail")) return;
+  const dettaglio = document.getElementById("dettaglio-" + chiave);
+  if (!dettaglio) return;
+  const eraAperta = !dettaglio.hidden;
 
-  if (!dati || !meteoChartInstance) {{
-    return;
+  document.querySelectorAll(".cml-day-card").forEach(function(card) {{
+    card.classList.remove("active");
+    card.setAttribute("aria-expanded", "false");
+  }});
+  document.querySelectorAll(".cml-day-inline-detail").forEach(function(panel) {{
+    panel.hidden = true;
+  }});
+  if (meteoChartInstance) {{
+    meteoChartInstance.destroy();
+    meteoChartInstance = null;
   }}
+  if (eraAperta) return;
 
-  meteoChartInstance.data.labels = dati.ore;
-  meteoChartInstance.data.datasets[0].data = dati.temperatura;
-  meteoChartInstance.data.datasets[1].data = dati.vento;
-  meteoChartInstance.data.datasets[2].data = dati.precipitazione;
-
-  meteoChartInstance.update();
+  dettaglio.hidden = false;
+  scheda.classList.add("active");
+  scheda.setAttribute("aria-expanded", "true");
+  if (typeof Chart !== "undefined") {{
+    requestAnimationFrame(function() {{ creaGrafico(chiave); }});
+  }}
 }}
-
-function mostraGiorno(chiave, bottone) {{
-  const sezioni = document.getElementsByClassName(
-    "cml-day-table-container"
-  );
-
-  for (let i = 0; i < sezioni.length; i += 1) {{
-    sezioni[i].style.display = "none";
-  }}
-
-  const pulsanti = document.getElementsByClassName(
-    "cml-tab-btn"
-  );
-
-  for (let i = 0; i < pulsanti.length; i += 1) {{
-    pulsanti[i].classList.remove("active");
-  }}
-
-  const target = document.getElementById(
-    "tab-" + chiave
-  );
-
-  if (target) {{
-    target.style.display = "block";
-  }}
-
-  bottone.classList.add("active");
-  aggiornaGrafico(chiave);
-}}
-
-creaGrafico(chiaveGraficoIniziale);
-
 
 const radarMap = L.map("radar-map", {{
   center: [{latitudine}, {longitudine}],

@@ -416,7 +416,6 @@ def sintesi_oraria_html(ore, dati_mare=None):
       - Prossimo cambiamento significativo (scenario, temperatura, vento)
       - Fascia più piovosa (2 ore consecutive)
       - Raffica massima e orario
-      - Tendenza della pressione (min/max e variazione)
       - Se disponibili, informazioni sintetiche sul mare
     """
     if ore.empty:
@@ -497,33 +496,7 @@ def sintesi_oraria_html(ore, dati_mare=None):
         f"Raffica massima prevista: {max_gust:.0f} km/h intorno alle {ora_max_gust}."
     )
 
-    # 4) Pressione: minimo, massimo e tendenza
-    if "pressure_msl" in ore_24.columns:
-        press = ore_24["pressure_msl"].dropna()
-        if not press.empty:
-            p_min = float(press.min())
-            p_max = float(press.max())
-            p_inizio = float(press.iloc[0])
-            p_fine = float(press.iloc[-1])
-            delta_p = p_fine - p_inizio
-
-            if delta_p > 1.5:
-                tendenza_p = "in aumento"
-            elif delta_p < -1.5:
-                tendenza_p = "in calo"
-            else:
-                tendenza_p = "quasi stazionaria"
-
-            testo_pressione = (
-                f"Pressione tra {p_min:.1f} e {p_max:.1f} hPa, "
-                f"tendenza {tendenza_p} nelle prossime ore."
-            )
-        else:
-            testo_pressione = "Pressione non disponibile."
-    else:
-        testo_pressione = "Pressione non disponibile."
-
-    # 5) Mare (solo se disponibili dati marini)
+    # 4) Mare (solo se disponibili dati marini)
     testo_mare = ""
     if dati_mare is not None and isinstance(dati_mare, dict) and dati_mare.get("hourly"):
         try:
@@ -543,7 +516,7 @@ def sintesi_oraria_html(ore, dati_mare=None):
                     ore_mare_24.loc[idx_onda_max, "time"]
                 ).strftime("%H:%M")
 
-                # Direzione dominante dell'onda (media pesata o semplice)
+                # Direzione dominante dell'onda (media semplice)
                 if "wave_direction" in ore_mare_24.columns:
                     dir_onda = ore_mare_24["wave_direction"].dropna()
                     if not dir_onda.empty:
@@ -580,7 +553,6 @@ def sintesi_oraria_html(ore, dati_mare=None):
         f"<li><span class=\"cml-nowcast-bullet\">🔹</span><span>{html.escape(testo_cambio)}</span></li>",
         f"<li><span class=\"cml-nowcast-bullet\">🔹</span><span>{html.escape(testo_pioggia)}</span></li>",
         f"<li><span class=\"cml-nowcast-bullet\">🔹</span><span>{html.escape(testo_vento)}</span></li>",
-        f"<li><span class=\"cml-nowcast-bullet\">🔹</span><span>{html.escape(testo_pressione)}</span></li>",
     ]
 
     if testo_mare:
@@ -609,7 +581,6 @@ def sintesi_oraria_html(ore, dati_mare=None):
       </div>
     </section>
     """
-
 # =============================================================================
 # NORMALIZZAZIONE E COMUNI COSTIERI
 # =============================================================================
@@ -1237,7 +1208,7 @@ def genera_app_completa(
     icona_corrente, descrizione_corrente = meteo(
         corrente.get("weather_code")
     )
-    sintesi_html = sintesi_oraria_html(ore, dati_mare=None)
+    sintesi_html = sintesi_oraria_html(ore, dati_mare=dati_mare)
     ora_corrente = corrente.get("time")
     alba_corrente = None
     tramonto_corrente = None

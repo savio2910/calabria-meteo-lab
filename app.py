@@ -2210,12 +2210,12 @@ body {{
 }}
 }}
 
-.cml-nowcast-bullet {
+.cml-nowcast-bullet {{
 .cml-nowcast-bullet {{
 .cml-nowcast-bullet {{
   flex: 0 0 20px;
   font-size: 16px;
-}
+}}
 }}
 }}
 

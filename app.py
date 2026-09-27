@@ -1764,6 +1764,12 @@ def genera_app_completa(
     documento_html = f"""
 <!DOCTYPE html>
 <html lang="it">
+<style>
+body {
+  font-family: "Inter", -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, Arial, sans-serif;
+}
+</style>
 <head>
 <meta charset="utf-8">
 <meta
@@ -2910,9 +2916,6 @@ body {{
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 
 <body>
-body {{
-  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-}}
 
 <div class="cml-view-switch">
   <button id="btn-lettura-rapida" type="button" onclick="toggleLetturaRapida()">

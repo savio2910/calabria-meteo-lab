@@ -2156,7 +2156,6 @@ body {{
   border-radius: 24px;
   background: #ffffff;
   box-shadow: 0 8px 28px rgba(23, 67, 84, 0.10);
-}
 }}
 
 .cml-nowcast-head {

@@ -2164,13 +2164,13 @@ body {{
 
 .cml-nowcast-head h2 {
   margin: 6px 0 4px;
-  color: var(--ink);
+  color: #102b3b;
   font-size: 23px;
 }
 
 .cml-nowcast-head p {
   margin: 0;
-  color: var(--muted);
+  color: #607987;
   font-size: 12px;
 }
 

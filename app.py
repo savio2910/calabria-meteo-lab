@@ -1531,23 +1531,40 @@ def genera_app_completa(
 
         dati_grafici[chiave] = {
             "ore": ore_giorno["time"].dt.strftime("%H:%M").tolist(),
+        
             "temperatura": [
                 round(float(valore), 1)
                 if pd.notna(valore)
                 else None
                 for valore in ore_giorno["temperature_2m"].tolist()
             ],
+        
+            "nuvolosita": [
+                round(float(valore), 0)
+                if pd.notna(valore)
+                else None
+                for valore in ore_giorno["cloud_cover"].tolist()
+            ],
+        
+            "precipitazione": [
+                round(float(valore), 1)
+                if pd.notna(valore)
+                else None
+                for valore in ore_giorno["precipitation"].tolist()
+            ],
+        
             "vento": [
                 round(float(valore), 1)
                 if pd.notna(valore)
                 else None
                 for valore in ore_giorno["wind_speed_10m"].tolist()
             ],
-            "precipitazione": [
+        
+            "raffiche": [
                 round(float(valore), 1)
                 if pd.notna(valore)
                 else None
-                for valore in ore_giorno["precipitation"].tolist()
+                for valore in ore_giorno["wind_gusts_10m"].tolist()
             ],
         }
 
@@ -1625,18 +1642,46 @@ def genera_app_completa(
               </div>
 
               <div class="cml-chart-box">
-                <div class="cml-chart-title">
-                  📊 Andamenti orari
-                </div>
-
-                <div class="cml-chart-subtitle">
-                  Temperatura, vento e precipitazioni del giorno selezionato.
-                </div>
-
-                <div class="cml-chart-canvas-wrap">
-                  <canvas id="meteoChart-{chiave}"></canvas>
-                </div>
+              <div class="cml-chart-title">
+                🌡️ Andamento della temperatura
               </div>
+            
+              <div class="cml-chart-subtitle">
+                Temperatura prevista nelle diverse ore della giornata.
+              </div>
+            
+              <div class="cml-chart-canvas-wrap">
+                <canvas id="temperaturaChart-{chiave}"></canvas>
+              </div>
+            </div>
+            
+            <div class="cml-chart-box">
+              <div class="cml-chart-title">
+                ☁️ Nuvolosità e precipitazioni
+              </div>
+            
+              <div class="cml-chart-subtitle">
+                Nuvolosità prevista e precipitazione oraria.
+              </div>
+            
+              <div class="cml-chart-canvas-wrap">
+                <canvas id="nuvolositaPrecipitazioniChart-{chiave}"></canvas>
+              </div>
+            </div>
+            
+            <div class="cml-chart-box">
+              <div class="cml-chart-title">
+                💨 Andamento del vento
+              </div>
+            
+              <div class="cml-chart-subtitle">
+                Vento medio e raffiche previste.
+              </div>
+            
+              <div class="cml-chart-canvas-wrap">
+                <canvas id="ventoChart-{chiave}"></canvas>
+              </div>
+            </div>
 
             </div>
             """
@@ -3113,161 +3158,293 @@ function mostraVista(nome) {{
 
 /* ---------- GRAFICO METEO ---------- */
 
-function creaGrafico(chiave) {{
+function creaGrafici(chiave) {
   const dati = datiGraficiPerGiorno[chiave];
 
-  if (!dati) {{
+  if (!dati) {
     return;
-  }}
+  }
 
-  const canvas = document.getElementById("meteoChart-" + chiave);
+  const canvasTemperatura = document.getElementById(
+    "temperaturaChart-" + chiave
+  );
 
-  if (!canvas) {{
+  const canvasNuvolositaPrecipitazioni =
+    document.getElementById(
+      "nuvolositaPrecipitazioniChart-" + chiave
+    );
+
+  const canvasVento = document.getElementById(
+    "ventoChart-" + chiave
+  );
+
+  if (
+    !canvasTemperatura
+    || !canvasNuvolositaPrecipitazioni
+    || !canvasVento
+  ) {
     return;
-  }}
+  }
 
-  const context = canvas.getContext("2d");
+  const opzioniComuni = {
+    responsive: true,
+    maintainAspectRatio: false,
 
-  meteoChartInstance = new Chart(context, {{
-    type: "line",
+    interaction: {
+      mode: "index",
+      intersect: false
+    },
 
-    data: {{
-      labels: dati.ore,
+    plugins: {
+      legend: {
+        position: "top",
 
-      datasets: [
-        {{
-          label: "Temperatura °C",
-          data: dati.temperatura,
-          yAxisID: "temperatura",
-          borderColor: "#ef6c16",
-          backgroundColor: "rgba(239, 108, 22, 0.12)",
-          pointRadius: 3,
-          pointHoverRadius: 5,
-          borderWidth: 3,
-          tension: 0.35,
-          fill: true
-        }},
+        labels: {
+          usePointStyle: true,
+          padding: 18,
 
-        {{
-          label: "Vento km/h",
-          data: dati.vento,
-          yAxisID: "vento",
-          borderColor: "#0a8b72",
-          pointRadius: 2,
-          pointHoverRadius: 4,
-          borderWidth: 2.5,
-          borderDash: [7, 4],
-          tension: 0.3,
-          fill: false
-        }},
+          font: {
+            size: 12,
+            weight: "600"
+          }
+        }
+      },
 
-        {{
-          label: "Precipitazione mm",
-          data: dati.precipitazione,
-          yAxisID: "precipitazione",
-          type: "bar",
-          backgroundColor: "rgba(47, 137, 202, 0.68)",
-          borderColor: "#1679ba",
-          borderWidth: 1,
-          borderRadius: 4
-        }}
-      ]
-    }},
+      tooltip: {
+        backgroundColor: "rgba(15, 43, 59, 0.95)",
+        padding: 11,
+        cornerRadius: 9
+      }
+    },
 
-    options: {{
-      responsive: true,
-      maintainAspectRatio: false,
+    scales: {
+      x: {
+        grid: {
+          color: "rgba(16, 43, 59, 0.06)"
+        },
 
-      interaction: {{
-        mode: "index",
-        intersect: false
-      }},
+        ticks: {
+          maxRotation: 0,
+          autoSkip: true
+        }
+      }
+    }
+  };
 
-      plugins: {{
-        legend: {{
-          position: "top",
+  /*
+   * 1. GRAFICO TEMPERATURA
+   */
 
-          labels: {{
-            usePointStyle: true,
-            padding: 18,
+  const graficoTemperatura = new Chart(
+    canvasTemperatura.getContext("2d"),
+    {
+      type: "line",
 
-            font: {{
-              size: 12,
-              weight: "600"
-            }}
-          }}
-        }},
+      data: {
+        labels: dati.ore,
 
-        tooltip: {{
-          backgroundColor: "rgba(15, 43, 59, 0.95)",
-          padding: 11,
-          cornerRadius: 9
-        }}
-      }},
+        datasets: [
+          {
+            label: "Temperatura °C",
+            data: dati.temperatura,
 
-      scales: {{
-        x: {{
-          grid: {{
-            color: "rgba(16, 43, 59, 0.06)"
-          }},
+            borderColor: "#ef6c16",
+            backgroundColor: "rgba(239, 108, 22, 0.16)",
 
-          ticks: {{
-            maxRotation: 0,
-            autoSkip: true
-          }}
-        }},
+            pointRadius: 3,
+            pointHoverRadius: 5,
+            borderWidth: 3,
+            tension: 0.35,
+            fill: true
+          }
+        ]
+      },
 
-        temperatura: {{
-          type: "linear",
-          position: "left",
+      options: {
+        ...opzioniComuni,
 
-          title: {{
-            display: true,
-            text: "Temperatura °C"
-          }},
+        scales: {
+          ...opzioniComuni.scales,
 
-          grid: {{
-            color: "rgba(16, 43, 59, 0.08)"
-          }}
-        }},
+          y: {
+            title: {
+              display: true,
+              text: "Temperatura °C"
+            },
 
-        vento: {{
-          type: "linear",
-          position: "right",
+            grid: {
+              color: "rgba(16, 43, 59, 0.08)"
+            }
+          }
+        }
+      }
+    }
+  );
 
-          title: {{
-            display: true,
-            text: "Vento km/h"
-          }},
+  /*
+   * 2. GRAFICO NUVOLOSITÀ E PRECIPITAZIONI
+   */
 
-          grid: {{
-            drawOnChartArea: false
-          }},
+  const graficoNuvolositaPrecipitazioni = new Chart(
+    canvasNuvolositaPrecipitazioni.getContext("2d"),
+    {
+      data: {
+        labels: dati.ore,
 
-          min: 0
-        }},
+        datasets: [
+          {
+            type: "line",
+            label: "Nuvolosità %",
+            data: dati.nuvolosita,
 
-        precipitazione: {{
-          type: "linear",
-          position: "right",
-          offset: true,
+            yAxisID: "nuvolosita",
 
-          title: {{
-            display: true,
-            text: "Pioggia mm"
-          }},
+            borderColor: "#687b88",
+            backgroundColor: "rgba(104, 123, 136, 0.16)",
 
-          grid: {{
-            drawOnChartArea: false
-          }},
+            pointRadius: 3,
+            pointHoverRadius: 5,
+            borderWidth: 3,
+            tension: 0.35,
+            fill: true
+          },
 
-          min: 0
-        }}
-      }}
-    }}
-  }});
-}}
+          {
+            type: "bar",
+            label: "Precipitazione mm",
+            data: dati.precipitazione,
 
+            yAxisID: "precipitazione",
+
+            backgroundColor: "rgba(47, 137, 202, 0.68)",
+            borderColor: "#1679ba",
+            borderWidth: 1,
+            borderRadius: 4
+          }
+        ]
+      },
+
+      options: {
+        ...opzioniComuni,
+
+        scales: {
+          ...opzioniComuni.scales,
+
+          nuvolosita: {
+            type: "linear",
+            position: "left",
+            min: 0,
+            max: 100,
+
+            title: {
+              display: true,
+              text: "Nuvolosità %"
+            },
+
+            grid: {
+              color: "rgba(16, 43, 59, 0.08)"
+            }
+          },
+
+          precipitazione: {
+            type: "linear",
+            position: "right",
+            min: 0,
+
+            title: {
+              display: true,
+              text: "Precipitazione mm"
+            },
+
+            grid: {
+              drawOnChartArea: false
+            }
+          }
+        }
+      }
+    }
+  );
+
+  /*
+   * 3. GRAFICO VENTO
+   */
+
+  const graficoVento = new Chart(
+    canvasVento.getContext("2d"),
+    {
+      type: "line",
+
+      data: {
+        labels: dati.ore,
+
+        datasets: [
+          {
+            label: "Vento medio km/h",
+            data: dati.vento,
+
+            borderColor: "#0a8b72",
+            backgroundColor: "rgba(10, 139, 114, 0.12)",
+
+            pointRadius: 3,
+            pointHoverRadius: 5,
+            borderWidth: 3,
+            tension: 0.3,
+            fill: true
+          },
+
+          {
+            label: "Raffiche km/h",
+            data: dati.raffiche,
+
+            borderColor: "#9c3f84",
+            backgroundColor: "rgba(156, 63, 132, 0.08)",
+
+            pointRadius: 3,
+            pointHoverRadius: 5,
+            borderWidth: 2.5,
+            borderDash: [7, 4],
+            tension: 0.3,
+            fill: false
+          }
+        ]
+      },
+
+      options: {
+        ...opzioniComuni,
+
+        scales: {
+          ...opzioniComuni.scales,
+
+          y: {
+            beginAtZero: true,
+
+            title: {
+              display: true,
+              text: "Velocità km/h"
+            },
+
+            grid: {
+              color: "rgba(16, 43, 59, 0.08)"
+            }
+          }
+        }
+      }
+    }
+  );
+
+  meteoChartInstance = {
+    temperatura: graficoTemperatura,
+    nuvolositaPrecipitazioni:
+      graficoNuvolositaPrecipitazioni,
+    vento: graficoVento,
+
+    destroy: function() {
+      this.temperatura.destroy();
+      this.nuvolositaPrecipitazioni.destroy();
+      this.vento.destroy();
+    }
+  };
+}
 /* ---------- APERTURA SCHEDA GIORNO ---------- */
 
 function mostraGiorno(chiave, scheda, event) {{
@@ -3301,7 +3478,7 @@ function mostraGiorno(chiave, scheda, event) {{
 
   if (typeof Chart !== "undefined") {{
     requestAnimationFrame(function() {{
-      creaGrafico(chiave);
+      creaGrafici(chiave);
     }});
   }}
 }}

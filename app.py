@@ -3423,6 +3423,20 @@ fetch(
         "radar temporaneamente non disponibile";
     }}
   }});
+  
+function toggleLetturaRapida() {{
+  const corpo = document.body;
+  const pulsante = document.getElementById("btn-lettura-rapida");
+
+  corpo.classList.toggle("cml-lettura-rapida");
+
+  if (corpo.classList.contains("cml-lettura-rapida")) {{
+    pulsante.textContent = "📖 Lettura dettagliata";
+  }} else {{
+    pulsante.textContent = "👁️ Lettura rapida";
+  }}
+}}
+
 </script>
 
 </body>
@@ -3534,7 +3548,3 @@ try:
 
 except Exception as errore:
     st.error(str(errore))
-
-function toggleLetturaRapida() {
-  document.body.classList.toggle('cml-lettura-rapida');
-}

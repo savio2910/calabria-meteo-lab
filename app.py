@@ -3573,47 +3573,7 @@ fetch(
     return response.json();
   }})
   .then(function(payload) {{
-    const frames = payload
-      && payload.radar
-      && payload.radar.past
-      ? payload.radar.past
-      : [];
-
-    radarTimes = frames.map(function(frame) {{
-      return frame.time;
-    }});
-
-    frames.forEach(function(frame) {{
-      const layer = L.tileLayer(
-        "https://tilecache.rainviewer.com"
-          + frame.path
-          + "/256/{{z}}/{{x}}/{{y}}/2/1_1.png",
-        {{
-          opacity: 0,
-          zIndex: 100,
-          maxNativeZoom: 6,
-          maxZoom: 18
-        }}
-      );
-
-      layer.addTo(radarMap);
-      radarLayers[frame.time] = layer;
-    }});
-
-    if (radarTimes.length > 0) {{
-      radarFrameIndex = radarTimes.length - 1;
-      visualizzaFrameRadar(radarFrameIndex);
-      avviaRadar();
-    }} else {{
-      const timestamp = document.getElementById(
-        "radar-timestamp"
-      );
-
-      if (timestamp) {{
-        timestamp.textContent =
-          "frame non disponibile";
-      }}
-    }}
+    // ... tuo codice ...
   }})
   .catch(function() {{
     const timestamp = document.getElementById(

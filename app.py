@@ -1272,6 +1272,33 @@ def genera_app_completa(
     ):
         corrente_mare = dati_mare["current"]
 
+        altezza_onda = corrente_mare.get(
+            "wave_height"
+        )
+
+        direzione_onda = corrente_mare.get(
+            "wave_direction"
+        )
+
+        periodo_onda = corrente_mare.get(
+            "wave_period"
+        )
+
+        periodo_picco = corrente_mare.get(
+            "wave_peak_period"
+        )
+
+        altezza_mare_vento = corrente_mare.get(
+            "wind_wave_height"
+        )
+
+        altezza_swell = corrente_mare.get(
+            "swell_wave_height"
+        )
+
+        temperatura_mare = corrente_mare.get(
+            "sea_surface_temperature"
+        )
         altezza_onda = corrente_mare.get("wave_height")
         direzione_onda = corrente_mare.get("wave_direction")
         periodo_onda = corrente_mare.get("wave_period")
@@ -1280,6 +1307,9 @@ def genera_app_completa(
         altezza_swell = corrente_mare.get("swell_wave_height")
         temperatura_mare = corrente_mare.get("sea_surface_temperature")
 
+        stato_mare, icona_mare, classe_mare = (
+            stato_mare_da_onda(altezza_onda)
+        )
         stato_mare, icona_mare, classe_mare = stato_mare_da_onda(altezza_onda)
 
         mare_html = f"""
@@ -1363,6 +1393,11 @@ def genera_app_completa(
         </section>
         """
 
+    etichette_giorni = [
+        "OGGI",
+        "DOMANI",
+        "DOPODOMANI",
+    ]
     # ---------------------------------------------------------
     # SCHEDE GIORNALIERE
     # ---------------------------------------------------------
@@ -1383,8 +1418,18 @@ def genera_app_completa(
         )
 
         icona, descrizione = meteo(codice_effettivo)
+
+        fase = html.escape(
+            str(riga.get("Fase lunare", "🌙 Luna"))
+        )
+
         fase = html.escape(str(riga.get("Fase lunare", "🌙 Luna")))
         livello, rischio = valuta_rischio_locale(riga)
+
+        badge_rischio = badge_rischio_html(
+            livello,
+            rischio,
+        )
         badge_rischio = badge_rischio_html(livello, rischio)
 
         if codice_effettivo in [95, 96, 99]:
@@ -1508,6 +1553,9 @@ def genera_app_completa(
             """
         )
 
+    date_disponibili = sorted(
+        ore["time"].dt.date.unique()
+    )
     # ---------------------------------------------------------
     # DETTAGLI ORARI (TABELLA PRIMA, GRAFICO DOPO)
     # ---------------------------------------------------------
@@ -1530,23 +1578,35 @@ def genera_app_completa(
         ].copy()
 
         dati_grafici[chiave] = {
+            "ore": ore_giorno["time"].dt.strftime(
+                "%H:%M"
+            ).tolist(),
             "ore": ore_giorno["time"].dt.strftime("%H:%M").tolist(),
             "temperatura": [
                 round(float(valore), 1)
                 if pd.notna(valore)
                 else None
+                for valore in ore_giorno[
+                    "temperature_2m"
+                ].tolist()
                 for valore in ore_giorno["temperature_2m"].tolist()
             ],
             "vento": [
                 round(float(valore), 1)
                 if pd.notna(valore)
                 else None
+                for valore in ore_giorno[
+                    "wind_speed_10m"
+                ].tolist()
                 for valore in ore_giorno["wind_speed_10m"].tolist()
             ],
             "precipitazione": [
                 round(float(valore), 1)
                 if pd.notna(valore)
                 else None
+                for valore in ore_giorno[
+                    "precipitation"
+                ].tolist()
                 for valore in ore_giorno["precipitation"].tolist()
             ],
         }
@@ -1591,6 +1651,53 @@ def genera_app_completa(
                 """
             )
 
+            tabelle_html.append(
+                f"""
+                <div id="dettaglio-{chiave}" class="cml-day-inline-detail" hidden
+                     onclick="event.stopPropagation()">
+    
+                  <h3>
+                    🕒 Previsione oraria ·
+                    {html.escape(data_it(data_giorno).title())}
+                  </h3>
+    
+                  <div class="cml-table-wrap">
+                    <table class="cml-table">
+                      <thead>
+                        <tr>
+                          <th>Ora</th>
+                          <th>Scenario</th>
+                          <th>Temp. °C</th>
+                          <th>Percepita °C</th>
+                          <th>Pioggia mm</th>
+                          <th>Vento km/h</th>
+                          <th>Da</th>
+                          <th>Raffica km/h</th>
+                          <th>Nubi %</th>
+                          <th>Umidità %</th>
+                        </tr>
+                      </thead>
+    
+                      <tbody>
+                        {''.join(righe_tabella)}
+                      </tbody>
+                    </table>
+                  </div>
+    
+                  <div class="cml-chart-box">
+                    <div class="cml-chart-title">
+                      📊 Andamenti orari
+                    </div>
+    
+                    <div class="cml-chart-subtitle">
+                      Temperatura, vento e precipitazioni del giorno selezionato.
+                    </div>
+    
+                    <div class="cml-chart-canvas-wrap">
+                      <canvas id="meteoChart-{chiave}"></canvas>
+                    </div>
+                  </div>
+    
         tabelle_html.append(
             f"""
             <div id="dettaglio-{chiave}" class="cml-day-inline-detail" hidden
@@ -1632,6 +1739,8 @@ def genera_app_completa(
                 <div class="cml-chart-subtitle">
                   Temperatura, vento e precipitazioni del giorno selezionato.
                 </div>
+                """
+             )
 
                 <div class="cml-chart-canvas-wrap">
                   <canvas id="meteoChart-{chiave}"></canvas>
@@ -1658,6 +1767,10 @@ def genera_app_completa(
         for carta, (_, riga) in zip(carte_html, giorni.iterrows())
     ]
 
+    dati_grafici_json = json.dumps(
+        dati_grafici,
+        ensure_ascii=False,
+    )
     dati_grafici_json = json.dumps(dati_grafici, ensure_ascii=False)
 
     # ---------------------------------------------------------
@@ -1669,6 +1782,15 @@ def genera_app_completa(
 <html lang="it">
 <head>
 <meta charset="utf-8">
+<meta
+  name="viewport"
+  content="width=device-width, initial-scale=1"
+>
+
+<link
+  rel="stylesheet"
+  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
@@ -1707,87 +1829,118 @@ body {{
   position: relative;
   overflow: hidden;
   margin: 8px 0 28px;
-  padding: 70px 48px 50px;
+  padding: 58px 48px;
   border: 1px solid #07516c;
   border-radius: 28px;
   color: #ffffff;
   background:
-    radial-gradient(circle at 85% 15%, rgba(255, 210, 92, 0.25), transparent 35%),
-    radial-gradient(circle at 15% 85%, rgba(13, 119, 167, 0.35), transparent 40%),
-    linear-gradient(135deg, #06324d 0%, #075b78 40%, #0a7a91 70%, #0d94a7 100%);
+    radial-gradient(circle at 85% 15%, rgba(255, 210, 92, 0.20), transparent 28%),
+    linear-gradient(135deg, #06324d 0%, #075b78 52%, #087f91 100%);
   box-shadow: 0 14px 32px rgba(9, 61, 83, 0.22);
-  min-height: 380px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
 }}
 
 .cml-home-hero::before {{
   content: "";
   position: absolute;
-  top: -50%;
-  right: -20%;
-  width: 60%;
-  height: 200%;
-  background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.08) 0%, transparent 70%);
-  transform: rotate(25deg);
-  pointer-events: none;
-}}
-
-.cml-home-hero::after {{
-  content: "";
-  position: absolute;
-  bottom: -30%;
-  left: -10%;
-  width: 50%;
-  height: 150%;
-  background: radial-gradient(ellipse at center, rgba(13, 119, 167, 0.15) 0%, transparent 70%);
-  transform: rotate(-15deg);
-  pointer-events: none;
+  right: -85px;
+  bottom: -105px;
+  width: 310px;
+  height: 310px;
+  border: 36px solid rgba(255, 255, 255, 0.08);
+  border-radius: 50%;
 }}
 
 .cml-home-hero > * {{
   position: relative;
-  z-index: 2;
+  z-index: 1;
 }}
 
 .cml-home-hero h1 {{
   max-width: 800px;
   margin: 20px 0 13px;
   color: #ffffff;
-  font-size: 52px;
+  font-size: 48px;
   font-weight: 850;
   letter-spacing: -1.5px;
   line-height: 1.08;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
 }}
 
 .cml-home-hero p {{
   max-width: 730px;
   margin: 0;
   color: #e2f5f8;
-  font-size: 17px;
+  font-size: 16px;
   line-height: 1.7;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.20);
 }}
 
-/* Mappa stilizzata della Calabria come sfondo decorativo */
-.cml-calabria-bg {{
-  position: absolute;
-  bottom: -80px;
-  right: -60px;
-  width: 420px;
-  height: 420px;
-  opacity: 0.12;
-  pointer-events: none;
-  z-index: 1;
-  filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.15));
+.cml-home-actions {{
+  display: grid;
+  grid-template-columns: repeat(2, minmax(260px, 1fr));
+  gap: 20px;
+  max-width: 980px;
+  margin: 0 auto 32px;
 }}
 
-.cml-calabria-bg path {{
-  fill: #ffffff;
-  stroke: rgba(255, 255, 255, 0.30);
-  stroke-width: 2;
+.cml-home-choice {{
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-height: 220px;
+  padding: 28px;
+  border: 1px solid #d2e4e9;
+  border-radius: 24px;
+  background: #ffffff;
+  color: #102b3b;
+  cursor: pointer;
+  text-align: left;
+  box-shadow: 0 10px 28px rgba(23, 67, 84, 0.12);
+  transition: transform 0.18s ease, box-shadow 0.18s ease,
+              border-color 0.18s ease;
+}}
+
+.cml-home-choice:hover,
+.cml-home-choice:focus-visible {{
+  transform: translateY(-4px);
+  border-color: #087087;
+  outline: none;
+  box-shadow: 0 15px 32px rgba(8, 112, 135, 0.22);
+}}
+
+.cml-home-choice-icon {{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 62px;
+  height: 62px;
+  margin-bottom: 18px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #d9f4f7, #a8e1e7);
+  font-size: 31px;
+}}
+
+.cml-home-choice.radar .cml-home-choice-icon {{
+  background: linear-gradient(135deg, #dce7ff, #adc5ec);
+}}
+
+.cml-home-choice h2 {{
+  margin: 0 0 8px;
+  color: #102b3b;
+  font-size: 24px;
+}}
+
+.cml-home-choice p {{
+  margin: 0;
+  color: #607987;
+  font-size: 14px;
+  line-height: 1.6;
+}}
+
+.cml-home-choice span {{
+  margin-top: auto;
+  padding-top: 20px;
+  color: #087087;
+  font-size: 13px;
+  font-weight: 850;
 }}
 
 /* ===================== NAV BAR ===================== */
@@ -2114,6 +2267,37 @@ body {{
   font-size: 17px;
 }}
 
+.cml-mare-calmo {{
+  background: #0d77a7;
+}}
+
+.cml-mare-quasi-calmo {{
+  background: #168db7;
+}}
+
+.cml-mare-poco-mosso {{
+  background: #278b5e;
+}}
+
+.cml-mare-mosso {{
+  background: #c18a1c;
+}}
+
+.cml-mare-molto-mosso {{
+  background: #d16418;
+}}
+
+.cml-mare-agitato {{
+  background: #c3313d;
+}}
+
+.cml-mare-molto-agitato {{
+  background: #8b1e29;
+}}
+
+.cml-mare-nd {{
+  background: #6d7d86;
+}}
 .cml-mare-calmo {{ background: #0d77a7; }}
 .cml-mare-quasi-calmo {{ background: #168db7; }}
 .cml-mare-poco-mosso {{ background: #278b5e; }}
@@ -2249,27 +2433,45 @@ body {{
 }}
 
 .cml-nowcast-head {{
+.cml-nowcast-head {{
+.cml-nowcast-head {{
   margin-bottom: 16px;
 }}
+}}
+}}
 
+.cml-nowcast-head h2 {{
+.cml-nowcast-head h2 {{
 .cml-nowcast-head h2 {{
   margin: 6px 0 4px;
   color: #102b3b;
   font-size: 23px;
 }}
+}}
+}}
 
+.cml-nowcast-head p {{
+.cml-nowcast-head p {{
 .cml-nowcast-head p {{
   margin: 0;
   color: #607987;
   font-size: 12px;
 }}
+}}
+}}
 
+.cml-nowcast-list {{
+.cml-nowcast-list {{
 .cml-nowcast-list {{
   list-style: none;
   margin: 0;
   padding: 0;
 }}
+}}
+}}
 
+.cml-nowcast-list li {{
+.cml-nowcast-list li {{
 .cml-nowcast-list li {{
   display: flex;
   align-items: flex-start;
@@ -2279,12 +2481,20 @@ body {{
   font-size: 14px;
   line-height: 1.5;
 }}
+}}
+}}
 
+.cml-nowcast-bullet {{
+.cml-nowcast-bullet {{
 .cml-nowcast-bullet {{
   flex: 0 0 20px;
   font-size: 16px;
 }}
+}}
+}}
 
+.cml-nowcast-note {{
+.cml-nowcast-note {{
 .cml-nowcast-note {{
   margin-top: 14px;
   padding: 11px 14px;
@@ -2296,7 +2506,13 @@ body {{
   font-size: 12px;
   line-height: 1.5;
 }}
+}}
+}}
 
+.cml-radar-time {{
+  color: #087087;
+  font-weight: 850;
+}}
 /* ===================== SECTION TITLE ===================== */
 
 .cml-section-title {{
@@ -2446,6 +2662,25 @@ body {{
   box-shadow: 0 6px 14px rgba(23, 67, 84, 0.15);
 }}
 
+.cml-icon-sun {{
+  background: linear-gradient(135deg, #ffe99a, #f9b843);
+}}
+
+.cml-icon-cloud {{
+  background: linear-gradient(135deg, #dbe6ea, #93aab5);
+}}
+
+.cml-icon-rain {{
+  background: linear-gradient(135deg, #9ed4ef, #327eae);
+}}
+
+.cml-icon-snow {{
+  background: linear-gradient(135deg, #eff9ff, #b8d5e3);
+}}
+
+.cml-icon-thunder {{
+  background: linear-gradient(135deg, #cbb3e6, #67458b);
+}}
 .cml-icon-sun {{ background: linear-gradient(135deg, #ffe99a, #f9b843); }}
 .cml-icon-cloud {{ background: linear-gradient(135deg, #dbe6ea, #93aab5); }}
 .cml-icon-rain {{ background: linear-gradient(135deg, #9ed4ef, #327eae); }}
@@ -2561,6 +2796,48 @@ body {{
   line-height: 1.6;
 }}
 
+.cml-hour-header {{
+  position: relative;
+  overflow: hidden;
+  margin-top: 12px;
+  padding: 29px 31px;
+  border-radius: 22px;
+  background: linear-gradient(135deg, #122a50, #274d85);
+  color: #ffffff;
+  box-shadow: 0 12px 28px rgba(25, 50, 98, 0.22);
+}}
+
+.cml-hour-header::after {{
+  content: "☾";
+  position: absolute;
+  top: 0;
+  right: 27px;
+  color: rgba(255, 255, 255, 0.12);
+  font-size: 88px;
+}}
+
+.cml-hour-header > * {{
+  position: relative;
+  z-index: 1;
+}}
+
+.cml-hour-header span {{
+  color: #aeeaf2;
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 1.8px;
+}}
+
+.cml-hour-header h2 {{
+  margin: 9px 0 6px;
+  font-size: 28px;
+}}
+
+.cml-hour-header p {{
+  margin: 0;
+  color: #dceaff;
+  font-size: 13px;
+}}
 /* ===================== CHART ===================== */
 
 .cml-chart-box {{
@@ -2590,6 +2867,37 @@ body {{
   height: 330px;
 }}
 
+.cml-tabs-bar {{
+  display: flex;
+  gap: 10px;
+  margin: 18px 0 14px;
+  overflow-x: auto;
+  padding-bottom: 5px;
+}}
+
+.cml-tab-btn {{
+  border: 1px solid #cfe2e7;
+  border-radius: 12px;
+  padding: 10px 16px;
+  background: #ffffff;
+  color: #3b6371;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+}}
+
+.cml-tab-btn:hover {{
+  border-color: #0b7f98;
+  background: #eaf8fa;
+}}
+
+.cml-tab-btn.active {{
+  border-color: #087087;
+  background: linear-gradient(135deg, #0d90a7, #087087);
+  color: #ffffff;
+  box-shadow: 0 5px 12px rgba(8, 112, 135, 0.25);
+}}
 /* ===================== TABELLA ===================== */
 
 .cml-table-wrap {{
@@ -2706,6 +3014,7 @@ body {{
   font-size: 22px;
 }}
 
+
 .cml-night-row td {{
   border-bottom-color: rgba(255, 255, 255, 0.10);
   color: #e5f0ff;
@@ -2724,6 +3033,186 @@ body {{
   background: #142549;
 }}
 
+/* =========================================================
+   NAVIGAZIONE HOME / PREVISIONI / RADAR
+   ========================================================= */
+
+.cml-view[hidden] {{
+  display: none !important;
+}}
+
+.cml-home-hero {{
+  position: relative;
+  overflow: hidden;
+  margin: 8px 0 28px;
+  padding: 58px 48px;
+  border: 1px solid #07516c;
+  border-radius: 28px;
+  color: #ffffff;
+  background:
+    radial-gradient(circle at 85% 15%, rgba(255, 210, 92, 0.20), transparent 28%),
+    linear-gradient(135deg, #06324d 0%, #075b78 52%, #087f91 100%);
+  box-shadow: 0 14px 32px rgba(9, 61, 83, 0.22);
+}}
+
+.cml-home-hero::before {{
+  content: "";
+  position: absolute;
+  right: -85px;
+  bottom: -105px;
+  width: 310px;
+  height: 310px;
+  border: 36px solid rgba(255, 255, 255, 0.08);
+  border-radius: 50%;
+}}
+
+.cml-home-hero > * {{
+  position: relative;
+  z-index: 1;
+}}
+
+.cml-home-hero h1 {{
+  max-width: 800px;
+  margin: 20px 0 13px;
+  color: #ffffff;
+  font-size: 48px;
+  font-weight: 850;
+  letter-spacing: -1.5px;
+  line-height: 1.08;
+}}
+
+.cml-home-hero p {{
+  max-width: 730px;
+  margin: 0;
+  color: #e2f5f8;
+  font-size: 16px;
+  line-height: 1.7;
+}}
+
+.cml-home-actions {{
+  display: grid;
+  grid-template-columns: repeat(2, minmax(260px, 1fr));
+  gap: 20px;
+  max-width: 980px;
+  margin: 0 auto 32px;
+}}
+
+.cml-home-choice {{
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-height: 220px;
+  padding: 28px;
+  border: 1px solid #d2e4e9;
+  border-radius: 24px;
+  background: #ffffff;
+  color: #102b3b;
+  cursor: pointer;
+  text-align: left;
+  box-shadow: 0 10px 28px rgba(23, 67, 84, 0.12);
+  transition: transform 0.18s ease, box-shadow 0.18s ease,
+              border-color 0.18s ease;
+}}
+
+.cml-home-choice:hover,
+.cml-home-choice:focus-visible {{
+  transform: translateY(-4px);
+  border-color: #087087;
+  outline: none;
+  box-shadow: 0 15px 32px rgba(8, 112, 135, 0.22);
+}}
+
+.cml-home-choice-icon {{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 62px;
+  height: 62px;
+  margin-bottom: 18px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #d9f4f7, #a8e1e7);
+  font-size: 31px;
+}}
+
+.cml-home-choice.radar .cml-home-choice-icon {{
+  background: linear-gradient(135deg, #dce7ff, #adc5ec);
+}}
+
+.cml-home-choice h2 {{
+  margin: 0 0 8px;
+  color: #102b3b;
+  font-size: 24px;
+}}
+
+.cml-home-choice p {{
+  margin: 0;
+  color: #607987;
+  font-size: 14px;
+  line-height: 1.6;
+}}
+
+.cml-home-choice span {{
+  margin-top: auto;
+  padding-top: 20px;
+  color: #087087;
+  font-size: 13px;
+  font-weight: 850;
+}}
+
+.cml-nav-bar {{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin: 8px 0 20px;
+  padding: 12px 15px;
+  border: 1px solid #d5e4e9;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 6px 18px rgba(23, 67, 84, 0.08);
+}}
+
+.cml-back-btn {{
+  border: 0;
+  border-radius: 10px;
+  padding: 10px 14px;
+  background: #e7f6f8;
+  color: #087087;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 850;
+  transition: background 0.16s ease, transform 0.16s ease;
+}}
+
+.cml-back-btn:hover {{
+  background: #cdeef2;
+  transform: translateX(-2px);
+}}
+
+.cml-nav-title {{
+  color: #102b3b;
+  font-size: 14px;
+  font-weight: 850;
+}}
+
+@media (max-width: 760px) {{
+  .cml-home-hero {{
+    padding: 38px 25px;
+  }}
+
+  .cml-home-hero h1 {{
+    font-size: 36px;
+  }}
+
+  .cml-home-actions {{
+    grid-template-columns: 1fr;
+  }}
+
+  .cml-nav-bar {{
+    align-items: flex-start;
+    flex-direction: column;
+  }}
+}}
 /* ===================== MEDIA ===================== */
 
 @media (max-width: 760px) {{
@@ -2800,72 +3289,25 @@ body {{
 
 <body>
 
+<!-- =====================================================
+     HOME INIZIALE
+     ===================================================== -->
 <!-- ===================== HOME ===================== -->
 <section id="cml-home" class="cml-view">
 
-<section class="cml-home-hero">
-  
-  <!-- Mappa stilizzata della Calabria -->
-  <svg class="cml-calabria-bg" viewBox="0 0 200 400" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-    <!-- Sagoma semplificata della Calabria -->
-    <path d="M85 20 
-             C90 18, 95 20, 100 22 
-             C105 25, 108 30, 110 35 
-             C112 42, 113 50, 112 58 
-             C110 68, 108 78, 105 88 
-             C102 98, 98 108, 95 118 
-             C92 128, 90 138, 88 148 
-             C86 158, 85 168, 84 178 
-             C83 188, 83 198, 84 208 
-             C85 218, 87 228, 90 238 
-             C93 248, 97 258, 102 268 
-             C107 278, 113 288, 118 298 
-             C122 308, 125 318, 126 328 
-             C127 338, 126 348, 123 358 
-             C120 368, 115 376, 108 382 
-             C102 388, 95 392, 88 394 
-             C82 395, 76 394, 71 391 
-             C66 388, 62 383, 59 377 
-             C56 371, 54 364, 53 357 
-             C52 350, 52 343, 53 336 
-             C54 329, 56 322, 59 315 
-             C62 308, 66 301, 71 295 
-             C76 289, 81 283, 86 277 
-             C88 274, 89 271, 89 268 
-             C88 262, 86 256, 83 250 
-             C80 244, 76 238, 72 233 
-             C68 228, 64 223, 61 218 
-             C58 213, 56 208, 55 203 
-             C54 198, 54 193, 55 188 
-             C56 183, 58 178, 61 174 
-             C64 170, 68 166, 72 163 
-             C76 160, 80 157, 84 155 
-             C87 153, 89 151, 90 148 
-             C91 144, 90 140, 88 136 
-             C85 130, 81 124, 76 119 
-             C71 114, 66 109, 62 104 
-             C58 99, 55 94, 53 88 
-             C51 82, 50 76, 51 70 
-             C52 64, 55 58, 59 53 
-             C63 48, 68 44, 74 41 
-             C78 39, 82 37, 85 35 
-             C85 30, 85 25, 85 20 Z" 
-          stroke-linejoin="round" 
-          stroke-linecap="round"/>
-  </svg>
+  <section class="cml-home-hero">
+    <div class="cml-brand">
+      <span class="cml-brand-mark"></span>
+      CALABRIA · METEOROLOGIA LOCALE
+    </div>
 
-  <div class="cml-brand">
-    <span class="cml-brand-mark"></span>
-    CALABRIA · METEOROLOGIA LOCALE
-  </div>
+    <h1>Calabria Meteo Lab</h1>
 
-  <h1>Calabria Meteo Lab</h1>
-
-  <p>
-    Previsioni meteorologiche locali e radar delle precipitazioni
-    per la Calabria. Scegli la sezione che vuoi consultare.
-  </p>
-</section>
+    <p>
+      Previsioni meteorologiche locali e radar delle precipitazioni
+      per la Calabria. Scegli la sezione che vuoi consultare.
+    </p>
+  </section>
 
   <section class="cml-home-actions">
 
@@ -2908,6 +3350,9 @@ body {{
 </section>
 
 
+<!-- =====================================================
+     PAGINA PREVISIONI
+     ===================================================== -->
 <!-- ===================== PREVISIONI ===================== -->
 <section id="cml-previsioni" class="cml-view" hidden>
 
@@ -2990,6 +3435,7 @@ body {{
   </section>
 
   {mare_html}
+
   {sintesi_html}
 
   <section class="cml-three-days">
@@ -3028,6 +3474,9 @@ body {{
 </section>
 
 
+<!-- =====================================================
+     PAGINA RADAR
+     ===================================================== -->
 <!-- ===================== RADAR ===================== -->
 <section id="cml-radar" class="cml-view" hidden>
 
@@ -3104,12 +3553,16 @@ function mostraVista(nome) {{
     vista.setAttribute("hidden", "");
   }});
 
+  const vistaDaMostrare = document.getElementById(
+    "cml-" + nome
+  );
   const vistaDaMostrare = document.getElementById("cml-" + nome);
 
   if (vistaDaMostrare) {{
     vistaDaMostrare.removeAttribute("hidden");
   }}
 
+  if (nome === "radar" && typeof radarMap !== "undefined") {{
   if (
     nome === "radar"
     && typeof radarMap !== "undefined"
@@ -3117,6 +3570,7 @@ function mostraVista(nome) {{
   ) {{
     setTimeout(function() {{
       radarMap.invalidateSize();
+    }}), 200);
     }}, 200);
   }}
 
@@ -3126,6 +3580,7 @@ function mostraVista(nome) {{
   }});
 }}
 
+let meteoChartInstance = null;
 /* ---------- GRAFICO METEO ---------- */
 
 function creaGrafico(chiave) {{
@@ -3315,12 +3770,14 @@ function mostraGiorno(chiave, scheda, event) {{
   scheda.setAttribute("aria-expanded", "true");
 
   if (typeof Chart !== "undefined") {{
+    requestAnimationFrame(function() {{ creaGrafico(chiave); }});
     requestAnimationFrame(function() {{
       creaGrafico(chiave);
     }});
   }}
 }}
 
+let radarMap = L.map("radar-map", {{
 /* ---------- MAPPA RADAR ---------- */
 
 radarMap = L.map("radar-map", {{
@@ -3365,6 +3822,9 @@ function visualizzaFrameRadar(indice) {{
     return;
   }}
 
+  const tempoPrecedente = radarTimes[
+    radarFrameIndex
+  ];
   const tempoPrecedente = radarTimes[radarFrameIndex];
 
   if (radarLayers[tempoPrecedente]) {{
@@ -3381,12 +3841,24 @@ function visualizzaFrameRadar(indice) {{
 
   const data = new Date(tempo * 1000);
 
+  const ore = String(
+    data.getHours()
+  ).padStart(2, "0");
+
+  const minuti = String(
+    data.getMinutes()
+  ).padStart(2, "0");
   const ore = String(data.getHours()).padStart(2, "0");
   const minuti = String(data.getMinutes()).padStart(2, "0");
 
+  const timestamp = document.getElementById(
+    "radar-timestamp"
+  );
   const timestamp = document.getElementById("radar-timestamp");
 
   if (timestamp) {{
+    timestamp.textContent =
+      ore + ":" + minuti + " (ora locale)";
     timestamp.textContent = ore + ":" + minuti + " (ora locale)";
   }}
 }}
@@ -3401,12 +3873,18 @@ function avviaRadar() {{
       return;
     }}
 
+    const prossimo =
+      (radarFrameIndex + 1) % radarTimes.length;
+
     const prossimo = (radarFrameIndex + 1) % radarTimes.length;
     visualizzaFrameRadar(prossimo);
   }}, 800);
 }}
 
 function togglePlayRadar() {{
+  const bottone = document.getElementById(
+    "btn-play"
+  );
   const bottone = document.getElementById("btn-play");
 
   if (radarPlaying) {{
@@ -3427,6 +3905,7 @@ fetch(
     return response.json();
   }})
   .then(function(payload) {{
+    // ... tuo codice ...
     const frames = (
       payload
       && payload.radar
@@ -3467,9 +3946,14 @@ fetch(
     }}
   }})
   .catch(function() {{
+    const timestamp = document.getElementById(
+      "radar-timestamp"
+    );
     const timestamp = document.getElementById("radar-timestamp");
 
     if (timestamp) {{
+      timestamp.textContent =
+        "radar temporaneamente non disponibile";
       timestamp.textContent = "radar temporaneamente non disponibile";
     }}
   }});
@@ -3479,6 +3963,7 @@ fetch(
 document.addEventListener("DOMContentLoaded", function() {{
   mostraVista("home");
 }});
+
 </script>
 
 </body>

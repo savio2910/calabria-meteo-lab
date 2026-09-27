@@ -1881,7 +1881,7 @@ def genera_app_completa(
             </div>
 
             <div class="cml-metric-value">
-              {html.escape(valore)}
+              {html.escape(str(valore))}
             </div>
           </div>
         </div>

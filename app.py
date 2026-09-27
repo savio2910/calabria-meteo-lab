@@ -195,6 +195,30 @@ VARIABILI_GIORNALIERE = [
     "wind_direction_10m_dominant",
 ]
 
+VARIABILI_ORARIE = [
+    "t2m",
+    "d2m",
+    "u10",
+    "v10",
+    "msl",
+    "tp"
+]
+
+variabili_presenti = [
+    col for col in VARIABILI_ORARIE
+    if col in df.columns
+]
+
+variabili_mancanti = [
+    col for col in VARIABILI_ORARIE
+    if col not in df.columns
+]
+
+if variabili_mancanti:
+    print("Variabili mancanti:", variabili_mancanti)
+
+df_orario = df[variabili_presenti]
+
 VARIABILI_TERRESTRI_FISICHE = [
     "temperature_2m",
     "relative_humidity_2m",

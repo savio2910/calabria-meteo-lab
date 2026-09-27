@@ -1707,118 +1707,87 @@ body {{
   position: relative;
   overflow: hidden;
   margin: 8px 0 28px;
-  padding: 58px 48px;
+  padding: 70px 48px 50px;
   border: 1px solid #07516c;
   border-radius: 28px;
   color: #ffffff;
   background:
-    radial-gradient(circle at 85% 15%, rgba(255, 210, 92, 0.20), transparent 28%),
-    linear-gradient(135deg, #06324d 0%, #075b78 52%, #087f91 100%);
+    radial-gradient(circle at 85% 15%, rgba(255, 210, 92, 0.25), transparent 35%),
+    radial-gradient(circle at 15% 85%, rgba(13, 119, 167, 0.35), transparent 40%),
+    linear-gradient(135deg, #06324d 0%, #075b78 40%, #0a7a91 70%, #0d94a7 100%);
   box-shadow: 0 14px 32px rgba(9, 61, 83, 0.22);
+  min-height: 380px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }}
 
 .cml-home-hero::before {{
   content: "";
   position: absolute;
-  right: -85px;
-  bottom: -105px;
-  width: 310px;
-  height: 310px;
-  border: 36px solid rgba(255, 255, 255, 0.08);
-  border-radius: 50%;
+  top: -50%;
+  right: -20%;
+  width: 60%;
+  height: 200%;
+  background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.08) 0%, transparent 70%);
+  transform: rotate(25deg);
+  pointer-events: none;
+}}
+
+.cml-home-hero::after {{
+  content: "";
+  position: absolute;
+  bottom: -30%;
+  left: -10%;
+  width: 50%;
+  height: 150%;
+  background: radial-gradient(ellipse at center, rgba(13, 119, 167, 0.15) 0%, transparent 70%);
+  transform: rotate(-15deg);
+  pointer-events: none;
 }}
 
 .cml-home-hero > * {{
   position: relative;
-  z-index: 1;
+  z-index: 2;
 }}
 
 .cml-home-hero h1 {{
   max-width: 800px;
   margin: 20px 0 13px;
   color: #ffffff;
-  font-size: 48px;
+  font-size: 52px;
   font-weight: 850;
   letter-spacing: -1.5px;
   line-height: 1.08;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
 }}
 
 .cml-home-hero p {{
   max-width: 730px;
   margin: 0;
   color: #e2f5f8;
-  font-size: 16px;
+  font-size: 17px;
   line-height: 1.7;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.20);
 }}
 
-.cml-home-actions {{
-  display: grid;
-  grid-template-columns: repeat(2, minmax(260px, 1fr));
-  gap: 20px;
-  max-width: 980px;
-  margin: 0 auto 32px;
+/* Mappa stilizzata della Calabria come sfondo decorativo */
+.cml-calabria-bg {{
+  position: absolute;
+  bottom: -80px;
+  right: -60px;
+  width: 420px;
+  height: 420px;
+  opacity: 0.12;
+  pointer-events: none;
+  z-index: 1;
+  filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.15));
 }}
 
-.cml-home-choice {{
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  min-height: 220px;
-  padding: 28px;
-  border: 1px solid #d2e4e9;
-  border-radius: 24px;
-  background: #ffffff;
-  color: #102b3b;
-  cursor: pointer;
-  text-align: left;
-  box-shadow: 0 10px 28px rgba(23, 67, 84, 0.12);
-  transition: transform 0.18s ease, box-shadow 0.18s ease,
-              border-color 0.18s ease;
-}}
-
-.cml-home-choice:hover,
-.cml-home-choice:focus-visible {{
-  transform: translateY(-4px);
-  border-color: #087087;
-  outline: none;
-  box-shadow: 0 15px 32px rgba(8, 112, 135, 0.22);
-}}
-
-.cml-home-choice-icon {{
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 62px;
-  height: 62px;
-  margin-bottom: 18px;
-  border-radius: 18px;
-  background: linear-gradient(135deg, #d9f4f7, #a8e1e7);
-  font-size: 31px;
-}}
-
-.cml-home-choice.radar .cml-home-choice-icon {{
-  background: linear-gradient(135deg, #dce7ff, #adc5ec);
-}}
-
-.cml-home-choice h2 {{
-  margin: 0 0 8px;
-  color: #102b3b;
-  font-size: 24px;
-}}
-
-.cml-home-choice p {{
-  margin: 0;
-  color: #607987;
-  font-size: 14px;
-  line-height: 1.6;
-}}
-
-.cml-home-choice span {{
-  margin-top: auto;
-  padding-top: 20px;
-  color: #087087;
-  font-size: 13px;
-  font-weight: 850;
+.cml-calabria-bg path {{
+  fill: #ffffff;
+  stroke: rgba(255, 255, 255, 0.30);
+  stroke-width: 2;
 }}
 
 /* ===================== NAV BAR ===================== */
@@ -2835,6 +2804,67 @@ body {{
 <section id="cml-home" class="cml-view">
 
   <section class="cml-home-hero">
+  
+  <!-- Mappa stilizzata della Calabria -->
+  <svg class="cml-calabria-bg" viewBox="0 0 200 400" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <!-- Sagoma semplificata della Calabria -->
+    <path d="M85 20 
+             C90 18, 95 20, 100 22 
+             C105 25, 108 30, 110 35 
+             C112 42, 113 50, 112 58 
+             C110 68, 108 78, 105 88 
+             C102 98, 98 108, 95 118 
+             C92 128, 90 138, 88 148 
+             C86 158, 85 168, 84 178 
+             C83 188, 83 198, 84 208 
+             C85 218, 87 228, 90 238 
+             C93 248, 97 258, 102 268 
+             C107 278, 113 288, 118 298 
+             C122 308, 125 318, 126 328 
+             C127 338, 126 348, 123 358 
+             C120 368, 115 376, 108 382 
+             C102 388, 95 392, 88 394 
+             C82 395, 76 394, 71 391 
+             C66 388, 62 383, 59 377 
+             C56 371, 54 364, 53 357 
+             C52 350, 52 343, 53 336 
+             C54 329, 56 322, 59 315 
+             C62 308, 66 301, 71 295 
+             C76 289, 81 283, 86 277 
+             C88 274, 89 271, 89 268 
+             C88 262, 86 256, 83 250 
+             C80 244, 76 238, 72 233 
+             C68 228, 64 223, 61 218 
+             C58 213, 56 208, 55 203 
+             C54 198, 54 193, 55 188 
+             C56 183, 58 178, 61 174 
+             C64 170, 68 166, 72 163 
+             C76 160, 80 157, 84 155 
+             C87 153, 89 151, 90 148 
+             C91 144, 90 140, 88 136 
+             C85 130, 81 124, 76 119 
+             C71 114, 66 109, 62 104 
+             C58 99, 55 94, 53 88 
+             C51 82, 50 76, 51 70 
+             C52 64, 55 58, 59 53 
+             C63 48, 68 44, 74 41 
+             C78 39, 82 37, 85 35 
+             C85 30, 85 25, 85 20 Z" 
+          stroke-linejoin="round" 
+          stroke-linecap="round"/>
+  </svg>
+
+  <div class="cml-brand">
+    <span class="cml-brand-mark"></span>
+    CALABRIA · METEOROLOGIA LOCALE
+  </div>
+
+  <h1>Calabria Meteo Lab</h1>
+
+  <p>
+    Previsioni meteorologiche locali e radar delle precipitazioni
+    per la Calabria. Scegli la sezione che vuoi consultare.
+  </p>
     <div class="cml-brand">
       <span class="cml-brand-mark"></span>
       CALABRIA · METEOROLOGIA LOCALE

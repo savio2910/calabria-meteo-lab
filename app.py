@@ -49,44 +49,7 @@ st.markdown(
       iframe {
         background: #eef5f8 !important;
       }
-    
-.cml-day-card {
-  cursor: pointer;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
-
-.cml-day-card:hover, .cml-day-card:focus-visible {
-  border-color: #087087;
-  box-shadow: 0 10px 28px rgba(8, 112, 135, 0.23);
-}
-
-.cml-day-card.active {
-  grid-column: 1 / -1;
-  border-color: #087087;
-}
-
-.cml-day-inline-detail[hidden] { display: none !important; }
-
-.cml-day-inline-detail {
-  margin-top: 22px;
-  padding-top: 18px;
-  border-top: 2px solid #d5e4e9;
-  cursor: default;
-}
-
-.cml-day-inline-detail h3 {
-  margin: 0 0 10px;
-  color: #102b3b;
-  font-size: 21px;
-}
-
-.cml-day-inline-empty {
-  margin-top: 16px;
-  color: #607987;
-  font-size: 13px;
-}
-
-</style>
+    </style>
     """,
     unsafe_allow_html=True,
 )
@@ -1566,35 +1529,15 @@ def genera_app_completa(
                 </div>
               </div>
             </article>
-            <!--DETtaglioGiorno-->
+            <!--DETtaglio-{riga["time"].date()}-->
             """
         )
 
-    date_disponibili = sorted(
-        ore["time"].dt.date.unique()
-    )
-
-    if not date_disponibili:
-        raise RuntimeError(
-            "Non sono disponibili dati orari futuri per la località selezionata."
-        )
-
-    dati_grafici = {}
-    chiave_iniziale = str(
-        date_disponibili[0]
-    )
-
-    dati_grafici_json = json.dumps(
-        dati_grafici,
-        ensure_ascii=False,
-    )
-
-    # Generiamo i dettagli inline (tabella + grafico) per ogni giorno
+    # Costruiamo i dettagli orari inline per ogni giorno
     dettagli_inline = {}
     for indice, data_giorno in enumerate(date_disponibili):
         chiave = str(data_giorno)
         ore_giorno = ore.loc[ore["time"].dt.date == data_giorno].copy()
-
         # Tabella
         righe_tabella = []
         for _, riga in ore_giorno.iterrows():
@@ -1605,17 +1548,17 @@ def genera_app_completa(
                 <tr class="{classe_notte}">
                   <td>{riga["time"].strftime("%H:%M")}</td>
                   <td class="cml-scenario-cell">
-                    <span class="cml-table-icon">{{icona_ora_html}}</span>
-                    <span>{{html.escape(str(riga["Scenario"]))}}</span>
+                    <span class="cml-table-icon">{icona_ora_html}</span>
+                    <span>{html.escape(str(riga["Scenario"]))}</span>
                   </td>
-                  <td>{{numero(riga["temperature_2m"], 1)}}</td>
-                  <td>{{numero(riga["apparent_temperature"], 1)}}</td>
-                  <td>{{numero(riga["precipitation"], 1)}}</td>
-                  <td>{{numero(riga["wind_speed_10m"], 0)}}</td>
-                  <td>{{html.escape(str(riga["Da"]))}}</td>
-                  <td>{{numero(riga["wind_gusts_10m"], 0)}}</td>
-                  <td>{{numero(riga["cloud_cover"], 0)}}</td>
-                  <td>{{numero(riga["relative_humidity_2m"], 0)}}</td>
+                  <td>{numero(riga["temperature_2m"], 1)}</td>
+                  <td>{numero(riga["apparent_temperature"], 1)}</td>
+                  <td>{numero(riga["precipitation"], 1)}</td>
+                  <td>{numero(riga["wind_speed_10m"], 0)}</td>
+                  <td>{html.escape(str(riga["Da"]))}</td>
+                  <td>{numero(riga["wind_gusts_10m"], 0)}</td>
+                  <td>{numero(riga["cloud_cover"], 0)}</td>
+                  <td>{numero(riga["relative_humidity_2m"], 0)}</td>
                 </tr>
                 """
             )
@@ -1629,12 +1572,17 @@ def genera_app_completa(
                 <th>Nubi %</th><th>Umidità %</th>
               </tr>
             </thead>
-            <tbody>{{''.join(righe_tabella)}}</tbody>
+            <tbody>{''.join(righe_tabella)}</tbody>
           </table>
         </div>
         """
-
         # Grafico
+        dati_grafici[chiave] = {
+            "ore": ore_giorno["time"].dt.strftime("%H:%M").tolist(),
+            "temperatura": [round(float(v),1) if pd.notna(v) else None for v in ore_giorno["temperature_2m"].tolist()],
+            "vento": [round(float(v),1) if pd.notna(v) else None for v in ore_giorno["wind_speed_10m"].tolist()],
+            "precipitazione": [round(float(v),1) if pd.notna(v) else None for v in ore_giorno["precipitation"].tolist()],
+        }
         grafico_html = f"""
         <div class="cml-chart-box" onclick="event.stopPropagation()">
           <div class="cml-chart-title">📊 Andamento orario</div>
@@ -1644,22 +1592,163 @@ def genera_app_completa(
           </div>
         </div>
         """
-
         dettagli_inline[chiave] = f"""
         <div id="dettaglio-{chiave}" class="cml-day-inline-detail" hidden>
-          <h3>🕒 Previsione oraria · {{html.escape(data_it(data_giorno).title())}}</h3>
-          {{grafico_html}}
-          {{tabella_html}}
+          <h3>🕒 Previsione oraria · {html.escape(data_it(data_giorno).title())}</h3>
+          {grafico_html}
+          {tabella_html}
         </div>
         """
-
     # Inseriamo i dettagli dentro le carte
     carte_html_con_dettagli = []
     for carta, (_, riga) in zip(carte_html, giorni.iterrows()):
         chiave = str(riga["time"].date())
         dettaglio = dettagli_inline.get(chiave, '<div class="cml-day-inline-empty">Nessuna ora futura disponibile.</div>')
-        carte_html_con_dettagli.append(carta.replace('<!--DETtaglioGiorno-->', dettaglio))
+        carte_html_con_dettagli.append(carta.replace(f'<!--DETtaglio-{riga["time"].date()}-->', dettaglio))
     carte_html = carte_html_con_dettagli
+
+    date_disponibili = sorted(
+        ore["time"].dt.date.unique()
+    )
+
+    if not date_disponibili:
+        raise RuntimeError(
+            "Non sono disponibili dati orari futuri per la località selezionata."
+        )
+
+    dati_grafici = {}
+    tabelle_html = []
+
+    for indice, data_giorno in enumerate(date_disponibili):
+        chiave = str(data_giorno)
+
+        ore_giorno = ore.loc[
+            ore["time"].dt.date == data_giorno
+        ].copy()
+
+        dati_grafici[chiave] = {
+            "ore": ore_giorno["time"].dt.strftime(
+                "%H:%M"
+            ).tolist(),
+            "temperatura": [
+                round(float(valore), 1)
+                if pd.notna(valore)
+                else None
+                for valore in ore_giorno[
+                    "temperature_2m"
+                ].tolist()
+            ],
+            "vento": [
+                round(float(valore), 1)
+                if pd.notna(valore)
+                else None
+                for valore in ore_giorno[
+                    "wind_speed_10m"
+                ].tolist()
+            ],
+            "precipitazione": [
+                round(float(valore), 1)
+                if pd.notna(valore)
+                else None
+                for valore in ore_giorno[
+                    "precipitation"
+                ].tolist()
+            ],
+        }
+
+        classe_attiva = (
+            "active"
+            if indice == 0
+            else ""
+        )
+
+        stile_visibilita = (
+            "display:block;"
+            if indice == 0
+            else "display:none;"
+        )
+
+        righe_tabella = []
+
+        for _, riga in ore_giorno.iterrows():
+            classe_notte = (
+                "cml-night-row"
+                if bool(riga.get("Notte", False))
+                else ""
+            )
+            icona_ora_html = icona_meteo_html(
+                riga.get("weather_code"),
+                bool(riga.get("Notte", False)),
+            )
+
+            righe_tabella.append(
+                f"""
+                <tr class="{classe_notte}">
+                  <td>{riga["time"].strftime("%H:%M")}</td>
+
+                  <td class="cml-scenario-cell">
+                    <span class="cml-table-icon">
+                      {icona_ora_html}
+                    </span>
+
+                    <span>
+                      {html.escape(str(riga["Scenario"]))}
+                    </span>
+                  </td>
+
+                  <td>{numero(riga["temperature_2m"], 1)}</td>
+                  <td>{numero(riga["apparent_temperature"], 1)}</td>
+                  <td>{numero(riga["precipitation"], 1)}</td>
+                  <td>{numero(riga["wind_speed_10m"], 0)}</td>
+                  <td>{html.escape(str(riga["Da"]))}</td>
+                  <td>{numero(riga["wind_gusts_10m"], 0)}</td>
+                  <td>{numero(riga["cloud_cover"], 0)}</td>
+                  <td>{numero(riga["relative_humidity_2m"], 0)}</td>
+                </tr>
+                """
+            )
+
+        tabelle_html.append(
+            f"""
+            <div
+              id="tab-{chiave}"
+              class="cml-day-table-container"
+              style="{stile_visibilita}"
+            >
+              <div class="cml-table-wrap">
+                <table class="cml-table">
+                  <thead>
+                    <tr>
+                      <th>Ora</th>
+                      <th>Scenario</th>
+                      <th>Temp. °C</th>
+                      <th>Percepita °C</th>
+                      <th>Pioggia mm</th>
+                      <th>Vento km/h</th>
+                      <th>Da</th>
+                      <th>Raffica km/h</th>
+                      <th>Nubi %</th>
+                      <th>Umidità %</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {''.join(righe_tabella)}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            """
+        )
+
+    chiave_iniziale = str(
+        date_disponibili[0]
+    )
+
+    dati_grafici_json = json.dumps(
+        dati_grafici,
+        ensure_ascii=False,
+    )
 
     documento_html = f"""
 <!DOCTYPE html>
@@ -2740,43 +2829,6 @@ body {{
     height: 280px;
   }}
 }}
-
-.cml-day-card {
-  cursor: pointer;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
-
-.cml-day-card:hover, .cml-day-card:focus-visible {
-  border-color: #087087;
-  box-shadow: 0 10px 28px rgba(8, 112, 135, 0.23);
-}
-
-.cml-day-card.active {
-  grid-column: 1 / -1;
-  border-color: #087087;
-}
-
-.cml-day-inline-detail[hidden] { display: none !important; }
-
-.cml-day-inline-detail {
-  margin-top: 22px;
-  padding-top: 18px;
-  border-top: 2px solid #d5e4e9;
-  cursor: default;
-}
-
-.cml-day-inline-detail h3 {
-  margin: 0 0 10px;
-  color: #102b3b;
-  font-size: 21px;
-}
-
-.cml-day-inline-empty {
-  margin-top: 16px;
-  color: #607987;
-  font-size: 13px;
-}
-
 </style>
 </head>
 

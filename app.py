@@ -1262,173 +1262,269 @@ def genera_app_completa(
         for icona, etichetta, valore in metriche
     )
 
-    maregiornihtml = ""
+    mare_html = ""
 
     if (
-        datimare is not None
-        and isinstance(datimare, dict)
-        and datimare.get("daily")
+        dati_mare is not None
+        and isinstance(dati_mare, dict)
+        and dati_mare.get("current")
     ):
-        maredaily = datimare["daily"]
+        corrente_mare = dati_mare["current"]
 
-        datemare = maredaily.get("time", [])
-        altezzamare = maredaily.get("wave_height_max", [])
-        direzionemare = maredaily.get(
-            "wave_direction_dominant",
-            [],
-        )
-        periodomare = maredaily.get("wave_period_max", [])
-        altezzavento = maredaily.get(
-            "wind_wave_height_max",
-            [],
-        )
-        altezzaswell = maredaily.get(
-            "swell_wave_height_max",
-            [],
-        )
-        direzioneswell = maredaily.get(
-            "swell_wave_direction_dominant",
-            [],
+        altezza_onda = corrente_mare.get(
+            "wave_height"
         )
 
-        righemare = []
+        direzione_onda = corrente_mare.get(
+            "wave_direction"
+        )
 
-        for indicemare, datamaregiorno in enumerate(datemare):
-            altezzaonda = (
-                altezzamare[indicemare]
-                if indicemare < len(altezzamare)
+        periodo_onda = corrente_mare.get(
+            "wave_period"
+        )
+
+        periodo_picco = corrente_mare.get(
+            "wave_peak_period"
+        )
+
+        altezza_mare_vento = corrente_mare.get(
+            "wind_wave_height"
+        )
+
+        altezza_swell = corrente_mare.get(
+            "swell_wave_height"
+        )
+
+        temperatura_mare = corrente_mare.get(
+            "sea_surface_temperature"
+        )
+
+        stato_mare, icona_mare, classe_mare = (
+            stato_mare_da_onda(altezza_onda)
+        )
+
+        mare_html = f"""
+        <section class="cml-marine-box">
+          <div class="cml-marine-head">
+            <div>
+              <span class="cml-eyebrow">
+                BOLLETTINO COSTIERO
+              </span>
+
+              <h2>🌊 Vento e stato del mare</h2>
+
+              <p>
+                Previsione marina per il comune costiero di riferimento.
+                La cella modellistica più vicina è a circa
+                {numero(distanza_mare_km, 1, " km")}
+                dal punto selezionato.
+              </p>
+            </div>
+
+            <div class="cml-sea-status {classe_mare}">
+              <span>{icona_mare}</span>
+
+              <div>
+                <small>STATO DEL MARE</small>
+                <strong>{html.escape(stato_mare)}</strong>
+              </div>
+            </div>
+          </div>
+
+          <div class="cml-marine-grid">
+            <div class="cml-marine-card">
+              <span>🌊 Altezza onda</span>
+              <strong>{numero(altezza_onda, 2, " m")}</strong>
+              <small>Onda significativa</small>
+            </div>
+
+            <div class="cml-marine-card">
+              <span>🧭 Provenienza onda</span>
+              <strong>{direzione(direzione_onda)}</strong>
+              <small>{numero(direzione_onda, 0, "°")}</small>
+            </div>
+
+            <div class="cml-marine-card">
+              <span>〰️ Periodo medio</span>
+              <strong>{numero(periodo_onda, 1, " s")}</strong>
+              <small>Intervallo medio d'onda</small>
+            </div>
+
+            <div class="cml-marine-card">
+              <span>📈 Periodo di picco</span>
+              <strong>{numero(periodo_picco, 1, " s")}</strong>
+              <small>Energia dominante</small>
+            </div>
+
+            <div class="cml-marine-card">
+              <span>💨 Mare del vento</span>
+              <strong>{numero(altezza_mare_vento, 2, " m")}</strong>
+              <small>Componente wind sea</small>
+            </div>
+
+            <div class="cml-marine-card">
+              <span>🌐 Mare di fondo</span>
+              <strong>{numero(altezza_swell, 2, " m")}</strong>
+              <small>Componente swell</small>
+            </div>
+
+            <div class="cml-marine-card">
+              <span>🌡️ Temperatura mare</span>
+              <strong>{numero(temperatura_mare, 1, " °C")}</strong>
+              <small>Temperatura superficiale</small>
+            </div>
+          </div>
+
+          <div class="cml-marine-note">
+            ℹ️ La direzione indica <b>da dove proviene</b> il moto ondoso.
+            I valori sono stimati su griglia marina e possono essere meno
+            rappresentativi presso baie, porti, promontori e costa molto frastagliata.
+            Per navigazione e sicurezza consulta sempre fonti nautiche e avvisi ufficiali.
+          </div>
+        </section>
+        """
+        mare_giorni_html = ""
+
+    if (
+        dati_mare is not None
+        and isinstance(dati_mare, dict)
+        and dati_mare.get("daily")
+    ):
+        mare_daily = dati_mare["daily"]
+
+        date_mare = mare_daily.get("time", [])
+        altezza_mare = mare_daily.get("wave_height_max", [])
+        direzione_mare = mare_daily.get("wave_direction_dominant", [])
+        periodo_mare = mare_daily.get("wave_period_max", [])
+        altezza_vento = mare_daily.get("wind_wave_height_max", [])
+        altezza_swell = mare_daily.get("swell_wave_height_max", [])
+        direzione_swell = mare_daily.get("swell_wave_direction_dominant", [])
+
+        righe_mare = []
+
+        for i, data_mare in enumerate(date_mare):
+            altezza = (
+                altezza_mare[i]
+                if i < len(altezza_mare)
                 else None
             )
 
-            direzioneonda = (
-                direzionemare[indicemare]
-                if indicemare < len(direzionemare)
+            direzione = (
+                direzione_mare[i]
+                if i < len(direzione_mare)
                 else None
             )
 
-            periodoonda = (
-                periodomare[indicemare]
-                if indicemare < len(periodomare)
+            periodo = (
+                periodo_mare[i]
+                if i < len(periodo_mare)
                 else None
             )
 
-            altezzamarevento = (
-                altezzavento[indicemare]
-                if indicemare < len(altezzavento)
+            vento_onda = (
+                altezza_vento[i]
+                if i < len(altezza_vento)
                 else None
             )
 
-            altezzamarefondo = (
-                altezzaswell[indicemare]
-                if indicemare < len(altezzaswell)
+            swell = (
+                altezza_swell[i]
+                if i < len(altezza_swell)
                 else None
             )
 
-            direzionemarefondo = (
-                direzioneswell[indicemare]
-                if indicemare < len(direzioneswell)
+            direzione_swell_val = (
+                direzione_swell[i]
+                if i < len(direzione_swell)
                 else None
             )
 
-            statoonda, iconaonda, classeonda = (
-                statomaredaondaaltezzaonda(altezzaonda)
+            stato_mare, icona_mare, classe_mare = (
+                stato_mare_da_onda(altezza)
             )
 
-            if indicemare == 0:
-                etichettamare = "OGGI"
-            elif indicemare == 1:
-                etichettamare = "DOMANI"
-            elif indicemare == 2:
-                etichettamare = "DOPODOMANI"
+            if i == 0:
+                etichetta_mare = "OGGI"
+            elif i == 1:
+                etichetta_mare = "DOMANI"
+            elif i == 2:
+                etichetta_mare = "DOPODOMANI"
             else:
-                etichettamare = datait(datamaregiorno).title()
+                etichetta_mare = datait(data_mare).title()
 
-            righemare.append(
+            righe_mare.append(
                 f"""
                 <article class="cml-marine-day-card">
                     <div class="cml-marine-day-head">
                         <span class="cml-day-tag">
-                            {html.escape(etichettamare)}
+                            {html.escape(etichetta_mare)}
                         </span>
                         <span class="cml-day-date">
-                            {html.escape(datait(datamaregiorno))}
+                            {html.escape(datait(data_mare))}
                         </span>
                     </div>
 
-                    <div class="cml-marine-day-status {classeonda}">
-                        <span>{iconaonda}</span>
+                    <div class="cml-marine-day-status {classe_mare}">
+                        <span>{icona_mare}</span>
                         <div>
                             <small>STATO DEL MARE</small>
-                            <strong>{html.escape(statoonda)}</strong>
+                            <strong>{html.escape(stato_mare)}</strong>
                         </div>
                     </div>
 
                     <div class="cml-marine-day-grid">
                         <div class="cml-marine-day-card">
                             <span>Altezza massima</span>
-                            <strong>
-                                {numerovalore(altezzaonda, 2, "m")}
-                            </strong>
+                            <strong>{numerovalore(altezza, 2, "m")}</strong>
                             <small>Onda significativa</small>
                         </div>
 
                         <div class="cml-marine-day-card">
                             <span>Direzione dominante</span>
-                            <strong>
-                                {direzionegradi(direzioneonda)}
-                            </strong>
+                            <strong>{direzionegradi(direzione)}</strong>
                             <small>
-                                {numerovalore(direzioneonda, 0, "°")}
+                                {numerovalore(direzione, 0, "°")}
                             </small>
                         </div>
 
                         <div class="cml-marine-day-card">
                             <span>Periodo massimo</span>
-                            <strong>
-                                {numerovalore(periodoonda, 1, "s")}
-                            </strong>
+                            <strong>{numerovalore(periodo, 1, "s")}</strong>
                             <small>Periodo dell'onda</small>
                         </div>
 
                         <div class="cml-marine-day-card">
                             <span>Mare del vento</span>
-                            <strong>
-                                {numerovalore(altezzamarevento, 2, "m")}
-                            </strong>
+                            <strong>{numerovalore(vento_onda, 2, "m")}</strong>
                             <small>Wind sea</small>
                         </div>
 
                         <div class="cml-marine-day-card">
                             <span>Mare di fondo</span>
-                            <strong>
-                                {numerovalore(altezzamarefondo, 2, "m")}
-                            </strong>
-                            <small>
-                                Direzione:
-                                {direzionegradi(direzionemarefondo)}
-                            </small>
+                            <strong>{numerovalore(swell, 2, "m")}</strong>
+                            <small>Direzione {direzionegradi(direzione_swell_val)}</small>
                         </div>
                     </div>
                 </article>
                 """
             )
 
-        maregiornihtml = f"""
+        mare_giorni_html = f"""
         <section class="cml-marine-forecast-box">
             <div class="cml-section-title">
                 <div>
                     <span>PREVISIONE MARINA</span>
                     <h2>Il mare nei prossimi giorni</h2>
                     <p>
-                        Altezza d'onda, periodo e direzione
-                        sulla cella marina più vicina.
+                        Altezza d'onda, periodo, direzione e componenti
+                        del moto ondoso sulla cella marina più vicina.
                     </p>
                 </div>
                 <div class="cml-pill">72 ore</div>
             </div>
 
             <div class="cml-marine-days-grid">
-                {"".join(righemare)}
+                {"".join(righe_mare)}
             </div>
         </section>
         """
@@ -3221,230 +3317,230 @@ function creaGrafico(chiave) {{
   }});
 }}
 
-    function aggiornaGrafico(chiave) {{
-      const dati = datiGraficiPerGiorno[chiave];
-    
-      if (!dati || !meteoChartInstance) {{
-        return;
-      }}
-    
-      meteoChartInstance.data.labels = dati.ore;
-      meteoChartInstance.data.datasets[0].data = dati.temperatura;
-      meteoChartInstance.data.datasets[1].data = dati.vento;
-      meteoChartInstance.data.datasets[2].data = dati.precipitazione;
-    
-      meteoChartInstance.update();
+function aggiornaGrafico(chiave) {{
+  const dati = datiGraficiPerGiorno[chiave];
+
+  if (!dati || !meteoChartInstance) {{
+    return;
+  }}
+
+  meteoChartInstance.data.labels = dati.ore;
+  meteoChartInstance.data.datasets[0].data = dati.temperatura;
+  meteoChartInstance.data.datasets[1].data = dati.vento;
+  meteoChartInstance.data.datasets[2].data = dati.precipitazione;
+
+  meteoChartInstance.update();
+}}
+
+function mostraGiorno(chiave, bottone) {{
+  const sezioni = document.getElementsByClassName(
+    "cml-day-table-container"
+  );
+
+  for (let i = 0; i < sezioni.length; i += 1) {{
+    sezioni[i].style.display = "none";
+  }}
+
+  const pulsanti = document.getElementsByClassName(
+    "cml-tab-btn"
+  );
+
+  for (let i = 0; i < pulsanti.length; i += 1) {{
+    pulsanti[i].classList.remove("active");
+  }}
+
+  const target = document.getElementById(
+    "tab-" + chiave
+  );
+
+  if (target) {{
+    target.style.display = "block";
+  }}
+
+  bottone.classList.add("active");
+  aggiornaGrafico(chiave);
+}}
+
+creaGrafico(chiaveGraficoIniziale);
+
+
+const radarMap = L.map("radar-map", {{
+  center: [{latitudine}, {longitudine}],
+  zoom: 8,
+  minZoom: 5,
+  maxZoom: 18,
+  zoomControl: true
+}});
+
+L.tileLayer(
+  "https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png",
+  {{
+    attribution: "&copy; OpenStreetMap contributors",
+    maxZoom: 18
+  }}
+).addTo(radarMap);
+
+const pinIcon = L.divIcon({{
+  className: "cml-radar-pin-wrapper",
+
+  html:
+    '<div style="width:20px;height:20px;background:#e63b45;border:3px solid #ffffff;border-radius:50%;box-shadow:0 0 0 3px rgba(230,59,69,0.40),0 4px 10px rgba(0,0,0,0.25);"></div>',
+
+  iconSize: [20, 20],
+  iconAnchor: [10, 10]
+}});
+
+L.marker([{latitudine}, {longitudine}], {{
+  icon: pinIcon,
+  title: "{html.escape(luogo)}"
+}}).addTo(radarMap);
+
+let radarTimes = [];
+let radarLayers = {{}};
+let radarFrameIndex = 0;
+let radarPlaying = true;
+let radarTimer = null;
+
+function visualizzaFrameRadar(indice) {{
+  if (radarTimes.length === 0) {{
+    return;
+  }}
+
+  const tempoPrecedente = radarTimes[
+    radarFrameIndex
+  ];
+
+  if (radarLayers[tempoPrecedente]) {{
+    radarLayers[tempoPrecedente].setOpacity(0);
+  }}
+
+  radarFrameIndex = indice;
+
+  const tempo = radarTimes[radarFrameIndex];
+
+  if (radarLayers[tempo]) {{
+    radarLayers[tempo].setOpacity(0.72);
+  }}
+
+  const data = new Date(tempo * 1000);
+
+  const ore = String(
+    data.getHours()
+  ).padStart(2, "0");
+
+  const minuti = String(
+    data.getMinutes()
+  ).padStart(2, "0");
+
+  const timestamp = document.getElementById(
+    "radar-timestamp"
+  );
+
+  if (timestamp) {{
+    timestamp.textContent =
+      ore + ":" + minuti + " (ora locale)";
+  }}
+}}
+
+function avviaRadar() {{
+  if (radarTimer) {{
+    clearInterval(radarTimer);
+  }}
+
+  radarTimer = setInterval(function() {{
+    if (radarTimes.length === 0) {{
+      return;
     }}
-    
-    function mostraGiorno(chiave, bottone) {{
-      const sezioni = document.getElementsByClassName(
-        "cml-day-table-container"
-      );
-    
-      for (let i = 0; i < sezioni.length; i += 1) {{
-        sezioni[i].style.display = "none";
-      }}
-    
-      const pulsanti = document.getElementsByClassName(
-        "cml-tab-btn"
-      );
-    
-      for (let i = 0; i < pulsanti.length; i += 1) {{
-        pulsanti[i].classList.remove("active");
-      }}
-    
-      const target = document.getElementById(
-        "tab-" + chiave
-      );
-    
-      if (target) {{
-        target.style.display = "block";
-      }}
-    
-      bottone.classList.add("active");
-      aggiornaGrafico(chiave);
-    }}
-    
-    creaGrafico(chiaveGraficoIniziale);
-    
-    
-    const radarMap = L.map("radar-map", {{
-      center: [{latitudine}, {longitudine}],
-      zoom: 8,
-      minZoom: 5,
-      maxZoom: 18,
-      zoomControl: true
+
+    const prossimo =
+      (radarFrameIndex + 1) % radarTimes.length;
+
+    visualizzaFrameRadar(prossimo);
+  }}, 800);
+}}
+
+function togglePlayRadar() {{
+  const bottone = document.getElementById(
+    "btn-play"
+  );
+
+  if (radarPlaying) {{
+    clearInterval(radarTimer);
+    radarPlaying = false;
+    bottone.textContent = "▶ Play";
+  }} else {{
+    avviaRadar();
+    radarPlaying = true;
+    bottone.textContent = "⏸ Pausa";
+  }}
+}}
+
+fetch(
+  "https://api.rainviewer.com/public/weather-maps.json"
+)
+  .then(function(response) {{
+    return response.json();
+  }})
+  .then(function(payload) {{
+    const frames = payload
+      && payload.radar
+      && payload.radar.past
+      ? payload.radar.past
+      : [];
+
+    radarTimes = frames.map(function(frame) {{
+      return frame.time;
     }});
-    
-    L.tileLayer(
-      "https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png",
-      {{
-        attribution: "&copy; OpenStreetMap contributors",
-        maxZoom: 18
-      }}
-    ).addTo(radarMap);
-    
-    const pinIcon = L.divIcon({{
-      className: "cml-radar-pin-wrapper",
-    
-      html:
-        '<div style="width:20px;height:20px;background:#e63b45;border:3px solid #ffffff;border-radius:50%;box-shadow:0 0 0 3px rgba(230,59,69,0.40),0 4px 10px rgba(0,0,0,0.25);"></div>',
-    
-      iconSize: [20, 20],
-      iconAnchor: [10, 10]
+
+    frames.forEach(function(frame) {{
+      const layer = L.tileLayer(
+        "https://tilecache.rainviewer.com"
+          + frame.path
+          + "/256/{{z}}/{{x}}/{{y}}/2/1_1.png",
+        {{
+          opacity: 0,
+          zIndex: 100,
+          maxNativeZoom: 6,
+          maxZoom: 18
+        }}
+      );
+
+      layer.addTo(radarMap);
+      radarLayers[frame.time] = layer;
     }});
-    
-    L.marker([{latitudine}, {longitudine}], {{
-      icon: pinIcon,
-      title: "{html.escape(luogo)}"
-    }}).addTo(radarMap);
-    
-    let radarTimes = [];
-    let radarLayers = {{}};
-    let radarFrameIndex = 0;
-    let radarPlaying = true;
-    let radarTimer = null;
-    
-    function visualizzaFrameRadar(indice) {{
-      if (radarTimes.length === 0) {{
-        return;
-      }}
-    
-      const tempoPrecedente = radarTimes[
-        radarFrameIndex
-      ];
-    
-      if (radarLayers[tempoPrecedente]) {{
-        radarLayers[tempoPrecedente].setOpacity(0);
-      }}
-    
-      radarFrameIndex = indice;
-    
-      const tempo = radarTimes[radarFrameIndex];
-    
-      if (radarLayers[tempo]) {{
-        radarLayers[tempo].setOpacity(0.72);
-      }}
-    
-      const data = new Date(tempo * 1000);
-    
-      const ore = String(
-        data.getHours()
-      ).padStart(2, "0");
-    
-      const minuti = String(
-        data.getMinutes()
-      ).padStart(2, "0");
-    
+
+    if (radarTimes.length > 0) {{
+      radarFrameIndex = radarTimes.length - 1;
+      visualizzaFrameRadar(radarFrameIndex);
+      avviaRadar();
+    }} else {{
       const timestamp = document.getElementById(
         "radar-timestamp"
       );
-    
+
       if (timestamp) {{
         timestamp.textContent =
-          ore + ":" + minuti + " (ora locale)";
+          "frame non disponibile";
       }}
     }}
-    
-    function avviaRadar() {{
-      if (radarTimer) {{
-        clearInterval(radarTimer);
-      }}
-    
-      radarTimer = setInterval(function() {{
-        if (radarTimes.length === 0) {{
-          return;
-        }}
-    
-        const prossimo =
-          (radarFrameIndex + 1) % radarTimes.length;
-    
-        visualizzaFrameRadar(prossimo);
-      }}, 800);
-    }}
-    
-    function togglePlayRadar() {{
-      const bottone = document.getElementById(
-        "btn-play"
-      );
-    
-      if (radarPlaying) {{
-        clearInterval(radarTimer);
-        radarPlaying = false;
-        bottone.textContent = "▶ Play";
-      }} else {{
-        avviaRadar();
-        radarPlaying = true;
-        bottone.textContent = "⏸ Pausa";
-      }}
-    }}
-    
-    fetch(
-      "https://api.rainviewer.com/public/weather-maps.json"
-    )
-      .then(function(response) {{
-        return response.json();
-      }})
-      .then(function(payload) {{
-        const frames = payload
-          && payload.radar
-          && payload.radar.past
-          ? payload.radar.past
-          : [];
-    
-        radarTimes = frames.map(function(frame) {{
-          return frame.time;
-        }});
-    
-        frames.forEach(function(frame) {{
-          const layer = L.tileLayer(
-            "https://tilecache.rainviewer.com"
-              + frame.path
-              + "/256/{{z}}/{{x}}/{{y}}/2/1_1.png",
-            {{
-              opacity: 0,
-              zIndex: 100,
-              maxNativeZoom: 6,
-              maxZoom: 18
-            }}
-          );
-    
-          layer.addTo(radarMap);
-          radarLayers[frame.time] = layer;
-        }});
-    
-        if (radarTimes.length > 0) {{
-          radarFrameIndex = radarTimes.length - 1;
-          visualizzaFrameRadar(radarFrameIndex);
-          avviaRadar();
-        }} else {{
-          const timestamp = document.getElementById(
-            "radar-timestamp"
-          );
-    
-          if (timestamp) {{
-            timestamp.textContent =
-              "frame non disponibile";
-          }}
-        }}
-      }})
-      .catch(function() {{
-        const timestamp = document.getElementById(
-          "radar-timestamp"
-        );
-    
-        if (timestamp) {{
-          timestamp.textContent =
-            "radar temporaneamente non disponibile";
-        }}
-      }});
-    </script>
-    
-    </body>
-    </html>
-    """
+  }})
+  .catch(function() {{
+    const timestamp = document.getElementById(
+      "radar-timestamp"
+    );
 
-return documento_html
+    if (timestamp) {{
+      timestamp.textContent =
+        "radar temporaneamente non disponibile";
+    }}
+  }});
+</script>
+
+</body>
+</html>
+"""
+
+    return documento_html
 
 
 # =============================================================================
@@ -3543,6 +3639,7 @@ try:
 
     components.html(
         documento,
+        height=4300,
         height=5400,
         scrolling=True,
     )

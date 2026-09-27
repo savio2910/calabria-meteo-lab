@@ -3492,7 +3492,7 @@ with st.form("search_form", clear_on_submit=False):
     with colonna_input:
         testo_localita = st.text_input(
             "Località",
-            value="Cosenza",
+            value="",
             placeholder=(
                 "Scrivi es. Cosenza, Tropea, Scilla, "
                 "Camigliatello Silano, Serra San Bruno..."
@@ -3501,11 +3501,27 @@ with st.form("search_form", clear_on_submit=False):
         )
 
     with colonna_bottone:
-        st.form_submit_button(
+        cerca_localita = st.form_submit_button(
             "Aggiorna previsione",
             use_container_width=True,
             type="primary",
         )
+
+
+# =============================================================================
+# CONTROLLO INPUT
+# =============================================================================
+
+if not testo_localita.strip():
+    st.info(
+        "Inserisci una località calabrese e premi «Aggiorna previsione» "
+        "per visualizzare le previsioni."
+    )
+    st.stop()
+
+
+if not cerca_localita and "previsione_caricata" not in st.session_state:
+    st.stop()
 
 
 # =============================================================================
@@ -3555,6 +3571,8 @@ try:
             except RuntimeError:
                 dati_mare = None
                 distanza_mare_km = None
+
+    st.session_state.previsione_caricata = True
 
     documento = genera_app_completa(
         luogo,

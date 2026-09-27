@@ -1627,56 +1627,56 @@ def genera_app_completa(
                 """
             )
 
-         tabelle_html.append(
-            f"""
-            <div id="dettaglio-{chiave}" class="cml-day-inline-detail" hidden
-                 onclick="event.stopPropagation()">
-
-              <h3>
-                🕒 Previsione oraria ·
-                {html.escape(data_it(data_giorno).title())}
-              </h3>
-
-              <div class="cml-table-wrap">
-                <table class="cml-table">
-                  <thead>
-                    <tr>
-                      <th>Ora</th>
-                      <th>Scenario</th>
-                      <th>Temp. °C</th>
-                      <th>Percepita °C</th>
-                      <th>Pioggia mm</th>
-                      <th>Vento km/h</th>
-                      <th>Da</th>
-                      <th>Raffica km/h</th>
-                      <th>Nubi %</th>
-                      <th>Umidità %</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {''.join(righe_tabella)}
-                  </tbody>
-                </table>
-              </div>
-
-              <div class="cml-chart-box">
-                <div class="cml-chart-title">
-                  📊 Andamenti orari
+             tabelle_html.append(
+                f"""
+                <div id="dettaglio-{chiave}" class="cml-day-inline-detail" hidden
+                     onclick="event.stopPropagation()">
+    
+                  <h3>
+                    🕒 Previsione oraria ·
+                    {html.escape(data_it(data_giorno).title())}
+                  </h3>
+    
+                  <div class="cml-table-wrap">
+                    <table class="cml-table">
+                      <thead>
+                        <tr>
+                          <th>Ora</th>
+                          <th>Scenario</th>
+                          <th>Temp. °C</th>
+                          <th>Percepita °C</th>
+                          <th>Pioggia mm</th>
+                          <th>Vento km/h</th>
+                          <th>Da</th>
+                          <th>Raffica km/h</th>
+                          <th>Nubi %</th>
+                          <th>Umidità %</th>
+                        </tr>
+                      </thead>
+    
+                      <tbody>
+                        {''.join(righe_tabella)}
+                      </tbody>
+                    </table>
+                  </div>
+    
+                  <div class="cml-chart-box">
+                    <div class="cml-chart-title">
+                      📊 Andamenti orari
+                    </div>
+    
+                    <div class="cml-chart-subtitle">
+                      Temperatura, vento e precipitazioni del giorno selezionato.
+                    </div>
+    
+                    <div class="cml-chart-canvas-wrap">
+                      <canvas id="meteoChart-{chiave}"></canvas>
+                    </div>
+                  </div>
+    
                 </div>
-
-                <div class="cml-chart-subtitle">
-                  Temperatura, vento e precipitazioni del giorno selezionato.
-                </div>
-
-                <div class="cml-chart-canvas-wrap">
-                  <canvas id="meteoChart-{chiave}"></canvas>
-                </div>
-              </div>
-
-            </div>
-            """
-        )
+                """
+             )
 
     dettagli_per_data = {
         str(data): dettaglio

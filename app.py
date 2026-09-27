@@ -161,23 +161,10 @@ VARIABILI_CORRENTI = [
     "weather_code",
     "cloud_cover",
     "pressure_msl",
-    "wind_speed_10m",
-    "wind_direction_10m",
-    "wind_gusts_10m",
-]
-
-VARIABILI_CORRENTI = [
-    "temperature_2m",
-    "relative_humidity_2m",
-    "apparent_temperature",
-    "weather_code",
-    "cloud_cover",
-    "pressure_msl",
     "surface_pressure",
     "wind_speed_10m",
     "wind_direction_10m",
     "wind_gusts_10m",
-    "elevation",
 ]
 
 VARIABILI_GIORNALIERE = [

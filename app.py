@@ -196,22 +196,40 @@ VARIABILI_GIORNALIERE = [
 ]
 
 VARIABILI_ORARIE = [
-    "t2m",
-    "d2m",
-    "u10",
-    "v10",
-    "msl",
-    "tp"
+    "temperature_2m",
+    "relative_humidity_2m",
+    "dew_point_2m",
+    "apparent_temperature",
+    "precipitation",
+    "rain",
+    "showers",
+    "snowfall",
+    "weather_code",
+    "cloud_cover",
+    "cloud_cover_low",
+    "cloud_cover_mid",
+    "cloud_cover_high",
+    "pressure_msl",
+    "surface_pressure",
+    "wind_speed_10m",
+    "wind_direction_10m",
+    "wind_gusts_10m",
+    "cape",
+    "convective_inhibition",
+    "lightning_potential",
+    "freezing_level_height",
+    "wet_bulb_temperature_2m",
+    "vapour_pressure_deficit",
 ]
 
 variabili_presenti = [
     col for col in VARIABILI_ORARIE
-    if col in df.columns
+    if col in ore_raw.columns
 ]
 
 variabili_mancanti = [
     col for col in VARIABILI_ORARIE
-    if col not in df.columns
+    if col in ore_raw.columns
 ]
 
 if variabili_mancanti:

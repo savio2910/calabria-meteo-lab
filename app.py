@@ -2219,7 +2219,7 @@ body {{
 }}
 }}
 
-.cml-nowcast-note {
+.cml-nowcast-note {{
 .cml-nowcast-note {{
 .cml-nowcast-note {{
   margin-top: 14px;
@@ -2231,7 +2231,7 @@ body {{
   color: #67552d;
   font-size: 12px;
   line-height: 1.5;
-}
+}}
 }}
 }}
 

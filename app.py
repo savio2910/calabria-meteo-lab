@@ -836,7 +836,7 @@ def sintesi_oraria_html(ore):
     <section class="cml-nowcast-box">
       <div class="cml-nowcast-head">
         <span class="cml-eyebrow">PROSSIME ORE</span>
-        <h2>🗣️ Le prossime ore, in parole chiare</h2>
+        <h2>&#9976 Le prossime ore, in parole chiare</h2>
         <p>
           Sintesi automatica basata sulla previsione ICON-2I
           per le prossime 24 ore.

@@ -2149,38 +2149,38 @@ body {{
   font-size: 12px;
 }}
 
-.cml-nowcast-box {
+.cml-nowcast-box {{
   margin: 0 0 30px;
   padding: 26px;
   border: 1px solid #d5e4e9;
   border-radius: 24px;
   background: #ffffff;
   box-shadow: 0 8px 28px rgba(23, 67, 84, 0.10);
-}
+}}
 
-.cml-nowcast-head {
+.cml-nowcast-head {{
   margin-bottom: 16px;
-}
+}}
 
-.cml-nowcast-head h2 {
+.cml-nowcast-head h2 {{
   margin: 6px 0 4px;
   color: #102b3b;
   font-size: 23px;
-}
+}}
 
-.cml-nowcast-head p {
+.cml-nowcast-head p {{
   margin: 0;
   color: #607987;
   font-size: 12px;
-}
+}}
 
-.cml-nowcast-list {
+.cml-nowcast-list {{
   list-style: none;
   margin: 0;
   padding: 0;
-}
+}}
 
-.cml-nowcast-list li {
+.cml-nowcast-list li {{
   display: flex;
   align-items: flex-start;
   gap: 10px;
@@ -2188,14 +2188,14 @@ body {{
   color: #2a4b58;
   font-size: 14px;
   line-height: 1.5;
-}
+}}
 
-.cml-nowcast-bullet {
+.cml-nowcast-bullet {{
   flex: 0 0 20px;
   font-size: 16px;
-}
+}}
 
-.cml-nowcast-note {
+.cml-nowcast-note {{
   margin-top: 14px;
   padding: 11px 14px;
   border: 1px solid #f0dca8;
@@ -2205,7 +2205,7 @@ body {{
   color: #67552d;
   font-size: 12px;
   line-height: 1.5;
-}
+}}
 
 .cml-radar-time {{
   color: #087087;

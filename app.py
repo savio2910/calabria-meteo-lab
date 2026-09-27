@@ -1627,17 +1627,16 @@ def genera_app_completa(
                 """
             )
 
-        tabelle_html.append(
+         tabelle_html.append(
             f"""
             <div id="dettaglio-{chiave}" class="cml-day-inline-detail" hidden
                  onclick="event.stopPropagation()">
-            
+
               <h3>
                 🕒 Previsione oraria ·
                 {html.escape(data_it(data_giorno).title())}
               </h3>
-            
-              <!-- PRIMA: TABELLA ORARIA -->
+
               <div class="cml-table-wrap">
                 <table class="cml-table">
                   <thead>
@@ -1654,28 +1653,27 @@ def genera_app_completa(
                       <th>Umidità %</th>
                     </tr>
                   </thead>
-            
+
                   <tbody>
                     {''.join(righe_tabella)}
                   </tbody>
                 </table>
               </div>
-            
-              <!-- DOPO: GRAFICO -->
+
               <div class="cml-chart-box">
                 <div class="cml-chart-title">
                   📊 Andamenti orari
                 </div>
-            
+
                 <div class="cml-chart-subtitle">
                   Temperatura, vento e precipitazioni del giorno selezionato.
                 </div>
-            
+
                 <div class="cml-chart-canvas-wrap">
                   <canvas id="meteoChart-{chiave}"></canvas>
                 </div>
               </div>
-            
+
             </div>
             """
         )
@@ -2761,6 +2759,187 @@ body {{
   background: #142549;
 }}
 
+/* =========================================================
+   NAVIGAZIONE HOME / PREVISIONI / RADAR
+   ========================================================= */
+
+.cml-view[hidden] {
+  display: none !important;
+}
+
+.cml-home-hero {
+  position: relative;
+  overflow: hidden;
+  margin: 8px 0 28px;
+  padding: 58px 48px;
+  border: 1px solid #07516c;
+  border-radius: 28px;
+  color: #ffffff;
+  background:
+    radial-gradient(circle at 85% 15%, rgba(255, 210, 92, 0.20), transparent 28%),
+    linear-gradient(135deg, #06324d 0%, #075b78 52%, #087f91 100%);
+  box-shadow: 0 14px 32px rgba(9, 61, 83, 0.22);
+}
+
+.cml-home-hero::before {
+  content: "";
+  position: absolute;
+  right: -85px;
+  bottom: -105px;
+  width: 310px;
+  height: 310px;
+  border: 36px solid rgba(255, 255, 255, 0.08);
+  border-radius: 50%;
+}
+
+.cml-home-hero > * {
+  position: relative;
+  z-index: 1;
+}
+
+.cml-home-hero h1 {
+  max-width: 800px;
+  margin: 20px 0 13px;
+  color: #ffffff;
+  font-size: 48px;
+  font-weight: 850;
+  letter-spacing: -1.5px;
+  line-height: 1.08;
+}
+
+.cml-home-hero p {
+  max-width: 730px;
+  margin: 0;
+  color: #e2f5f8;
+  font-size: 16px;
+  line-height: 1.7;
+}
+
+.cml-home-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(260px, 1fr));
+  gap: 20px;
+  max-width: 980px;
+  margin: 0 auto 32px;
+}
+
+.cml-home-choice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-height: 220px;
+  padding: 28px;
+  border: 1px solid #d2e4e9;
+  border-radius: 24px;
+  background: #ffffff;
+  color: #102b3b;
+  cursor: pointer;
+  text-align: left;
+  box-shadow: 0 10px 28px rgba(23, 67, 84, 0.12);
+  transition: transform 0.18s ease, box-shadow 0.18s ease,
+              border-color 0.18s ease;
+}
+
+.cml-home-choice:hover,
+.cml-home-choice:focus-visible {
+  transform: translateY(-4px);
+  border-color: #087087;
+  outline: none;
+  box-shadow: 0 15px 32px rgba(8, 112, 135, 0.22);
+}
+
+.cml-home-choice-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 62px;
+  height: 62px;
+  margin-bottom: 18px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #d9f4f7, #a8e1e7);
+  font-size: 31px;
+}
+
+.cml-home-choice.radar .cml-home-choice-icon {
+  background: linear-gradient(135deg, #dce7ff, #adc5ec);
+}
+
+.cml-home-choice h2 {
+  margin: 0 0 8px;
+  color: #102b3b;
+  font-size: 24px;
+}
+
+.cml-home-choice p {
+  margin: 0;
+  color: #607987;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.cml-home-choice span {
+  margin-top: auto;
+  padding-top: 20px;
+  color: #087087;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.cml-nav-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin: 8px 0 20px;
+  padding: 12px 15px;
+  border: 1px solid #d5e4e9;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 6px 18px rgba(23, 67, 84, 0.08);
+}
+
+.cml-back-btn {
+  border: 0;
+  border-radius: 10px;
+  padding: 10px 14px;
+  background: #e7f6f8;
+  color: #087087;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 850;
+  transition: background 0.16s ease, transform 0.16s ease;
+}
+
+.cml-back-btn:hover {
+  background: #cdeef2;
+  transform: translateX(-2px);
+}
+
+.cml-nav-title {
+  color: #102b3b;
+  font-size: 14px;
+  font-weight: 850;
+}
+
+@media (max-width: 760px) {
+  .cml-home-hero {
+    padding: 38px 25px;
+  }
+
+  .cml-home-hero h1 {
+    font-size: 36px;
+  }
+
+  .cml-home-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .cml-nav-bar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
 @media (max-width: 760px) {{
   body {{
     padding: 4px;
@@ -2818,131 +2997,279 @@ body {{
 
 <body>
 
-<section class="cml-hero">
-  <div class="cml-brand">
-    <span class="cml-brand-mark"></span>
-    CALABRIA · METEOROLOGIA LOCALE
-  </div>
+<!-- =====================================================
+     HOME INIZIALE
+     ===================================================== -->
+<section id="cml-home" class="cml-view">
 
-  <h1>Calabria Meteo Lab</h1>
-
-  <p>
-    Previsioni ad alta risoluzione per la Calabria.
-    Cerca una località e consulta subito temperatura, cielo, vento,
-    precipitazioni e sviluppo delle prossime 72 ore.
-  </p>
-</section>
-
-<section class="cml-current">
-  <div class="cml-current-main">
-    <div class="cml-place-block">
-      <div class="cml-kicker">
-        <span class="cml-live-dot"></span>
-        ICON-2I · PREVISIONE LOCALE
-      </div>
-
-      <h2>📍 {html.escape(luogo)}</h2>
-
-      <div class="cml-condition">
-        <span class="cml-current-weather-icon">{icona_corrente_html}</span>
-        {html.escape(descrizione_corrente)}
-      </div>
+  <section class="cml-home-hero">
+    <div class="cml-brand">
+      <span class="cml-brand-mark"></span>
+      CALABRIA · METEOROLOGIA LOCALE
     </div>
 
-    <div class="cml-temperature">
-      <span>{numero(corrente.get("temperature_2m"), 1, "")}</span>
-      <small>°C</small>
-    </div>
-  </div>
+    <h1>Calabria Meteo Lab</h1>
 
-  <div class="cml-metrics">
-    {metriche_html}
-  </div>
+    <p>
+      Previsioni meteorologiche locali e radar delle precipitazioni
+      per la Calabria. Scegli la sezione che vuoi consultare.
+    </p>
+  </section>
 
-  <div class="cml-current-footer">
-    <span>
-      ◷ Valido alle
-      <b>{html.escape(str(corrente.get("time", "—")))}</b>
-    </span>
-
-    <span>
-      ◉ Fuso
-      <b>Europe/Rome</b>
-    </span>
-
-    <span>
-      ◌ Fonte
-      <b>ItaliaMeteo–ARPAE</b>
-    </span>
-  </div>
-</section>
-
-{mare_html}
-{sintesi_html}
-<section class="cml-radar-box">
-  <div class="cml-radar-head">
-    <div>
-      <h2>📡 Radar precipitazioni live</h2>
-
-      <p>
-        Sequenza radar disponibile tramite RainViewer,
-        centrata sulla località selezionata.
-      </p>
-    </div>
+  <section class="cml-home-actions">
 
     <button
-      class="cml-radar-btn"
-      id="btn-play"
+      class="cml-home-choice"
       type="button"
-      onclick="togglePlayRadar()"
+      onclick="mostraVista('previsioni')"
     >
-      ⏸ Pausa
+      <div class="cml-home-choice-icon">📅</div>
+
+      <h2>Previsioni orarie</h2>
+
+      <p>
+        Consulta condizioni attuali, temperatura, vento, precipitazioni,
+        tabelle ora per ora e grafici per i prossimi tre giorni.
+      </p>
+
+      <span>Apri previsioni →</span>
     </button>
-  </div>
 
-  <div id="radar-map"></div>
+    <button
+      class="cml-home-choice radar"
+      type="button"
+      onclick="mostraVista('radar')"
+    >
+      <div class="cml-home-choice-icon">📡</div>
 
-  <div class="cml-radar-footer">
-    <span>
-      🛰️ Base cartografica OpenStreetMap · Overlay radar RainViewer
-    </span>
+      <h2>Radar precipitazioni</h2>
 
-    <span>
-      Frame:
-      <span id="radar-timestamp" class="cml-radar-time">
-        caricamento...
-      </span>
-    </span>
-  </div>
+      <p>
+        Visualizza la sequenza radar delle precipitazioni in tempo quasi
+        reale, centrata sulla località selezionata.
+      </p>
+
+      <span>Apri radar →</span>
+    </button>
+
+  </section>
+
 </section>
 
-<section class="cml-three-days">
-  <div class="cml-section-title">
-    <div>
-      <span>ORIZZONTE PREVISIONALE</span>
-      <h2>📅 I prossimi tre giorni</h2>
-      <p>Premi sul giorno che ti interessa per vedere la previsione oraria e il grafico.</p>
-    </div>
-    <div class="cml-pill">72 ore</div>
+
+<!-- =====================================================
+     PAGINA PREVISIONI
+     ===================================================== -->
+<section id="cml-previsioni" class="cml-view" hidden>
+
+  <div class="cml-nav-bar">
+    <button
+      class="cml-back-btn"
+      type="button"
+      onclick="mostraVista('home')"
+    >
+      ← Torna alla home
+    </button>
+
+    <span class="cml-nav-title">
+      📅 Previsioni orarie · {html.escape(luogo)}
+    </span>
   </div>
 
-  <div class="cml-days-grid">
-    {''.join(carte_html)}
-  </div>
+  <section class="cml-hero">
+    <div class="cml-brand">
+      <span class="cml-brand-mark"></span>
+      CALABRIA · METEOROLOGIA LOCALE
+    </div>
+
+    <h1>Previsioni per {html.escape(luogo)}</h1>
+
+    <p>
+      Previsioni ad alta risoluzione per la località selezionata:
+      temperatura, cielo, vento, precipitazioni e sviluppo delle
+      prossime 72 ore.
+    </p>
+  </section>
+
+  <section class="cml-current">
+    <div class="cml-current-main">
+      <div class="cml-place-block">
+
+        <div class="cml-kicker">
+          <span class="cml-live-dot"></span>
+          ICON-2I · PREVISIONE LOCALE
+        </div>
+
+        <h2>📍 {html.escape(luogo)}</h2>
+
+        <div class="cml-condition">
+          <span class="cml-current-weather-icon">
+            {icona_corrente_html}
+          </span>
+
+          {html.escape(descrizione_corrente)}
+        </div>
+
+      </div>
+
+      <div class="cml-temperature">
+        <span>{numero(corrente.get("temperature_2m"), 1, "")}</span>
+        <small>°C</small>
+      </div>
+    </div>
+
+    <div class="cml-metrics">
+      {metriche_html}
+    </div>
+
+    <div class="cml-current-footer">
+      <span>
+        ◷ Valido alle
+        <b>{html.escape(str(corrente.get("time", "—")))}</b>
+      </span>
+
+      <span>
+        ◉ Fuso
+        <b>Europe/Rome</b>
+      </span>
+
+      <span>
+        ◌ Fonte
+        <b>ItaliaMeteo–ARPAE</b>
+      </span>
+    </div>
+  </section>
+
+  {mare_html}
+
+  {sintesi_html}
+
+  <section class="cml-three-days">
+    <div class="cml-section-title">
+      <div>
+        <span>ORIZZONTE PREVISIONALE</span>
+
+        <h2>📅 I prossimi tre giorni</h2>
+
+        <p>
+          Premi sul giorno che ti interessa per visualizzare prima
+          la previsione oraria e poi il grafico.
+        </p>
+      </div>
+
+      <div class="cml-pill">72 ore</div>
+    </div>
+
+    <div class="cml-days-grid">
+      {''.join(carte_html)}
+    </div>
+
+    <div class="cml-note">
+      ℹ️ Le schede mostrano la condizione prevalente e la nuvolosità
+      media nelle ore diurne. Temperature, precipitazioni e vento
+      rappresentano estremi o cumulati sulle 24 ore.
+    </div>
+  </section>
 
   <div class="cml-note">
-    ℹ️ Le schede mostrano la condizione prevalente e la nuvolosità media nelle ore diurne.
-    Temperature, precipitazioni e vento rappresentano estremi o cumulati sulle 24 ore.
+    ℹ️ <b>ICON-2I:</b> modello deterministico ad alta risoluzione
+    di ItaliaMeteo–ARPAE. I dati terrestri sono forniti attraverso
+    Open-Meteo.
   </div>
+
 </section>
 
-<div class="cml-note">
-  ℹ️ <b>ICON-2I:</b> modello deterministico ad alta risoluzione di ItaliaMeteo–ARPAE.
-  I dati terrestri sono forniti attraverso Open-Meteo.
-</div>
+
+<!-- =====================================================
+     PAGINA RADAR
+     ===================================================== -->
+<section id="cml-radar" class="cml-view" hidden>
+
+  <div class="cml-nav-bar">
+    <button
+      class="cml-back-btn"
+      type="button"
+      onclick="mostraVista('home')"
+    >
+      ← Torna alla home
+    </button>
+
+    <span class="cml-nav-title">
+      📡 Radar precipitazioni · {html.escape(luogo)}
+    </span>
+  </div>
+
+  <section class="cml-radar-box">
+    <div class="cml-radar-head">
+      <div>
+        <h2>📡 Radar precipitazioni live</h2>
+
+        <p>
+          Sequenza radar RainViewer centrata sulla località selezionata:
+          {html.escape(luogo)}.
+        </p>
+      </div>
+
+      <button
+        class="cml-radar-btn"
+        id="btn-play"
+        type="button"
+        onclick="togglePlayRadar()"
+      >
+        ⏸ Pausa
+      </button>
+    </div>
+
+    <div id="radar-map"></div>
+
+    <div class="cml-radar-footer">
+      <span>
+        🛰️ Base cartografica OpenStreetMap · Overlay radar RainViewer
+      </span>
+
+      <span>
+        Frame:
+        <span id="radar-timestamp" class="cml-radar-time">
+          caricamento...
+        </span>
+      </span>
+    </div>
+  </section>
+
+  <div class="cml-note">
+    ℹ️ Il radar mostra le precipitazioni osservate dai frame disponibili.
+    Non costituisce un bollettino di allerta né una previsione ufficiale.
+  </div>
+
+</section>
 
 <script>
 const datiGraficiPerGiorno = {dati_grafici_json};
+
+function mostraVista(nome) {
+  document.querySelectorAll(".cml-view").forEach(function(vista) {
+    vista.setAttribute("hidden", "");
+  });
+
+  const vistaDaMostrare = document.getElementById(
+    "cml-" + nome
+  );
+
+  if (vistaDaMostrare) {
+    vistaDaMostrare.removeAttribute("hidden");
+  }
+
+  if (nome === "radar" && typeof radarMap !== "undefined") {
+    setTimeout(function() {
+      radarMap.invalidateSize();
+    }, 200);
+  }
+
+  window.scrollTo({
+    top: 0,
+    behavior: "smooth"
+  });
+}
 
 let meteoChartInstance = null;
 
@@ -3128,7 +3455,7 @@ function mostraGiorno(chiave, scheda, event) {{
   }}
 }}
 
-const radarMap = L.map("radar-map", {{
+let radarMap = L.map("radar-map", {{
   center: [{latitudine}, {longitudine}],
   zoom: 8,
   minZoom: 5,
@@ -3298,6 +3625,11 @@ fetch(
         "radar temporaneamente non disponibile";
     }}
   }});
+
+document.addEventListener("DOMContentLoaded", function() {
+  mostraVista("home");
+});
+
 </script>
 
 </body>

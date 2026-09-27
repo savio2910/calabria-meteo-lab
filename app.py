@@ -3158,12 +3158,12 @@ function mostraVista(nome) {{
 
 /* ---------- GRAFICO METEO ---------- */
 
-function creaGrafici(chiave) {
+function creaGrafici(chiave) {{
   const dati = datiGraficiPerGiorno[chiave];
 
-  if (!dati) {
+  if (!dati) {{
     return;
-  }
+  }}
 
   const canvasTemperatura = document.getElementById(
     "temperaturaChart-" + chiave
@@ -3182,54 +3182,54 @@ function creaGrafici(chiave) {
     !canvasTemperatura
     || !canvasNuvolositaPrecipitazioni
     || !canvasVento
-  ) {
+  ) {{
     return;
-  }
+  }}
 
-  const opzioniComuni = {
+  const opzioniComuni = {{
     responsive: true,
     maintainAspectRatio: false,
 
-    interaction: {
+    interaction: {{
       mode: "index",
       intersect: false
-    },
+    }},
 
-    plugins: {
-      legend: {
+    plugins: {{
+      legend: {{
         position: "top",
 
-        labels: {
+        labels: {{
           usePointStyle: true,
           padding: 18,
 
-          font: {
+          font: {{
             size: 12,
             weight: "600"
-          }
-        }
-      },
+          }}
+        }}
+      }},
 
-      tooltip: {
+      tooltip: {{
         backgroundColor: "rgba(15, 43, 59, 0.95)",
         padding: 11,
         cornerRadius: 9
-      }
-    },
+      }}
+    }},
 
-    scales: {
-      x: {
-        grid: {
+    scales: {{
+      x: {{
+        grid: {{
           color: "rgba(16, 43, 59, 0.06)"
-        },
+        }},
 
-        ticks: {
+        ticks: {{
           maxRotation: 0,
           autoSkip: true
-        }
-      }
-    }
-  };
+        }}
+      }}
+    }}
+  }};
 
   /*
    * 1. GRAFICO TEMPERATURA
@@ -3240,11 +3240,11 @@ function creaGrafici(chiave) {
     {
       type: "line",
 
-      data: {
+      data: {{
         labels: dati.ore,
 
         datasets: [
-          {
+          {{
             label: "Temperatura °C",
             data: dati.temperatura,
 
@@ -3256,29 +3256,29 @@ function creaGrafici(chiave) {
             borderWidth: 3,
             tension: 0.35,
             fill: true
-          }
+          }}
         ]
-      },
+      }},
 
-      options: {
+      options: {{
         ...opzioniComuni,
 
-        scales: {
+        scales: {{
           ...opzioniComuni.scales,
 
-          y: {
-            title: {
+          y: {{
+            title: {{
               display: true,
               text: "Temperatura °C"
-            },
+            }},
 
-            grid: {
+            grid: {{
               color: "rgba(16, 43, 59, 0.08)"
-            }
-          }
-        }
-      }
-    }
+            }}
+          }}
+        }}
+      }}
+    }}
   );
 
   /*
@@ -3287,12 +3287,12 @@ function creaGrafici(chiave) {
 
   const graficoNuvolositaPrecipitazioni = new Chart(
     canvasNuvolositaPrecipitazioni.getContext("2d"),
-    {
-      data: {
+    {{
+      data: {{
         labels: dati.ore,
 
         datasets: [
-          {
+          {{
             type: "line",
             label: "Nuvolosità %",
             data: dati.nuvolosita,
@@ -3307,9 +3307,9 @@ function creaGrafici(chiave) {
             borderWidth: 3,
             tension: 0.35,
             fill: true
-          },
+          }},
 
-          {
+          {{
             type: "bar",
             label: "Precipitazione mm",
             data: dati.precipitazione,
@@ -3320,49 +3320,49 @@ function creaGrafici(chiave) {
             borderColor: "#1679ba",
             borderWidth: 1,
             borderRadius: 4
-          }
+          }}
         ]
-      },
+      }},
 
-      options: {
+      options: {{
         ...opzioniComuni,
 
-        scales: {
+        scales: {{
           ...opzioniComuni.scales,
 
-          nuvolosita: {
+          nuvolosita: {{
             type: "linear",
             position: "left",
             min: 0,
             max: 100,
 
-            title: {
+            title: {{
               display: true,
               text: "Nuvolosità %"
-            },
+            }},
 
-            grid: {
+            grid: {{
               color: "rgba(16, 43, 59, 0.08)"
-            }
-          },
+            }}
+          }},
 
-          precipitazione: {
+          precipitazione: {{
             type: "linear",
             position: "right",
             min: 0,
 
-            title: {
+            title: {{
               display: true,
               text: "Precipitazione mm"
-            },
+            }},
 
-            grid: {
+            grid: {{
               drawOnChartArea: false
-            }
-          }
-        }
-      }
-    }
+            }}
+          }}
+        }}
+      }}
+    }}
   );
 
   /*
@@ -3371,14 +3371,14 @@ function creaGrafici(chiave) {
 
   const graficoVento = new Chart(
     canvasVento.getContext("2d"),
-    {
+    {{
       type: "line",
 
-      data: {
+      data: {{
         labels: dati.ore,
 
         datasets: [
-          {
+          {{
             label: "Vento medio km/h",
             data: dati.vento,
 
@@ -3390,9 +3390,9 @@ function creaGrafici(chiave) {
             borderWidth: 3,
             tension: 0.3,
             fill: true
-          },
+          }},
 
-          {
+          {{
             label: "Raffiche km/h",
             data: dati.raffiche,
 
@@ -3405,46 +3405,46 @@ function creaGrafici(chiave) {
             borderDash: [7, 4],
             tension: 0.3,
             fill: false
-          }
+          }}
         ]
-      },
+      }},
 
-      options: {
+      options: {{
         ...opzioniComuni,
 
-        scales: {
+        scales: {{
           ...opzioniComuni.scales,
 
-          y: {
+          y: {{
             beginAtZero: true,
 
-            title: {
+            title: {{
               display: true,
               text: "Velocità km/h"
-            },
+            }},
 
-            grid: {
+            grid: {{
               color: "rgba(16, 43, 59, 0.08)"
-            }
-          }
-        }
-      }
-    }
+            }}
+          }}
+        }}
+      }}
+    }}
   );
 
-  meteoChartInstance = {
+  meteoChartInstance = {{
     temperatura: graficoTemperatura,
     nuvolositaPrecipitazioni:
       graficoNuvolositaPrecipitazioni,
     vento: graficoVento,
 
-    destroy: function() {
+    destroy: function() {{
       this.temperatura.destroy();
       this.nuvolositaPrecipitazioni.destroy();
       this.vento.destroy();
-    }
-  };
-}
+    }}
+  }};
+}}
 /* ---------- APERTURA SCHEDA GIORNO ---------- */
 
 function mostraGiorno(chiave, scheda, event) {{

@@ -2280,13 +2280,13 @@ body {{
   line-height: 1.5;
 }}
 
-.cml-view-switch {
+.cml-view-switch {{
   display: flex;
   justify-content: flex-end;
   margin: 8px 0 16px;
-}
+}}
 
-.cml-view-switch button {
+.cml-view-switch button {{
   border: 1px solid #0b7f98;
   border-radius: 11px;
   padding: 9px 14px;
@@ -2295,53 +2295,53 @@ body {{
   cursor: pointer;
   font-size: 12px;
   font-weight: 800;
-}
+}}
 
-.cml-view-switch button:hover {
+.cml-view-switch button:hover {{
   background: #d4f0f4;
-}
+}}
 
 .cml-lettura-rapida .cml-chart-box,
 .cml-lettura-rapida .cml-tabs-bar,
 .cml-lettura-rapida .cml-day-table-container,
-.cml-lettura-rapida .cml-hour-header {
+.cml-lettura-rapida .cml-hour-header {{
   display: none !important;
-}
+}}
 
-.cml-timeline {
+.cml-timeline {{
   margin-top: 14px;
   padding: 12px 14px;
   border: 1px solid #d5e4e9;
   border-radius: 14px;
   background: #f8fbfc;
-}
+}}
 
-.cml-timeline-label {
+.cml-timeline-label {{
   margin-bottom: 8px;
   color: #102b3b;
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.5px;
-}
+}}
 
-.cml-timeline-bars {
+.cml-timeline-bars {{
   display: flex;
   align-items: flex-end;
   gap: 3px;
   height: 60px;
-}
+}}
 
-.cml-timeline-bar {
+.cml-timeline-bar {{
   flex: 1;
   min-width: 6px;
   background: linear-gradient(to top, #2f89ca, #5aaef2);
   border-radius: 3px 3px 0 0;
   transition: opacity 0.2s ease;
-}
+}}
 
-.cml-timeline-bar:hover {
+.cml-timeline-bar:hover {{
   opacity: 0.75;
-}
+}}
 
 .cml-radar-time {{
   color: #087087;

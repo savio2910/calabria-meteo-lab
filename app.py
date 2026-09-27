@@ -2763,11 +2763,11 @@ body {{
    NAVIGAZIONE HOME / PREVISIONI / RADAR
    ========================================================= */
 
-.cml-view[hidden] {
+.cml-view[hidden] {{
   display: none !important;
-}
+}}
 
-.cml-home-hero {
+.cml-home-hero {{
   position: relative;
   overflow: hidden;
   margin: 8px 0 28px;
@@ -2779,9 +2779,9 @@ body {{
     radial-gradient(circle at 85% 15%, rgba(255, 210, 92, 0.20), transparent 28%),
     linear-gradient(135deg, #06324d 0%, #075b78 52%, #087f91 100%);
   box-shadow: 0 14px 32px rgba(9, 61, 83, 0.22);
-}
+}}
 
-.cml-home-hero::before {
+.cml-home-hero::before {{
   content: "";
   position: absolute;
   right: -85px;
@@ -2790,14 +2790,14 @@ body {{
   height: 310px;
   border: 36px solid rgba(255, 255, 255, 0.08);
   border-radius: 50%;
-}
+}}
 
-.cml-home-hero > * {
+.cml-home-hero > * {{
   position: relative;
   z-index: 1;
-}
+}}
 
-.cml-home-hero h1 {
+.cml-home-hero h1 {{
   max-width: 800px;
   margin: 20px 0 13px;
   color: #ffffff;
@@ -2805,25 +2805,25 @@ body {{
   font-weight: 850;
   letter-spacing: -1.5px;
   line-height: 1.08;
-}
+}}
 
-.cml-home-hero p {
+.cml-home-hero p {{
   max-width: 730px;
   margin: 0;
   color: #e2f5f8;
   font-size: 16px;
   line-height: 1.7;
-}
+}}
 
-.cml-home-actions {
+.cml-home-actions {{
   display: grid;
   grid-template-columns: repeat(2, minmax(260px, 1fr));
   gap: 20px;
   max-width: 980px;
   margin: 0 auto 32px;
-}
+}}
 
-.cml-home-choice {
+.cml-home-choice {{
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -2838,17 +2838,17 @@ body {{
   box-shadow: 0 10px 28px rgba(23, 67, 84, 0.12);
   transition: transform 0.18s ease, box-shadow 0.18s ease,
               border-color 0.18s ease;
-}
+}}
 
 .cml-home-choice:hover,
-.cml-home-choice:focus-visible {
+.cml-home-choice:focus-visible {{
   transform: translateY(-4px);
   border-color: #087087;
   outline: none;
   box-shadow: 0 15px 32px rgba(8, 112, 135, 0.22);
-}
+}}
 
-.cml-home-choice-icon {
+.cml-home-choice-icon {{
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2858,34 +2858,34 @@ body {{
   border-radius: 18px;
   background: linear-gradient(135deg, #d9f4f7, #a8e1e7);
   font-size: 31px;
-}
+}}
 
-.cml-home-choice.radar .cml-home-choice-icon {
+.cml-home-choice.radar .cml-home-choice-icon {{
   background: linear-gradient(135deg, #dce7ff, #adc5ec);
-}
+}}
 
-.cml-home-choice h2 {
+.cml-home-choice h2 {{
   margin: 0 0 8px;
   color: #102b3b;
   font-size: 24px;
-}
+}}
 
-.cml-home-choice p {
+.cml-home-choice p {{
   margin: 0;
   color: #607987;
   font-size: 14px;
   line-height: 1.6;
-}
+}}
 
-.cml-home-choice span {
+.cml-home-choice span {{
   margin-top: auto;
   padding-top: 20px;
   color: #087087;
   font-size: 13px;
   font-weight: 850;
-}
+}}
 
-.cml-nav-bar {
+.cml-nav-bar {{
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -2896,9 +2896,9 @@ body {{
   border-radius: 16px;
   background: #ffffff;
   box-shadow: 0 6px 18px rgba(23, 67, 84, 0.08);
-}
+}}
 
-.cml-back-btn {
+.cml-back-btn {{
   border: 0;
   border-radius: 10px;
   padding: 10px 14px;
@@ -2908,18 +2908,18 @@ body {{
   font-size: 13px;
   font-weight: 850;
   transition: background 0.16s ease, transform 0.16s ease;
-}
+}}
 
-.cml-back-btn:hover {
+.cml-back-btn:hover {{
   background: #cdeef2;
   transform: translateX(-2px);
-}
+}}
 
-.cml-nav-title {
+.cml-nav-title {{
   color: #102b3b;
   font-size: 14px;
   font-weight: 850;
-}
+}}
 
 @media (max-width: 760px) {{
   .cml-home-hero {{

@@ -344,6 +344,72 @@ def e_notte(ora, alba, tramonto):
     except (TypeError, ValueError):
         return False
 
+def icona_meteo_html(codice, notte=False):
+    """Rende le icone notturne con livelli SVG realmente sovrapposti."""
+    icona_fallback, descrizione = meteo(codice)
+
+    if not notte:
+        return html.escape(icona_fallback)
+
+    try:
+        if codice is None or pd.isna(codice):
+            return html.escape(icona_fallback)
+        codice = int(codice)
+    except (TypeError, ValueError):
+        return html.escape(icona_fallback)
+
+    luna = (
+        '<path d="M43 10A22 22 0 1 0 55 48A22 22 0 0 1 43 10Z" '
+        'fill="#f9d674" stroke="#d4a942" stroke-width="2"/>'
+    )
+    nube_piccola = (
+        '<path d="M32 43c0-3 2.2-5.3 5-5.3 1 0 1.8.2 2.5.6 '
+        '1.2-3.5 4.3-5.8 8.1-5.8 4.2 0 7.5 2.9 8.2 6.6 '
+        '3.4.1 6.2 2.8 6.2 6.2 0 3.6-3 6.5-6.7 6.5H38 '
+        'c-3.5 0-6-2.9-6-6.5z" fill="#eaf2f6" '
+        'stroke="#8ba6b7" stroke-width="2" stroke-linejoin="round"/>'
+    )
+    nube_grande = (
+        '<path d="M14 43c0-4 3-7 7-7 1.1 0 2.1.2 3 .6 '
+        '1.7-5.6 6.8-9.6 12.8-9.6 6.3 0 11.5 4.1 13 9.8 '
+        '1.3-.5 2.7-.8 4.2-.8 6 0 10.8 4.8 10.8 10.8 '
+        'S60 57.5 54 57.5H22c-4.5 0-8-3.5-8-8 0-2.5 1-4.7 3-6.5z" '
+        'fill="#d9e4eb" stroke="#8499a8" stroke-width="2" '
+        'stroke-linejoin="round"/>'
+    )
+    gocce = (
+        '<g stroke="#4ea8e6" stroke-width="3.8" stroke-linecap="round">'
+        '<path d="M24 60l-3 6M39 60l-3 6M54 60l-3 6"/>'
+        '</g>'
+    )
+    gocce_deboli = (
+        '<g stroke="#4ea8e6" stroke-width="3.8" stroke-linecap="round">'
+        '<path d="M31 59l-3 6M48 59l-3 6"/>'
+        '</g>'
+    )
+
+    if codice == 0:
+        elementi = luna
+    elif codice == 1:
+        elementi = luna + nube_piccola
+    elif codice == 2:
+        elementi = luna + nube_grande
+    elif codice == 3:
+        elementi = nube_grande
+    elif codice in (51, 53, 80):
+        elementi = luna + nube_grande + gocce_deboli
+    elif codice in (55, 56, 57, 61, 63, 65, 66, 67, 81, 82):
+        elementi = luna + nube_grande + gocce
+    else:
+        return html.escape(icona_fallback)
+
+    return (
+        '<svg class="cml-weather-svg" viewBox="0 0 76 76" '
+        'xmlns="http://www.w3.org/2000/svg" role="img" '
+        f'aria-label="{html.escape(descrizione, quote=True)} di notte">'
+        f'{elementi}</svg>'
+    )
+
 
 # =============================================================================
 # NORMALIZZAZIONE E COMUNI COSTIERI
@@ -972,7 +1038,22 @@ def genera_app_completa(
     icona_corrente, descrizione_corrente = meteo(
         corrente.get("weather_code")
     )
+    ora_corrente = corrente.get("time")
+    alba_corrente = None
+    tramonto_corrente = None
 
+    if ora_corrente is not None and not giorni.empty:
+        giorno_corrente = giorni.loc[
+            giorni["time"].dt.date == pd.Timestamp(ora_corrente).date()
+        ]
+        if not giorno_corrente.empty:
+            alba_corrente = giorno_corrente.iloc[0].get("sunrise")
+            tramonto_corrente = giorno_corrente.iloc[0].get("sunset")
+
+    icona_corrente_html = icona_meteo_html(
+        corrente.get("weather_code"),
+        e_notte(ora_corrente, alba_corrente, tramonto_corrente),
+    )
     metriche = [
         (
             "🌡️",
@@ -1408,6 +1489,10 @@ def genera_app_completa(
                 if bool(riga.get("Notte", False))
                 else ""
             )
+            icona_ora_html = icona_meteo_html(
+                riga.get("weather_code"),
+                bool(riga.get("Notte", False)),
+            )
 
             righe_tabella.append(
                 f"""
@@ -1416,7 +1501,7 @@ def genera_app_completa(
 
                   <td class="cml-scenario-cell">
                     <span class="cml-table-icon">
-                      {riga["Icona"]}
+                      {icona_ora_html}
                     </span>
 
                     <span>
@@ -2379,6 +2464,28 @@ body {{
   background: linear-gradient(90deg, #142549, #203b68) !important;
 }}
 
+.cml-weather-svg {{
+  display: block;
+  width: 100%;
+  height: 100%;
+}}
+
+.cml-table-icon .cml-weather-svg {{
+  width: 29px;
+  height: 29px;
+}}
+
+.cml-current-weather-icon {{
+  display: inline-flex;
+  width: 30px;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 30px;
+  font-size: 22px;
+}}
+
+
 .cml-night-row td {{
   border-bottom-color: rgba(255, 255, 255, 0.10);
   color: #e5f0ff;
@@ -2480,7 +2587,8 @@ body {{
       <h2>📍 {html.escape(luogo)}</h2>
 
       <div class="cml-condition">
-        {icona_corrente} {html.escape(descrizione_corrente)}
+        <span class="cml-current-weather-icon">{icona_corrente_html}</span>
+        {html.escape(descrizione_corrente)}
       </div>
     </div>
 

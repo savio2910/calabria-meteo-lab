@@ -2803,7 +2803,7 @@ body {{
 <!-- ===================== HOME ===================== -->
 <section id="cml-home" class="cml-view">
 
-  <section class="cml-home-hero">
+<section class="cml-home-hero">
   
   <!-- Mappa stilizzata della Calabria -->
   <svg class="cml-calabria-bg" viewBox="0 0 200 400" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -2865,18 +2865,7 @@ body {{
     Previsioni meteorologiche locali e radar delle precipitazioni
     per la Calabria. Scegli la sezione che vuoi consultare.
   </p>
-    <div class="cml-brand">
-      <span class="cml-brand-mark"></span>
-      CALABRIA · METEOROLOGIA LOCALE
-    </div>
-
-    <h1>Calabria Meteo Lab</h1>
-
-    <p>
-      Previsioni meteorologiche locali e radar delle precipitazioni
-      per la Calabria. Scegli la sezione che vuoi consultare.
-    </p>
-  </section>
+</section>
 
   <section class="cml-home-actions">
 

@@ -413,9 +413,10 @@ def icona_meteo_html(codice, notte=False):
 def sintesi_oraria_html(ore, dati_mare=None):
     """
     Genera una sintesi in parole chiare per le prossime 24 ore:
-      - Prossimo cambiamento significativo (scenario, temperatura, vento)
+      - Prossimo cambiamento significativo
       - Fascia più piovosa (2 ore consecutive)
       - Raffica massima e orario
+      - Timeline delle prossime 12 ore con barre delle precipitazioni
       - Se disponibili, informazioni sintetiche sul mare
     """
     if ore.empty:
@@ -503,7 +504,6 @@ def sintesi_oraria_html(ore, dati_mare=None):
             ore_mare = pd.DataFrame(dati_mare["hourly"])
             ore_mare["time"] = pd.to_datetime(ore_mare["time"])
 
-            # Filtriamo alle stesse 24 ore della previsione terrestre
             ore_mare_24 = ore_mare.loc[
                 (ore_mare["time"] >= ora_rif)
                 & (ore_mare["time"] < ora_rif + pd.Timedelta(hours=24))
@@ -516,7 +516,6 @@ def sintesi_oraria_html(ore, dati_mare=None):
                     ore_mare_24.loc[idx_onda_max, "time"]
                 ).strftime("%H:%M")
 
-                # Direzione dominante dell'onda (media semplice)
                 if "wave_direction" in ore_mare_24.columns:
                     dir_onda = ore_mare_24["wave_direction"].dropna()
                     if not dir_onda.empty:
@@ -529,7 +528,6 @@ def sintesi_oraria_html(ore, dati_mare=None):
                 else:
                     dir_testo = "—"
 
-                # Stato del mare qualitativo
                 if onda_max < 0.50:
                     stato = "calmo o quasi calmo"
                 elif onda_max < 1.25:
@@ -547,6 +545,33 @@ def sintesi_oraria_html(ore, dati_mare=None):
                 )
         except Exception:
             testo_mare = ""
+
+    # 5) Timeline delle prossime 12 ore con barre delle precipitazioni
+    ore_12 = ore_24.loc[
+        ore_24["time"] < ora_rif + pd.Timedelta(hours=12)
+    ].copy()
+
+    timeline_html = ""
+    if not ore_12.empty and "precipitation" in ore_12.columns:
+        precip_12 = ore_12["precipitation"].fillna(0.0).values
+        max_precip = float(precip_12.max()) if precip_12.max() > 0 else 1.0
+
+        barre = []
+        for i, p in enumerate(precip_12):
+            altezza = int((float(p) / max_precip) * 100) if max_precip > 0 else 0
+            barre.append(
+                f'<div class="cml-timeline-bar" style="height:{altezza}%;" '
+                f'title="{ore_12.iloc[i]["time"].strftime("%H:%M")} · {p:.1f} mm"></div>'
+            )
+
+        timeline_html = f"""
+        <div class="cml-timeline">
+          <div class="cml-timeline-label">Prossime 12 ore</div>
+          <div class="cml-timeline-bars">
+            {''.join(barre)}
+          </div>
+        </div>
+        """
 
     # Composizione HTML
     righe = [
@@ -574,6 +599,8 @@ def sintesi_oraria_html(ore, dati_mare=None):
       <ul class="cml-nowcast-list">
         {''.join(righe)}
       </ul>
+
+      {timeline_html}
 
       <div class="cml-nowcast-note">
         ℹ️ Questa sintesi è generata in modo automatico dai dati orari
@@ -2253,6 +2280,69 @@ body {{
   line-height: 1.5;
 }}
 
+.cml-view-switch {
+  display: flex;
+  justify-content: flex-end;
+  margin: 8px 0 16px;
+}
+
+.cml-view-switch button {
+  border: 1px solid #0b7f98;
+  border-radius: 11px;
+  padding: 9px 14px;
+  background: #e7f6f8;
+  color: #087087;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.cml-view-switch button:hover {
+  background: #d4f0f4;
+}
+
+.cml-lettura-rapida .cml-chart-box,
+.cml-lettura-rapida .cml-tabs-bar,
+.cml-lettura-rapida .cml-day-table-container,
+.cml-lettura-rapida .cml-hour-header {
+  display: none !important;
+}
+
+.cml-timeline {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid #d5e4e9;
+  border-radius: 14px;
+  background: #f8fbfc;
+}
+
+.cml-timeline-label {
+  margin-bottom: 8px;
+  color: #102b3b;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+
+.cml-timeline-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 60px;
+}
+
+.cml-timeline-bar {
+  flex: 1;
+  min-width: 6px;
+  background: linear-gradient(to top, #2f89ca, #5aaef2);
+  border-radius: 3px 3px 0 0;
+  transition: opacity 0.2s ease;
+}
+
+.cml-timeline-bar:hover {
+  opacity: 0.75;
+}
+
 .cml-radar-time {{
   color: #087087;
   font-weight: 850;
@@ -2789,6 +2879,12 @@ body {{
 </head>
 
 <body>
+
+<div class="cml-view-switch">
+  <button id="btn-lettura-rapida" type="button" onclick="toggleLetturaRapida()">
+    👁️ Lettura rapida
+  </button>
+</div>
 
 <section class="cml-hero">
   <div class="cml-brand">
@@ -3438,3 +3534,7 @@ try:
 
 except Exception as errore:
     st.error(str(errore))
+
+function toggleLetturaRapida() {
+  document.body.classList.toggle('cml-lettura-rapida');
+}

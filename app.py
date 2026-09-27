@@ -1945,24 +1945,24 @@ def genera_app_completa(
         ),
         ]
 
-    metriche_html = "".join(
-        f"""
-        <div class="cml-metric-card">
-          <div class="cml-metric-icon">{icona}</div>
-
-          <div>
-            <div class="cml-metric-label">
-              {html.escape(etichetta)}
+        metriche_html = "".join(
+            f"""
+            <div class="cml-metric-card">
+              <div class="cml-metric-icon">{icona}</div>
+    
+              <div>
+                <div class="cml-metric-label">
+                  {html.escape(etichetta)}
+                </div>
+    
+                <div class="cml-metric-value">
+                  {html.escape(str(valore))}
+                </div>
+              </div>
             </div>
-
-            <div class="cml-metric-value">
-              {html.escape(str(valore))}
-            </div>
-          </div>
-        </div>
-        """
-        for icona, etichetta, valore in metriche
-    )
+            """
+            for icona, etichetta, valore in metriche
+        )
 
     mare_html = ""
 

@@ -380,6 +380,154 @@ def componente_verso_montagna(
 def limita(valore, minimo=0.0, massimo=1.0):
     return max(minimo, min(massimo, valore))
 
+def stima_sollevamento_orografico(
+    vento_verso_rilievo,
+    umidita_bassa,
+    precipitazione,
+    pendenza,
+    omega_850=None,
+):
+    """
+    Restituisce:
+      - livello: "nullo", "debole", "moderato", "forte"
+      - messaggio descrittivo
+    """
+    indice = indice_orografico(
+        vento_verso_rilievo,
+        umidita_bassa,
+        precipitazione,
+        pendenza,
+        omega_850=omega_850,
+    )
+
+    if indice < 0.15:
+        return "nullo", "Sollevamento orografico trascurabile."
+    if indice < 0.35:
+        return "debole", "Debole sollevamento orografico possibile."
+    if indice < 0.60:
+        return "moderato", "Sollevamento orografico moderato, possibile aumento di nubi e pioggia sul versante esposto."
+    return "forte", "Forte sollevamento orografico: probabile incremento di nubi e precipitazione sul versante esposto."
+
+
+def stima_effetto_vento_orografico(
+    vento_10m,
+    vento_verso_rilievo,
+    pendenza,
+):
+    """
+    Stima se il vento sui crinali è probabilmente più forte del valore a 10 m.
+    Restituisce (livello, messaggio).
+    """
+    if vento_10m < 5:
+        return "nullo", "Vento debole: effetti orografici sul vento poco rilevanti."
+
+    if vento_verso_rilievo < 5 or pendenza < 0.05:
+        return "debole", "Possibile leggero rinforzo del vento sui crinali esposti."
+
+    if vento_verso_rilievo < 15 or pendenza < 0.12:
+        return "moderato", "Vento probabilmente più intenso sui crinali esposti rispetto alla valle/costa."
+
+    return "forte", "Forte accelerazione orografica del vento sui crinali esposti; in valle/costa il vento può essere più debole."
+
+
+def stima_effetto_precipitazione_orografica(
+    livello_sollevamento,
+    precipitazione_oraria,
+):
+    """
+    Da un livello di sollevamento e una precipitazione oraria,
+    stima l'effetto sulla pioggia/neve.
+    """
+    if livello_sollevamento == "nullo":
+        return "La precipitazione prevista non è significativamente modificata dall'orografia."
+
+    if precipitazione_oraria < 0.5:
+        return (
+            f"Sollevamento {livello_sollevamento}: possibile aumento locale della pioviggine "
+            "o di brevi rovesci sul versante esposto, anche se i cumulati restano modesti."
+        )
+
+    if precipitazione_oraria < 3:
+        return (
+            f"Sollevamento {livello_sollevamento}: probabile incremento locale della precipitazione "
+            "sul versante esposto, con cumulati superiori rispetto alle zone sottovento."
+        )
+
+    return (
+        f"Sollevamento {livello_sollevamento}: forte enhancement orografico della precipitazione; "
+        "possibili valori locali sensibilmente più alti sul versante esposto."
+    )
+
+def direzione_localita_verso_griglia(
+    lat_localita,
+    lon_localita,
+    lat_griglia,
+    lon_griglia,
+):
+    """
+    Restituisce la direzione (gradi da Nord, senso orario)
+    dal punto della località verso il centro della cella.
+    """
+    dlon = lon_griglia - lon_localita
+    dlat = lat_griglia - lat_localita
+
+    angolo_rad = math.atan2(dlon, dlat)
+    direzione = math.degrees(angolo_rad)
+    if direzione < 0:
+        direzione += 360.0
+    return direzione
+
+
+def componente_vento_verso_rilievo_semplice(
+    vento_10m,
+    direzione_vento_10m,
+    lat_localita,
+    lon_localita,
+    lat_griglia,
+    lon_griglia,
+    quota_localita,
+    quota_griglia,
+):
+    """
+    Stima la componente del vento verso il rilievo usando:
+      - direzione località -> griglia come 'direzione del rilievo'
+      - differenza di quota per pesare l'effetto.
+    Restituisce vento_verso_rilievo (km/h) e pendenza_approssimata.
+    """
+    # Se la differenza di quota è piccola, consideriamo effetto nullo
+    diff_quota = float(quota_griglia) - float(quota_localita)
+    if abs(diff_quota) < 40:
+        return 0.0, 0.0
+
+    direzione_rilievo = direzione_localita_verso_griglia(
+        lat_localita,
+        lon_localita,
+        lat_griglia,
+        lon_griglia,
+    )
+
+    vento_rad = math.radians(direzione_vento_10m)
+    rilievo_rad = math.radians(direzione_rilievo)
+
+    delta = vento_rad - rilievo_rad
+    vento_verso = vento_10m * math.cos(delta)
+
+    # Pendenza approssimata: differenza di quota / distanza
+    distanza_km = distanza_haversine_km(
+        lat_localita,
+        lon_localita,
+        lat_griglia,
+        lon_griglia,
+    )
+
+    if distanza_km < 0.5:
+        distanza_km = 0.5
+
+    # diff_quota in metri, distanza in km -> pendenza adimensionale
+    pendenza = abs(diff_quota) / (distanza_km * 1000.0)
+
+    return max(0.0, vento_verso), pendenza
+
 
 def indice_orografico(
     vento_verso_rilievo,
@@ -1452,8 +1600,15 @@ def genera_app_completa(
     dati_mare=None,
     distanza_mare_km=None,
     analisi_quota=None,
+    comuni_costieri=None,
 ):
     corrente = dati_terrestri["current"]
+    
+    if comuni_costieri is None:
+        try:
+            comuni_costieri = carica_comuni_costieri()
+        except Exception:
+            comuni_costieri = set()
 
     if analisi_quota is None:
         analisi_quota = {
@@ -1464,6 +1619,16 @@ def genera_app_completa(
             "classe": "non disponibile",
             "messaggio": "Analisi altimetrica non disponibile.",
         }
+
+    box_orografia_html = genera_box_effetti_orografici_html(
+        luogo,
+        latitudine,
+        longitudine,
+        analisi_quota.get("quota_localita"),
+        analisi_quota.get("quota_griglia"),
+        ore,
+        comuni_costieri,
+    )
 
     quota_localita_html = numero_quota(
         analisi_quota.get("quota_localita")
@@ -3221,16 +3386,135 @@ body {{
 <body>
 
 <!-- ===================== HOME ===================== -->
-<section class="cml-physical-box">
-  <span class="cml-eyebrow">INTERPRETAZIONE FISICA</span>
-  <h2>⛰️ Perché il tempo può cambiare in questa zona</h2>
-  <ul>
-    <li>Possibile sollevamento orografico sul versante esposto.</li>
-    <li>Umidità elevata nei bassi strati.</li>
-    <li>Vento più intenso sopra i rilievi rispetto al suolo.</li>
-    <li>Segnale di stabilità notturna e possibile inversione nelle valli.</li>
-  </ul>
-</section>
+def genera_box_effetti_orografici_html(
+    luogo,
+    latitudine,
+    longitudine,
+    quota_localita,
+    quota_griglia,
+    ore,
+    comuni_costieri,
+):
+    """
+    Genera un HTML con effetti orografici locali dinamici.
+    """
+    if ore.empty:
+        return ""
+
+    # Prendiamo un campione di ore diurne e notturne per le diagnosi
+    ora_rif = ore["time"].min()
+    ore_24 = ore.loc[
+        (ore["time"] >= ora_rif)
+        & (ore["time"] < ora_rif + pd.Timedelta(hours=24))
+    ].copy()
+
+    if ore_24.empty:
+        return ""
+
+    # Dati medi/representativi per la diagnosi
+    vento_10m_medio = float(ore_24["wind_speed_10m"].mean())
+    direzione_10m_media = float(ore_24["wind_direction_10m"].mean())
+    umidita_2m_media = float(ore_24["relative_humidity_2m"].mean())
+    precipitazione_oraria_media = float(ore_24["precipitation"].mean())
+    cloud_cover_medio = float(ore_24["cloud_cover"].mean())
+
+    # Per inversione, usiamo un'ora notturna rappresentativa
+    ore_notte = ore_24.loc[
+        (ore_24["Notte"] == True)
+    ]
+    if ore_notte.empty:
+        ore_notte = ore_24
+
+    riga_notte = ore_notte.iloc[0]
+
+    # Direzione e coordinate della griglia: le prendi da dati_terrestri se le hai,
+    # altrimenti approssimi con la stessa località (in tal caso effetto nullo).
+    # Per ora, assumiamo che la griglia sia circa nella stessa posizione:
+    lat_griglia = latitudine
+    lon_griglia = longitudine
+
+    vento_verso_rilievo, pendenza = componente_vento_verso_rilievo_semplice(
+        vento_10m_medio,
+        direzione_10m_media,
+        latitudine,
+        longitudine,
+        lat_griglia,
+        lon_griglia,
+        quota_localita,
+        quota_griglia,
+    )
+
+    livello_sollevamento, testo_sollevamento = stima_sollevamento_orografico(
+        vento_verso_rilievo,
+        umidita_2m_media,
+        precipitazione_oraria_media,
+        pendenza,
+        omega_850=None,
+    )
+
+    livello_vento, testo_vento = stima_effetto_vento_orografico(
+        vento_10m_medio,
+        vento_verso_rilievo,
+        pendenza,
+    )
+
+    testo_precip = stima_effetto_precipitazione_orografica(
+        livello_sollevamento,
+        precipitazione_oraria_media,
+    )
+
+    # Inversione termica
+    t_2m = float(riga_notte["temperature_2m"])
+    # Se in futuro aggiungi livelli in quota, passi anche t_925, t_850
+    t_925 = t_2m  # placeholder
+    t_850 = t_2m  # placeholder
+    umidita_2m_notte = float(riga_notte["relative_humidity_2m"])
+    vento_10m_notte = float(riga_notte["wind_speed_10m"])
+    cloud_cover_notte = float(riga_notte["cloud_cover"])
+
+    testo_inversione = diagnostica_inversione(
+        t_2m,
+        t_925,
+        t_850,
+        umidita_2m_notte,
+        vento_10m_notte,
+        cloud_cover_notte,
+    )
+
+    # Costiera vs interna
+    is_costiero = comune_e_costiero(luogo, comuni_costieri)
+
+    if is_costiero and livello_sollevamento == "nullo":
+        testo_costa = (
+            f"{luogo} è un comune costiero e, con la direzione del vento prevista, "
+            "non si prevedono significativi effetti di sollevamento orografico."
+        )
+    elif is_costiero:
+        testo_costa = (
+            f"Sebbene {luogo} sia un comune costiero, la direzione del vento e la "
+            "configurazione orografica locale possono produrre un debole/moderato "
+            "sollevamento orografico in alcune situazioni."
+        )
+    else:
+        testo_costa = (
+            f"{luogo} è un comune interno: gli effetti orografici possono essere più "
+            "marcati, specie sui versanti esposti al flusso umido."
+        )
+
+    # Costruzione HTML
+    return f"""
+    <section class="cml-physical-box">
+      <span class="cml-eyebrow">INTERPRETAZIONE FISICA LOCALE</span>
+      <h2>⛰️ Effetti orografici e stratificazione per {html.escape(luogo)}</h2>
+      <ul>
+        <li><b>Sollevamento orografico:</b> {livello_sollevamento.title()}. {html.escape(testo_sollevamento)}</li>
+        <li><b>Vento e orografia:</b> {html.escape(testo_vento)}</li>
+        <li><b>Precipitazione e orografia:</b> {html.escape(testo_precip)}</li>
+        <li><b>Stratificazione notturna:</b> {html.escape(testo_inversione)}</li>
+        <li>{html.escape(testo_costa)}</li>
+      </ul>
+    </section>
+    """
 
 <section id="cml-home" class="cml-view">
 
@@ -4215,16 +4499,19 @@ try:
 
     st.session_state.previsione_caricata = True
 
-    documento = genera_app_completa(
+    comuni_costieri = carica_comuni_costieri()
+    
+    documento_html = genera_app_completa(
         luogo,
         latitudine,
         longitudine,
         dati_terrestri,
-        dati_orari,
-        dati_giornalieri,
-        dati_mare,
-        distanza_mare_km,
-        analisi_quota,
+        ore,
+        giorni,
+        dati_mare=dati_mare,
+        distanza_mare_km=distanza_mare_km,
+        analisi_quota=analisi_quota,
+        comuni_costieri=comuni_costieri,
     )
 
     components.html(

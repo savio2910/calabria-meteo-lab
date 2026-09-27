@@ -1703,7 +1703,7 @@ body {{
 
 /* ===================== HOME ===================== */
 
-.cml-home-hero {
+.cml-home-hero {{
   position: relative;
   overflow: hidden;
   width: 100%;

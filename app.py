@@ -3246,30 +3246,30 @@ body {{
 <script>
 const datiGraficiPerGiorno = {dati_grafici_json};
 
-function mostraVista(nome) {
-  document.querySelectorAll(".cml-view").forEach(function(vista) {
+function mostraVista(nome) {{
+  document.querySelectorAll(".cml-view").forEach(function(vista) {{
     vista.setAttribute("hidden", "");
-  });
+  }});
 
   const vistaDaMostrare = document.getElementById(
     "cml-" + nome
   );
 
-  if (vistaDaMostrare) {
+  if (vistaDaMostrare) {{
     vistaDaMostrare.removeAttribute("hidden");
-  }
+  }}
 
-  if (nome === "radar" && typeof radarMap !== "undefined") {
-    setTimeout(function() {
+  if (nome === "radar" && typeof radarMap !== "undefined") {{
+    setTimeout(function() {{
       radarMap.invalidateSize();
-    }, 200);
-  }
+    }}), 200);
+  }}
 
-  window.scrollTo({
+  window.scrollTo({{
     top: 0,
     behavior: "smooth"
-  });
-}
+  }});
+}}
 
 let meteoChartInstance = null;
 

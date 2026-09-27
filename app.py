@@ -1736,20 +1736,20 @@ body {{
 }}
 
 .cml-home-hero h1 {{
-  max-width: 800px;
-  margin: 20px 0 13px;
+  max-width: 1100px;
+  margin: 28px 0 20px;
   color: #ffffff;
-  font-size: 48px;
+  font-size: clamp(48px, 6vw, 92px);
   font-weight: 850;
   letter-spacing: -1.5px;
   line-height: 1.08;
 }}
 
 .cml-home-hero p {{
-  max-width: 730px;
+  max-width: 1050px;
   margin: 0;
   color: #e2f5f8;
-  font-size: 16px;
+  font-size: clamp(18px, 2vw, 27px);
   line-height: 1.7;
 }}
 

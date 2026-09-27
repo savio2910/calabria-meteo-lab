@@ -222,21 +222,6 @@ VARIABILI_ORARIE = [
     "vapour_pressure_deficit",
 ]
 
-variabili_presenti = [
-    col for col in VARIABILI_ORARIE
-    if col in ore_raw.columns
-]
-
-variabili_mancanti = [
-    col for col in VARIABILI_ORARIE
-    if col in ore_raw.columns
-]
-
-if variabili_mancanti:
-    print("Variabili mancanti:", variabili_mancanti)
-
-df_orario = df[variabili_presenti]
-
 VARIABILI_TERRESTRI_FISICHE = [
     "temperature_2m",
     "relative_humidity_2m",
@@ -403,10 +388,8 @@ def componente_verso_montagna(
 
     componente = velocita_kmh * math.cos(delta)
 
-    direzione_moto = (direzione_provenienza + 180.0) % 360.0
-
     return componente
-
+    
 def limita(valore, minimo=0.0, massimo=1.0):
     return max(minimo, min(massimo, valore))
 

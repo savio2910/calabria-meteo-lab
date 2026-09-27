@@ -1628,7 +1628,7 @@ def genera_app_completa(
             )
 
         tabelle_html.append(
-        f"""
+            f"""
             <div id="dettaglio-{chiave}" class="cml-day-inline-detail" hidden
                  onclick="event.stopPropagation()">
             
@@ -1677,7 +1677,6 @@ def genera_app_completa(
               </div>
             
             </div>
-            """
             """
         )
 

@@ -2149,7 +2149,6 @@ body {{
   font-size: 12px;
 }}
 
-.cml-nowcast-box {
 .cml-nowcast-box {{
   margin: 0 0 30px;
   padding: 26px;

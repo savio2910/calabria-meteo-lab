@@ -1813,6 +1813,16 @@ body {{
   box-shadow: 0 14px 32px rgba(9, 61, 83, 0.22);
 }}
 
+.cml-hero,
+.cml-current,
+.cml-marine-box,
+.cml-radar-box,
+.cml-nowcast-box,
+.cml-day-card,
+.cml-chart-box,
+.cml-table-wrap {{
+  box-shadow: 0 10px 30px rgba(23, 67, 84, 0.12);
+}}
 .cml-hero::before {{
   content: "";
   position: absolute;
@@ -2194,7 +2204,9 @@ body {{
   border: 0;
   border-radius: 11px;
   padding: 10px 16px;
-  background: linear-gradient(135deg, #0c7f96, #075d74);
+  background:
+  radial-gradient(1200px 600px at 10% -10%, rgba(255,255,255,0.12), transparent 60%),
+  linear-gradient(135deg, #052a42 0%, #085f7a 55%, #0a8a9e 100%);
   color: #ffffff;
   cursor: pointer;
   font-size: 13px;
@@ -2411,12 +2423,28 @@ body {{
 .cml-day-tag {{
   padding: 6px 12px;
   border-radius: 999px;
-  background: linear-gradient(135deg, #0e95ab, #087087);
+  background:
+  radial-gradient(1200px 600px at 10% -10%, rgba(255,255,255,0.12), transparent 60%),
+  linear-gradient(135deg, #052a42 0%, #085f7a 55%, #0a8a9e 100%);
   color: #ffffff;
   font-size: 10px;
   font-weight: 900;
   letter-spacing: 1px;
 }}
+
+.cml-day-card,
+.cml-metric-card,
+.cml-marine-card {{
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}}
+
+.cml-day-card:hover,
+.cml-metric-card:hover,
+.cml-marine-card:hover {{
+  transform: translateY(-2px);
+  box-shadow: 0 14px 36px rgba(23, 67, 84, 0.16);
+}}
+
 
 .cml-day-date {{
   color: var(--muted);
@@ -2877,8 +2905,14 @@ body {{
 }}
 </style>
 </head>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 
 <body>
+body {{
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+}}
 
 <div class="cml-view-switch">
   <button id="btn-lettura-rapida" type="button" onclick="toggleLetturaRapida()">

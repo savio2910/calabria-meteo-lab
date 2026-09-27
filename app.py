@@ -1262,311 +1262,176 @@ def genera_app_completa(
         for icona, etichetta, valore in metriche
     )
 
-    mare_html = ""
+    maregiornihtml = ""
 
     if (
-        dati_mare is not None
-        and isinstance(dati_mare, dict)
-        and dati_mare.get("current")
+        datimare is not None
+        and isinstance(datimare, dict)
+        and datimare.get("daily")
     ):
-        corrente_mare = dati_mare["current"]
+        maredaily = datimare["daily"]
 
-        altezza_onda = corrente_mare.get(
-            "wave_height"
+        datemare = maredaily.get("time", [])
+        altezzamare = maredaily.get("wave_height_max", [])
+        direzionemare = maredaily.get(
+            "wave_direction_dominant",
+            [],
+        )
+        periodomare = maredaily.get("wave_period_max", [])
+        altezzavento = maredaily.get(
+            "wind_wave_height_max",
+            [],
+        )
+        altezzaswell = maredaily.get(
+            "swell_wave_height_max",
+            [],
+        )
+        direzioneswell = maredaily.get(
+            "swell_wave_direction_dominant",
+            [],
         )
 
-        direzione_onda = corrente_mare.get(
-            "wave_direction"
-        )
+        righemare = []
 
-        periodo_onda = corrente_mare.get(
-            "wave_period"
-        )
+        for indicemare, datamaregiorno in enumerate(datemare):
+            altezzaonda = (
+                altezzamare[indicemare]
+                if indicemare < len(altezzamare)
+                else None
+            )
 
-        periodo_picco = corrente_mare.get(
-            "wave_peak_period"
-        )
+            direzioneonda = (
+                direzionemare[indicemare]
+                if indicemare < len(direzionemare)
+                else None
+            )
 
-        altezza_mare_vento = corrente_mare.get(
-            "wind_wave_height"
-        )
+            periodoonda = (
+                periodomare[indicemare]
+                if indicemare < len(periodomare)
+                else None
+            )
 
-        altezza_swell = corrente_mare.get(
-            "swell_wave_height"
-        )
+            altezzamarevento = (
+                altezzavento[indicemare]
+                if indicemare < len(altezzavento)
+                else None
+            )
 
-        temperatura_mare = corrente_mare.get(
-            "sea_surface_temperature"
-        )
+            altezzamarefondo = (
+                altezzaswell[indicemare]
+                if indicemare < len(altezzaswell)
+                else None
+            )
 
-        stato_mare, icona_mare, classe_mare = (
-            stato_mare_da_onda(altezza_onda)
-        )
+            direzionemarefondo = (
+                direzioneswell[indicemare]
+                if indicemare < len(direzioneswell)
+                else None
+            )
 
-        mare_html = f"""
-        <section class="cml-marine-box">
-          <div class="cml-marine-head">
-            <div>
-              <span class="cml-eyebrow">
-                BOLLETTINO COSTIERO
-              </span>
+            statoonda, iconaonda, classeonda = (
+                statomaredaondaaltezzaonda(altezzaonda)
+            )
 
-              <h2>🌊 Vento e stato del mare</h2>
+            if indicemare == 0:
+                etichettamare = "OGGI"
+            elif indicemare == 1:
+                etichettamare = "DOMANI"
+            elif indicemare == 2:
+                etichettamare = "DOPODOMANI"
+            else:
+                etichettamare = datait(datamaregiorno).title()
 
-              <p>
-                Previsione marina per il comune costiero di riferimento.
-                La cella modellistica più vicina è a circa
-                {numero(distanza_mare_km, 1, " km")}
-                dal punto selezionato.
-              </p>
+            righemare.append(
+                f"""
+                <article class="cml-marine-day-card">
+                    <div class="cml-marine-day-head">
+                        <span class="cml-day-tag">
+                            {html.escape(etichettamare)}
+                        </span>
+                        <span class="cml-day-date">
+                            {html.escape(datait(datamaregiorno))}
+                        </span>
+                    </div>
+
+                    <div class="cml-marine-day-status {classeonda}">
+                        <span>{iconaonda}</span>
+                        <div>
+                            <small>STATO DEL MARE</small>
+                            <strong>{html.escape(statoonda)}</strong>
+                        </div>
+                    </div>
+
+                    <div class="cml-marine-day-grid">
+                        <div class="cml-marine-day-card">
+                            <span>Altezza massima</span>
+                            <strong>
+                                {numerovalore(altezzaonda, 2, "m")}
+                            </strong>
+                            <small>Onda significativa</small>
+                        </div>
+
+                        <div class="cml-marine-day-card">
+                            <span>Direzione dominante</span>
+                            <strong>
+                                {direzionegradi(direzioneonda)}
+                            </strong>
+                            <small>
+                                {numerovalore(direzioneonda, 0, "°")}
+                            </small>
+                        </div>
+
+                        <div class="cml-marine-day-card">
+                            <span>Periodo massimo</span>
+                            <strong>
+                                {numerovalore(periodoonda, 1, "s")}
+                            </strong>
+                            <small>Periodo dell'onda</small>
+                        </div>
+
+                        <div class="cml-marine-day-card">
+                            <span>Mare del vento</span>
+                            <strong>
+                                {numerovalore(altezzamarevento, 2, "m")}
+                            </strong>
+                            <small>Wind sea</small>
+                        </div>
+
+                        <div class="cml-marine-day-card">
+                            <span>Mare di fondo</span>
+                            <strong>
+                                {numerovalore(altezzamarefondo, 2, "m")}
+                            </strong>
+                            <small>
+                                Direzione:
+                                {direzionegradi(direzionemarefondo)}
+                            </small>
+                        </div>
+                    </div>
+                </article>
+                """
+            )
+
+        maregiornihtml = f"""
+        <section class="cml-marine-forecast-box">
+            <div class="cml-section-title">
+                <div>
+                    <span>PREVISIONE MARINA</span>
+                    <h2>Il mare nei prossimi giorni</h2>
+                    <p>
+                        Altezza d'onda, periodo e direzione
+                        sulla cella marina più vicina.
+                    </p>
+                </div>
+                <div class="cml-pill">72 ore</div>
             </div>
 
-            <div class="cml-sea-status {classe_mare}">
-              <span>{icona_mare}</span>
-
-              <div>
-                <small>STATO DEL MARE</small>
-                <strong>{html.escape(stato_mare)}</strong>
-              </div>
+            <div class="cml-marine-days-grid">
+                {"".join(righemare)}
             </div>
-          </div>
-
-          <div class="cml-marine-grid">
-            <div class="cml-marine-card">
-              <span>🌊 Altezza onda</span>
-              <strong>{numero(altezza_onda, 2, " m")}</strong>
-              <small>Onda significativa</small>
-            </div>
-
-            <div class="cml-marine-card">
-              <span>🧭 Provenienza onda</span>
-              <strong>{direzione(direzione_onda)}</strong>
-              <small>{numero(direzione_onda, 0, "°")}</small>
-            </div>
-
-            <div class="cml-marine-card">
-              <span>〰️ Periodo medio</span>
-              <strong>{numero(periodo_onda, 1, " s")}</strong>
-              <small>Intervallo medio d'onda</small>
-            </div>
-
-            <div class="cml-marine-card">
-              <span>📈 Periodo di picco</span>
-              <strong>{numero(periodo_picco, 1, " s")}</strong>
-              <small>Energia dominante</small>
-            </div>
-
-            <div class="cml-marine-card">
-              <span>💨 Mare del vento</span>
-              <strong>{numero(altezza_mare_vento, 2, " m")}</strong>
-              <small>Componente wind sea</small>
-            </div>
-
-            <div class="cml-marine-card">
-              <span>🌐 Mare di fondo</span>
-              <strong>{numero(altezza_swell, 2, " m")}</strong>
-              <small>Componente swell</small>
-            </div>
-
-            <div class="cml-marine-card">
-              <span>🌡️ Temperatura mare</span>
-              <strong>{numero(temperatura_mare, 1, " °C")}</strong>
-              <small>Temperatura superficiale</small>
-            </div>
-          </div>
-
-          <div class="cml-marine-note">
-            ℹ️ La direzione indica <b>da dove proviene</b> il moto ondoso.
-            I valori sono stimati su griglia marina e possono essere meno
-            rappresentativi presso baie, porti, promontori e costa molto frastagliata.
-            Per navigazione e sicurezza consulta sempre fonti nautiche e avvisi ufficiali.
-          </div>
         </section>
         """
-        mare_giorni_html = ""
-
-    if (
-        dati_mare is not None
-        and isinstance(dati_mare, dict)
-        and dati_mare.get("daily")
-    ):
-        mare_daily = dati_mare["daily"]
-
-        date_mare = mare_daily.get("time", [])
-        altezza_mare = mare_daily.get("wave_height_max", [])
-        direzione_mare = mare_daily.get("wave_direction_dominant", [])
-        periodo_mare = mare_daily.get("wave_period_max", [])
-        altezza_vento = mare_daily.get("wind_wave_height_max", [])
-        altezza_swell = mare_daily.get("swell_wave_height_max", [])
-        direzione_swell = mare_daily.get("swell_wave_direction_dominant", [])
-
-        righe_mare = []
-
-        mare_giorni_html = ""
-
-if (
-    datimare is not None
-    and isinstance(datimare, dict)
-    and datimare.get("daily")
-):
-    mare_daily = datimare["daily"]
-
-    date_mare = mare_daily.get("time", [])
-    altezza_mare = mare_daily.get("wave_height_max", [])
-    direzione_mare = mare_daily.get("wave_direction_dominant", [])
-    periodo_mare = mare_daily.get("wave_period_max", [])
-    altezza_vento = mare_daily.get("wind_wave_height_max", [])
-    altezza_swell = mare_daily.get("swell_wave_height_max", [])
-    direzione_swell = mare_daily.get(
-        "swell_wave_direction_dominant",
-        [],
-    )
-
-    righe_mare = []
-
-    for indice_mare, data_mare in enumerate(date_mare):
-        altezza_onda = (
-            altezza_mare[indice_mare]
-            if indice_mare < len(altezza_mare)
-            else None
-        )
-
-        direzione_onda = (
-            direzione_mare[indice_mare]
-            if indice_mare < len(direzione_mare)
-            else None
-        )
-
-        periodo_onda = (
-            periodo_mare[indice_mare]
-            if indice_mare < len(periodo_mare)
-            else None
-        )
-
-        altezza_mare_vento = (
-            altezza_vento[indice_mare]
-            if indice_mare < len(altezza_vento)
-            else None
-        )
-
-        altezza_mare_fondo = (
-            altezza_swell[indice_mare]
-            if indice_mare < len(altezza_swell)
-            else None
-        )
-
-        direzione_mare_fondo = (
-            direzione_swell[indice_mare]
-            if indice_mare < len(direzione_swell)
-            else None
-        )
-
-        stato_onda, icona_onda, classe_onda = (
-            statomaredaondaaltezzaonda(altezza_onda)
-        )
-
-        if indice_mare == 0:
-            etichetta_mare = "OGGI"
-        elif indice_mare == 1:
-            etichetta_mare = "DOMANI"
-        elif indice_mare == 2:
-            etichetta_mare = "DOPODOMANI"
-        else:
-            etichetta_mare = datait(data_mare).title()
-
-        righe_mare.append(
-            f"""
-            <article class="cml-marine-day-card">
-                <div class="cml-marine-day-head">
-                    <span class="cml-day-tag">
-                        {html.escape(etichetta_mare)}
-                    </span>
-
-                    <span class="cml-day-date">
-                        {html.escape(datait(data_mare))}
-                    </span>
-                </div>
-
-                <div class="cml-marine-day-status {classe_onda}">
-                    <span>{icona_onda}</span>
-                    <div>
-                        <small>STATO DEL MARE</small>
-                        <strong>
-                            {html.escape(stato_onda)}
-                        </strong>
-                    </div>
-                </div>
-
-                <div class="cml-marine-day-grid">
-                    <div class="cml-marine-day-card">
-                        <span>Altezza massima</span>
-                        <strong>
-                            {numerovalore(altezza_onda, 2, "m")}
-                        </strong>
-                        <small>Onda significativa</small>
-                    </div>
-
-                    <div class="cml-marine-day-card">
-                        <span>Direzione dominante</span>
-                        <strong>
-                            {direzionegradi(direzione_onda)}
-                        </strong>
-                        <small>
-                            {numerovalore(direzione_onda, 0, "°")}
-                        </small>
-                    </div>
-
-                    <div class="cml-marine-day-card">
-                        <span>Periodo massimo</span>
-                        <strong>
-                            {numerovalore(periodo_onda, 1, "s")}
-                        </strong>
-                        <small>Periodo dell'onda</small>
-                    </div>
-
-                    <div class="cml-marine-day-card">
-                        <span>Mare del vento</span>
-                        <strong>
-                            {numerovalore(altezza_mare_vento, 2, "m")}
-                        </strong>
-                        <small>Wind sea</small>
-                    </div>
-
-                    <div class="cml-marine-day-card">
-                        <span>Mare di fondo</span>
-                        <strong>
-                            {numerovalore(altezza_mare_fondo, 2, "m")}
-                        </strong>
-                        <small>
-                            Direzione:
-                            {direzionegradi(direzione_mare_fondo)}
-                        </small>
-                    </div>
-                </div>
-            </article>
-            """
-        )
-
-    mare_giorni_html = f"""
-    <section class="cml-marine-forecast-box">
-        <div class="cml-section-title">
-            <div>
-                <span>PREVISIONE MARINA</span>
-                <h2>Il mare nei prossimi giorni</h2>
-                <p>
-                    Altezza d'onda, periodo e direzione
-                    sulla cella marina più vicina.
-                </p>
-            </div>
-
-            <div class="cml-pill">72 ore</div>
-        </div>
-
-        <div class="cml-marine-days-grid">
-            {"".join(righe_mare)}
-        </div>
-    </section>
-    """
         
     etichette_giorni = [
         "OGGI",
@@ -3579,7 +3444,7 @@ fetch(
 </html>
 """
 
-    return documento_html
+return documento_html
 
 
 # =============================================================================

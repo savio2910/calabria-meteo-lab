@@ -3166,20 +3166,19 @@ function creaGrafico(chiave) {{
         intersect: false
       }},
 
-      plugins: {{
-        legend: {{
-          position: "top",
-
-          labels: {{
-            usePointStyle: true,
-            padding: 18,
-
-            font: {{
-              size: 12,
-              weight: "600"
+        plugins: {{
+          legend: {{
+            position: "top",
+        
+            labels: {{
+              usePointStyle: true,
+              padding: 18,
+              font: {{
+                size: 12,
+                weight: "600"
+              }}
             }}
-          }}
-        }},
+          }},
 
         tooltip: {{
           backgroundColor: "rgba(15, 43, 59, 0.95)",

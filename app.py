@@ -1943,20 +1943,20 @@ def genera_app_completa(
                 " hPa",
             ),
         ),
-    ]
+        ]
 
     metriche_html = "".join(
         f"""
         <div class="cml-metric-card">
           <div class="cml-metric-icon">{icona}</div>
-    
+
           <div>
             <div class="cml-metric-label">
               {html.escape(etichetta)}
             </div>
-    
+
             <div class="cml-metric-value">
-              {html.escape(valore)}
+              {html.escape(str(valore))}
             </div>
           </div>
         </div>

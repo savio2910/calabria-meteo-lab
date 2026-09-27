@@ -1383,7 +1383,152 @@ def genera_app_completa(
           </div>
         </section>
         """
+        mare_giorni_html = ""
 
+    if (
+        dati_mare is not None
+        and isinstance(dati_mare, dict)
+        and dati_mare.get("daily")
+    ):
+        mare_daily = dati_mare["daily"]
+
+        date_mare = mare_daily.get("time", [])
+        altezza_mare = mare_daily.get("wave_height_max", [])
+        direzione_mare = mare_daily.get("wave_direction_dominant", [])
+        periodo_mare = mare_daily.get("wave_period_max", [])
+        altezza_vento = mare_daily.get("wind_wave_height_max", [])
+        altezza_swell = mare_daily.get("swell_wave_height_max", [])
+        direzione_swell = mare_daily.get("swell_wave_direction_dominant", [])
+
+        righe_mare = []
+
+        for i, data_mare in enumerate(date_mare):
+            altezza = (
+                altezza_mare[i]
+                if i < len(altezza_mare)
+                else None
+            )
+
+            direzione = (
+                direzione_mare[i]
+                if i < len(direzione_mare)
+                else None
+            )
+
+            periodo = (
+                periodo_mare[i]
+                if i < len(periodo_mare)
+                else None
+            )
+
+            vento_onda = (
+                altezza_vento[i]
+                if i < len(altezza_vento)
+                else None
+            )
+
+            swell = (
+                altezza_swell[i]
+                if i < len(altezza_swell)
+                else None
+            )
+
+            direzione_swell_val = (
+                direzione_swell[i]
+                if i < len(direzione_swell)
+                else None
+            )
+
+            stato_mare, icona_mare, classe_mare = (
+                stato_mare_da_onda(altezza)
+            )
+
+            if i == 0:
+                etichetta_mare = "OGGI"
+            elif i == 1:
+                etichetta_mare = "DOMANI"
+            elif i == 2:
+                etichetta_mare = "DOPODOMANI"
+            else:
+                etichetta_mare = datait(data_mare).title()
+
+            righe_mare.append(
+                f"""
+                <article class="cml-marine-day-card">
+                    <div class="cml-marine-day-head">
+                        <span class="cml-day-tag">
+                            {html.escape(etichetta_mare)}
+                        </span>
+                        <span class="cml-day-date">
+                            {html.escape(datait(data_mare))}
+                        </span>
+                    </div>
+
+                    <div class="cml-marine-day-status {classe_mare}">
+                        <span>{icona_mare}</span>
+                        <div>
+                            <small>STATO DEL MARE</small>
+                            <strong>{html.escape(stato_mare)}</strong>
+                        </div>
+                    </div>
+
+                    <div class="cml-marine-day-grid">
+                        <div class="cml-marine-day-card">
+                            <span>Altezza massima</span>
+                            <strong>{numerovalore(altezza, 2, "m")}</strong>
+                            <small>Onda significativa</small>
+                        </div>
+
+                        <div class="cml-marine-day-card">
+                            <span>Direzione dominante</span>
+                            <strong>{direzionegradi(direzione)}</strong>
+                            <small>
+                                {numerovalore(direzione, 0, "°")}
+                            </small>
+                        </div>
+
+                        <div class="cml-marine-day-card">
+                            <span>Periodo massimo</span>
+                            <strong>{numerovalore(periodo, 1, "s")}</strong>
+                            <small>Periodo dell'onda</small>
+                        </div>
+
+                        <div class="cml-marine-day-card">
+                            <span>Mare del vento</span>
+                            <strong>{numerovalore(vento_onda, 2, "m")}</strong>
+                            <small>Wind sea</small>
+                        </div>
+
+                        <div class="cml-marine-day-card">
+                            <span>Mare di fondo</span>
+                            <strong>{numerovalore(swell, 2, "m")}</strong>
+                            <small>Direzione {direzionegradi(direzione_swell_val)}</small>
+                        </div>
+                    </div>
+                </article>
+                """
+            )
+
+        mare_giorni_html = f"""
+        <section class="cml-marine-forecast-box">
+            <div class="cml-section-title">
+                <div>
+                    <span>PREVISIONE MARINA</span>
+                    <h2>Il mare nei prossimi giorni</h2>
+                    <p>
+                        Altezza d'onda, periodo, direzione e componenti
+                        del moto ondoso sulla cella marina più vicina.
+                    </p>
+                </div>
+                <div class="cml-pill">72 ore</div>
+            </div>
+
+            <div class="cml-marine-days-grid">
+                {"".join(righe_mare)}
+            </div>
+        </section>
+        """
+        
     etichette_giorni = [
         "OGGI",
         "DOMANI",
@@ -2544,6 +2689,99 @@ body {{
   padding-bottom: 5px;
 }}
 
+.cml-marine-forecast-box {{
+    margin: 0 0 30px;
+    padding: 26px;
+    border: 1px solid #cbdfe8;
+    border-radius: 24px;
+    background: #ffffff;
+    box-shadow: 0 8px 28px rgba(23, 67, 84, 0.10);
+}}
+
+.cml-marine-days-grid {{
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+    gap: 18px;
+}}
+
+.cml-marine-day-card {{
+    padding: 20px;
+    border: 1px solid #d5e4e9;
+    border-radius: 20px;
+    background: #f8fbfc;
+}}
+
+.cml-marine-day-head {{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 16px;
+}}
+
+.cml-marine-day-status {{
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 17px;
+    padding: 13px 15px;
+    border-radius: 14px;
+    color: #ffffff;
+}}
+
+.cml-marine-day-status > span {{
+    font-size: 28px;
+}}
+
+.cml-marine-day-status small {{
+    display: block;
+    margin-bottom: 3px;
+    color: rgba(255, 255, 255, 0.84);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.8px;
+}}
+
+.cml-marine-day-status strong {{
+    display: block;
+    font-size: 17px;
+}}
+
+.cml-marine-day-grid {{
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}}
+
+.cml-marine-day-grid .cml-marine-day-card {{
+    min-height: 86px;
+    padding: 12px;
+    border: 1px solid #dbe8ec;
+    border-radius: 13px;
+    background: #ffffff;
+}}
+
+.cml-marine-day-grid span {{
+    display: block;
+    color: #54707c;
+    font-size: 11px;
+    font-weight: 700;
+}}
+
+.cml-marine-day-grid strong {{
+    display: block;
+    margin-top: 5px;
+    color: #143b4b;
+    font-size: 20px;
+}}
+
+.cml-marine-day-grid small {{
+    display: block;
+    margin-top: 3px;
+    color: #768c95;
+    font-size: 10px;
+}}
+
 .cml-tab-btn {{
   border: 1px solid #cfe2e7;
   border-radius: 12px;
@@ -2818,6 +3056,7 @@ body {{
 </section>
 
 {mare_html}
+{mare_giorni_html}
 {sintesi_html}
 <section class="cml-radar-box">
   <div class="cml-radar-head">
@@ -3400,7 +3639,7 @@ try:
 
     components.html(
         documento,
-        height=4300,
+        height=5400,
         scrolling=True,
     )
 

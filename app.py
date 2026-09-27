@@ -1949,14 +1949,14 @@ def genera_app_completa(
         f"""
         <div class="cml-metric-card">
           <div class="cml-metric-icon">{icona}</div>
-
+    
           <div>
             <div class="cml-metric-label">
               {html.escape(etichetta)}
             </div>
-
+    
             <div class="cml-metric-value">
-              {html.escape(str(valore))}
+              {html.escape(valore)}
             </div>
           </div>
         </div>

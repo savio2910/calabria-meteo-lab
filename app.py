@@ -924,7 +924,6 @@ def prepara_dati_terrestri(dati):
     
     giorni["weather_code_prevalente"] = codici_prevalenti
     giorni["cloud_cover_diurno"] = nuvolosita_giornaliera
-    giorni["descrizione_diurna"] = descrizioni_giornaliere
 
     giorni["Da"] = giorni[
         "wind_direction_10m_dominant"

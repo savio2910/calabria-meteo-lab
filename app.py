@@ -905,32 +905,25 @@ def prepara_dati_terrestri(dati):
 
     codici_prevalenti = []
     nuvolosita_giornaliera = []
-    descrizioni_giornaliere = []
-
+    
     for _, riga_giorno in giorni.iterrows():
         data_giorno = riga_giorno["time"].date()
-
+    
         ore_giorno = ore_raw.loc[
             ore_raw["time"].dt.date == data_giorno
         ]
-
-        codice, nubi, descrizione = calcola_dati_diurni(
+    
+        codice, nubi = calcola_dati_diurni(
             ore_giorno,
             riga_giorno.get("sunrise"),
             riga_giorno.get("sunset"),
         )
-
+    
         codici_prevalenti.append(codice)
         nuvolosita_giornaliera.append(nubi)
-        descrizioni_giornaliere.append(descrizione)
-
-    giorni["weather_code_prevalente"] = (
-        codici_prevalenti
-    )
-
-    giorni["cloud_cover_diurno"] = (
-        nuvolosita_giornaliera
-    )
+    
+    giorni["weather_code_prevalente"] = codici_prevalenti
+    giorni["cloud_cover_diurno"] = nuvolosita_giornaliera
     giorni["descrizione_diurna"] = descrizioni_giornaliere
 
     giorni["Da"] = giorni[

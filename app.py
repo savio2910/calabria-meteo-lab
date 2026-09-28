@@ -835,9 +835,8 @@ def scarica_previsione_mare(latitudine, longitudine):
 # =============================================================================
 
 def calcola_dati_diurni(ore_giorno, alba, tramonto):
-    """Condizione della scheda giornaliera dalle sole ore diurne previste."""
     if ore_giorno.empty:
-        return None, None, None
+        return 0, 0
 
     alba_ts = pd.to_datetime(alba, errors="coerce")
     tramonto_ts = pd.to_datetime(tramonto, errors="coerce")
@@ -845,45 +844,51 @@ def calcola_dati_diurni(ore_giorno, alba, tramonto):
     if pd.notna(alba_ts) and pd.notna(tramonto_ts):
         ore_diurne = ore_giorno.loc[
             (ore_giorno["time"] >= alba_ts)
-            & (ore_giorno["time"] < tramonto_ts)
-        ]
+            & (ore_giorno["time"] <= tramonto_ts)
+        ].copy()
     else:
         ore_diurne = ore_giorno.loc[
             (ore_giorno["time"].dt.hour >= 7)
-            & (ore_giorno["time"].dt.hour < 20)
-        ]
+            & (ore_giorno["time"].dt.hour <= 20)
+        ].copy()
 
     if ore_diurne.empty:
-        return None, None, None
+        ore_diurne = ore_giorno.copy()
 
     nuvole = pd.to_numeric(
         ore_diurne["cloud_cover"], errors="coerce"
-    )
-    numero_ore = len(ore_diurne)
-    media = round(nuvole.mean()) if nuvole.notna().any() else None
+    ).fillna(0)
+    n_ore = len(nuvole)
+    nuvolosita_media = round(nuvole.mean())
 
+    # Priorità assoluta ai fenomeni precipitativi/temporaleschi.
     codici = pd.to_numeric(
         ore_diurne["weather_code"], errors="coerce"
     )
-    codici_severi = [
+    codici_fenomeni = [
         99, 96, 95, 82, 81, 80,
         65, 63, 61, 55, 53, 51,
     ]
-    for codice in codici_severi:
+    for codice in codici_fenomeni:
         if (codici == codice).sum() >= 2:
-            return codice, media, None
+            return codice, nuvolosita_media
 
-    if (nuvole > 65).sum() > numero_ore / 2:
-        return 3, media, "Coperto"
-    if ((nuvole > 60) & (nuvole < 80)).sum() >= numero_ore / 3:
-        return 2, media, "Parzialmente nuvoloso"
-    if ((nuvole > 30) & (nuvole < 50)).sum() > numero_ore / 3:
-        return 1, media, "Poco nuvoloso"
+    # Regole richieste dall'utente.
+    if (nuvole > 65).sum() > n_ore / 2:
+        return 3, nuvolosita_media
 
+    if ((nuvole >= 60) & (nuvole < 80)).sum() >= n_ore / 3:
+        return 2, nuvolosita_media
+
+    if ((nuvole > 30) & (nuvole < 50)).sum() > n_ore / 3:
+        return 1, nuvolosita_media
+
+    # Nessuna soglia: prevalenza del codice orario diurno.
     codici_validi = codici.dropna()
     if codici_validi.empty:
-        return None, media, None
-    return int(codici_validi.mode().iloc[0]), media, None
+        return 0, nuvolosita_media
+
+    return int(codici_validi.mode().iloc[0]), nuvolosita_media
 
 
 def prepara_dati_terrestri(dati):

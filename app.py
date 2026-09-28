@@ -834,7 +834,12 @@ def scarica_previsione_mare(latitudine, longitudine):
 # PREPARAZIONE DATI
 # =============================================================================
 
-def calcola_dati_diurni(ore_giorno, alba, tramonto):
+def calcola_dati_diurni(
+    ore_giorno,
+    alba,
+    tramonto,
+    ora_riferimento=None,
+):
     """
     Calcola l'icona giornaliera esclusivamente dalla nuvolosità media
     nelle ore comprese tra alba e tramonto.
@@ -863,6 +868,14 @@ def calcola_dati_diurni(ore_giorno, alba, tramonto):
         ore_diurne["cloud_cover"],
         errors="coerce",
     ).fillna(0.0)
+
+    if ora_riferimento is not None:
+    ore_rimanenti = ore_diurne.loc[
+        ore_diurne["time"] >= ora_riferimento
+    ].copy()
+
+    if not ore_rimanenti.empty:
+        ore_diurne = ore_rimanenti
 
     nuvolosita_media = round(float(nuvole.mean()))
 
@@ -899,10 +912,21 @@ def prepara_dati_terrestri(dati):
             ore_raw["time"].dt.date == data_giorno
         ]
 
+        ora_locale = pd.Timestamp(
+            datetime.now(FUSO_ORARIO).replace(tzinfo=None)
+        ).floor("h")
+        
+        riferimento_giorno = (
+            ora_locale
+            if data_giorno == ora_locale.date()
+            else None
+        )
+        
         codice, nubi = calcola_dati_diurni(
             ore_giorno,
             riga_giorno.get("sunrise"),
             riga_giorno.get("sunset"),
+            riferimento_giorno,
         )
 
         codici_prevalenti.append(codice)

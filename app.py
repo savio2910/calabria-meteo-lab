@@ -835,52 +835,55 @@ def scarica_previsione_mare(latitudine, longitudine):
 # =============================================================================
 
 def calcola_dati_diurni(ore_giorno, alba, tramonto):
+    """Condizione della scheda giornaliera dalle sole ore diurne previste."""
     if ore_giorno.empty:
-        return 0, 0
+        return None, None, None
 
-    if alba is not None and tramonto is not None:
-        alba_ts = pd.Timestamp(alba)
-        tramonto_ts = pd.Timestamp(tramonto)
+    alba_ts = pd.to_datetime(alba, errors="coerce")
+    tramonto_ts = pd.to_datetime(tramonto, errors="coerce")
 
+    if pd.notna(alba_ts) and pd.notna(tramonto_ts):
         ore_diurne = ore_giorno.loc[
             (ore_giorno["time"] >= alba_ts)
-            & (ore_giorno["time"] <= tramonto_ts)
+            & (ore_giorno["time"] < tramonto_ts)
         ]
     else:
         ore_diurne = ore_giorno.loc[
             (ore_giorno["time"].dt.hour >= 7)
-            & (ore_giorno["time"].dt.hour <= 20)
+            & (ore_giorno["time"].dt.hour < 20)
         ]
 
-    dati_target = (
-        ore_diurne
-        if not ore_diurne.empty
-        else ore_giorno
+    if ore_diurne.empty:
+        return None, None, None
+
+    nuvole = pd.to_numeric(
+        ore_diurne["cloud_cover"], errors="coerce"
     )
+    numero_ore = len(ore_diurne)
+    media = round(nuvole.mean()) if nuvole.notna().any() else None
 
-    nuvolosita_media = 0
-
-    if "cloud_cover" in dati_target.columns:
-        nuvolosita_media = round(
-            dati_target["cloud_cover"].mean()
-        )
-
+    codici = pd.to_numeric(
+        ore_diurne["weather_code"], errors="coerce"
+    )
     codici_severi = [
         99, 96, 95, 82, 81, 80,
         65, 63, 61, 55, 53, 51,
     ]
-
     for codice in codici_severi:
-        if (dati_target["weather_code"] == codice).sum() >= 2:
-            return codice, nuvolosita_media
+        if (codici == codice).sum() >= 2:
+            return codice, media, None
 
-    codice_prevalente = (
-        dati_target["weather_code"].mode().iloc[0]
-        if not dati_target.empty
-        else 0
-    )
+    if (nuvole > 65).sum() > numero_ore / 2:
+        return 3, media, "Coperto"
+    if ((nuvole > 60) & (nuvole < 80)).sum() >= numero_ore / 3:
+        return 2, media, "Parzialmente nuvoloso"
+    if ((nuvole > 30) & (nuvole < 50)).sum() > numero_ore / 3:
+        return 1, media, "Poco nuvoloso"
 
-    return codice_prevalente, nuvolosita_media
+    codici_validi = codici.dropna()
+    if codici_validi.empty:
+        return None, media, None
+    return int(codici_validi.mode().iloc[0]), media, None
 
 
 def prepara_dati_terrestri(dati):
@@ -897,6 +900,7 @@ def prepara_dati_terrestri(dati):
 
     codici_prevalenti = []
     nuvolosita_giornaliera = []
+    descrizioni_giornaliere = []
 
     for _, riga_giorno in giorni.iterrows():
         data_giorno = riga_giorno["time"].date()
@@ -905,7 +909,7 @@ def prepara_dati_terrestri(dati):
             ore_raw["time"].dt.date == data_giorno
         ]
 
-        codice, nubi = calcola_dati_diurni(
+        codice, nubi, descrizione = calcola_dati_diurni(
             ore_giorno,
             riga_giorno.get("sunrise"),
             riga_giorno.get("sunset"),
@@ -913,6 +917,7 @@ def prepara_dati_terrestri(dati):
 
         codici_prevalenti.append(codice)
         nuvolosita_giornaliera.append(nubi)
+        descrizioni_giornaliere.append(descrizione)
 
     giorni["weather_code_prevalente"] = (
         codici_prevalenti
@@ -921,6 +926,7 @@ def prepara_dati_terrestri(dati):
     giorni["cloud_cover_diurno"] = (
         nuvolosita_giornaliera
     )
+    giorni["descrizione_diurna"] = descrizioni_giornaliere
 
     giorni["Da"] = giorni[
         "wind_direction_10m_dominant"
@@ -1370,12 +1376,10 @@ def genera_app_completa(
             else "PROSSIMAMENTE"
         )
 
-        codice_effettivo = riga.get(
-            "weather_code_prevalente",
-            riga.get("weather_code"),
-        )
-
+        codice_effettivo = riga.get("weather_code_prevalente")
         icona, descrizione = meteo(codice_effettivo)
+        if riga.get("descrizione_diurna") is not None:
+            descrizione = riga["descrizione_diurna"]
         fase = html.escape(str(riga.get("Fase lunare", "🌙 Luna")))
         livello, rischio = valuta_rischio_locale(riga)
         badge_rischio = badge_rischio_html(livello, rischio)
@@ -3036,8 +3040,11 @@ body {{
     </div>
 
     <div class="cml-note">
-      ℹ️ Le schede mostrano la condizione prevalente e la nuvolosità
-      media nelle ore diurne. Temperature, precipitazioni e vento
+      ℹ️ L'icona è calcolata dalle ore diurne tra alba e tramonto:
+      i fenomeni significativi hanno priorità, poi si applicano le soglie
+      di nuvolosità; se nessuna soglia è raggiunta si usa il codice orario
+      diurno prevalente. La nuvolosità indicata è la media diurna.
+      Temperature, precipitazioni e vento
       rappresentano estremi o cumulati sulle 24 ore.
     </div>
   </section>

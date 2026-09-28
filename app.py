@@ -840,10 +840,6 @@ def calcola_dati_diurni(
     tramonto,
     ora_riferimento=None,
 ):
-    """
-    Calcola l'icona giornaliera esclusivamente dalla nuvolosità media
-    nelle ore comprese tra alba e tramonto.
-    """
     if ore_giorno.empty:
         return 0, 0
 
@@ -864,18 +860,19 @@ def calcola_dati_diurni(
     if ore_diurne.empty:
         return 0, 0
 
+    # Solo per oggi: conserva esclusivamente le ore diurne ancora future.
+    if ora_riferimento is not None:
+        ore_rimanenti = ore_diurne.loc[
+            ore_diurne["time"] >= pd.Timestamp(ora_riferimento)
+        ].copy()
+
+        if not ore_rimanenti.empty:
+            ore_diurne = ore_rimanenti
+
     nuvole = pd.to_numeric(
         ore_diurne["cloud_cover"],
         errors="coerce",
     ).fillna(0.0)
-
-    if ora_riferimento is not None:
-        ore_rimanenti = ore_diurne.loc[
-        ore_diurne["time"] >= ora_riferimento
-        ].copy()
-
-    if not ore_rimanenti.empty:
-        ore_diurne = ore_rimanenti
 
     nuvolosita_media = round(float(nuvole.mean()))
 

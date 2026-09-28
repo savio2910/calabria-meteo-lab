@@ -835,7 +835,10 @@ def scarica_previsione_mare(latitudine, longitudine):
 # =============================================================================
 
 def calcola_dati_diurni(ore_giorno, alba, tramonto):
-    """Determina l'icona giornaliera solo dalle ore tra alba e tramonto."""
+    """
+    Calcola l'icona giornaliera esclusivamente dalla nuvolosità media
+    nelle ore comprese tra alba e tramonto.
+    """
     if ore_giorno.empty:
         return 0, 0
 
@@ -857,45 +860,22 @@ def calcola_dati_diurni(ore_giorno, alba, tramonto):
         return 0, 0
 
     nuvole = pd.to_numeric(
-        ore_diurne["cloud_cover"], errors="coerce"
+        ore_diurne["cloud_cover"],
+        errors="coerce",
     ).fillna(0.0)
-    codici = pd.to_numeric(
-        ore_diurne["weather_code"], errors="coerce"
-    )
-    n_ore = len(ore_diurne)
+
     nuvolosita_media = round(float(nuvole.mean()))
 
-    # Precipitazioni e temporali hanno sempre priorità sull'icona di cielo.
-    codici_fenomeni = [
-        99, 96, 95, 82, 81, 80,
-        65, 63, 61, 55, 53, 51,
-    ]
-    for codice in codici_fenomeni:
-        if (codici == codice).sum() >= 2:
-            return codice, nuvolosita_media
-
-    # Cielo: regole applicate direttamente alle singole ore diurne.
-    if (nuvole > 65).sum() > n_ore / 2:
-        return 3, nuvolosita_media
-
-    if ((nuvole >= 60) & (nuvole < 80)).sum() >= n_ore / 3:
-        return 2, nuvolosita_media
-
-    if ((nuvole > 30) & (nuvole < 50)).sum() > n_ore / 3:
-        return 1, nuvolosita_media
-
-    # Se ci sono almeno tre ore realmente nuvolose (>= 60%),
-    # non consentire mai l'icona "Sereno". Serve al caso Cosenza 30/09.
-    if (nuvole >= 60).sum() >= 3:
-        return 2, nuvolosita_media
-
-    # Solo in assenza delle condizioni precedenti, usa il codice prevalente.
-    codici_validi = codici.dropna()
-    if codici_validi.empty:
+    if nuvolosita_media <= 25:
         return 0, nuvolosita_media
 
-    return int(codici_validi.mode().iloc[0]), nuvolosita_media
+    if nuvolosita_media <= 40:
+        return 1, nuvolosita_media
 
+    if nuvolosita_media <= 70:
+        return 2, nuvolosita_media
+
+    return 3, nuvolosita_media
 
 def prepara_dati_terrestri(dati):
     ore_raw = pd.DataFrame(dati["hourly"])
@@ -934,13 +914,6 @@ def prepara_dati_terrestri(dati):
 
     giorni["cloud_cover_diurno"] = (
         nuvolosita_giornaliera
-    )
-    giorni["debug_icona_diurna"] = giorni.apply(
-        lambda riga: (
-            f"codice={int(riga['weather_code_prevalente'])} · "
-            f"media nubi={int(riga['cloud_cover_diurno'])}%"
-        ),
-        axis=1,
     )
 
     giorni["Da"] = giorni[
@@ -1443,10 +1416,6 @@ def genera_app_completa(
                 <div>
                   <div class="cml-day-description">
                     {html.escape(descrizione)}
-                  </div>
-
-                  <div class="cml-day-debug">
-                    {html.escape(str(riga.get("debug_icona_diurna", "")))}
                   </div>
 
                   <div class="cml-day-moon">
@@ -2554,13 +2523,6 @@ body {{
   color: var(--ink);
   font-size: 18px;
   font-weight: 850;
-}}
-
-.cml-day-debug {{
-  margin-top: 4px;
-  color: #607987;
-  font-size: 10px;
-  font-weight: 700;
 }}
 
 .cml-day-moon {{

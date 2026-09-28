@@ -835,6 +835,7 @@ def scarica_previsione_mare(latitudine, longitudine):
 # =============================================================================
 
 def calcola_dati_diurni(ore_giorno, alba, tramonto):
+    """Determina l'icona giornaliera solo dalle ore tra alba e tramonto."""
     if ore_giorno.empty:
         return 0, 0
 
@@ -844,27 +845,27 @@ def calcola_dati_diurni(ore_giorno, alba, tramonto):
     if pd.notna(alba_ts) and pd.notna(tramonto_ts):
         ore_diurne = ore_giorno.loc[
             (ore_giorno["time"] >= alba_ts)
-            & (ore_giorno["time"] <= tramonto_ts)
+            & (ore_giorno["time"] < tramonto_ts)
         ].copy()
     else:
         ore_diurne = ore_giorno.loc[
             (ore_giorno["time"].dt.hour >= 7)
-            & (ore_giorno["time"].dt.hour <= 20)
+            & (ore_giorno["time"].dt.hour <= 18)
         ].copy()
 
     if ore_diurne.empty:
-        ore_diurne = ore_giorno.copy()
+        return 0, 0
 
     nuvole = pd.to_numeric(
         ore_diurne["cloud_cover"], errors="coerce"
-    ).fillna(0)
-    n_ore = len(nuvole)
-    nuvolosita_media = round(nuvole.mean())
-
-    # Priorità assoluta ai fenomeni precipitativi/temporaleschi.
+    ).fillna(0.0)
     codici = pd.to_numeric(
         ore_diurne["weather_code"], errors="coerce"
     )
+    n_ore = len(ore_diurne)
+    nuvolosita_media = round(float(nuvole.mean()))
+
+    # Precipitazioni e temporali hanno sempre priorità sull'icona di cielo.
     codici_fenomeni = [
         99, 96, 95, 82, 81, 80,
         65, 63, 61, 55, 53, 51,
@@ -873,7 +874,7 @@ def calcola_dati_diurni(ore_giorno, alba, tramonto):
         if (codici == codice).sum() >= 2:
             return codice, nuvolosita_media
 
-    # Regole richieste dall'utente.
+    # Cielo: regole applicate direttamente alle singole ore diurne.
     if (nuvole > 65).sum() > n_ore / 2:
         return 3, nuvolosita_media
 
@@ -883,7 +884,12 @@ def calcola_dati_diurni(ore_giorno, alba, tramonto):
     if ((nuvole > 30) & (nuvole < 50)).sum() > n_ore / 3:
         return 1, nuvolosita_media
 
-    # Nessuna soglia: prevalenza del codice orario diurno.
+    # Se ci sono almeno tre ore realmente nuvolose (>= 60%),
+    # non consentire mai l'icona "Sereno". Serve al caso Cosenza 30/09.
+    if (nuvole >= 60).sum() >= 3:
+        return 2, nuvolosita_media
+
+    # Solo in assenza delle condizioni precedenti, usa il codice prevalente.
     codici_validi = codici.dropna()
     if codici_validi.empty:
         return 0, nuvolosita_media
@@ -905,25 +911,37 @@ def prepara_dati_terrestri(dati):
 
     codici_prevalenti = []
     nuvolosita_giornaliera = []
-    
+
     for _, riga_giorno in giorni.iterrows():
         data_giorno = riga_giorno["time"].date()
-    
+
         ore_giorno = ore_raw.loc[
             ore_raw["time"].dt.date == data_giorno
         ]
-    
+
         codice, nubi = calcola_dati_diurni(
             ore_giorno,
             riga_giorno.get("sunrise"),
             riga_giorno.get("sunset"),
         )
-    
+
         codici_prevalenti.append(codice)
         nuvolosita_giornaliera.append(nubi)
-    
-    giorni["weather_code_prevalente"] = codici_prevalenti
-    giorni["cloud_cover_diurno"] = nuvolosita_giornaliera
+
+    giorni["weather_code_prevalente"] = (
+        codici_prevalenti
+    )
+
+    giorni["cloud_cover_diurno"] = (
+        nuvolosita_giornaliera
+    )
+    giorni["debug_icona_diurna"] = giorni.apply(
+        lambda riga: (
+            f"codice={int(riga['weather_code_prevalente'])} · "
+            f"media nubi={int(riga['cloud_cover_diurno'])}%"
+        ),
+        axis=1,
+    )
 
     giorni["Da"] = giorni[
         "wind_direction_10m_dominant"
@@ -1373,10 +1391,12 @@ def genera_app_completa(
             else "PROSSIMAMENTE"
         )
 
-        codice_effettivo = riga.get("weather_code_prevalente")
+        codice_effettivo = riga.get(
+            "weather_code_prevalente",
+            riga.get("weather_code"),
+        )
+
         icona, descrizione = meteo(codice_effettivo)
-        if riga.get("descrizione_diurna") is not None:
-            descrizione = riga["descrizione_diurna"]
         fase = html.escape(str(riga.get("Fase lunare", "🌙 Luna")))
         livello, rischio = valuta_rischio_locale(riga)
         badge_rischio = badge_rischio_html(livello, rischio)
@@ -1423,6 +1443,10 @@ def genera_app_completa(
                 <div>
                   <div class="cml-day-description">
                     {html.escape(descrizione)}
+                  </div>
+
+                  <div class="cml-day-debug">
+                    {html.escape(str(riga.get("debug_icona_diurna", "")))}
                   </div>
 
                   <div class="cml-day-moon">
@@ -2532,6 +2556,13 @@ body {{
   font-weight: 850;
 }}
 
+.cml-day-debug {{
+  margin-top: 4px;
+  color: #607987;
+  font-size: 10px;
+  font-weight: 700;
+}}
+
 .cml-day-moon {{
   display: inline-flex;
   margin-top: 6px;
@@ -3037,11 +3068,8 @@ body {{
     </div>
 
     <div class="cml-note">
-      ℹ️ L'icona è calcolata dalle ore diurne tra alba e tramonto:
-      i fenomeni significativi hanno priorità, poi si applicano le soglie
-      di nuvolosità; se nessuna soglia è raggiunta si usa il codice orario
-      diurno prevalente. La nuvolosità indicata è la media diurna.
-      Temperature, precipitazioni e vento
+      ℹ️ Le schede mostrano la condizione prevalente e la nuvolosità
+      media nelle ore diurne. Temperature, precipitazioni e vento
       rappresentano estremi o cumulati sulle 24 ore.
     </div>
   </section>

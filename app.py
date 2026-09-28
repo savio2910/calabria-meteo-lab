@@ -870,9 +870,9 @@ def calcola_dati_diurni(
     ).fillna(0.0)
 
     if ora_riferimento is not None:
-    ore_rimanenti = ore_diurne.loc[
+        ore_rimanenti = ore_diurne.loc[
         ore_diurne["time"] >= ora_riferimento
-    ].copy()
+        ].copy()
 
     if not ore_rimanenti.empty:
         ore_diurne = ore_rimanenti

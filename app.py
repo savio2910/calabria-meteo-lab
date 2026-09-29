@@ -1854,7 +1854,11 @@ body {{
   font-size: 31px;
 }}
 
-.cml-home-choice.radar .cml-home-choice-icon {{
+.cml-home-choice.radar .cml-home-choice-icon {
+  background: linear-gradient(135deg, #dce7ff, #adc5ec);
+}
+
+.cml-home-choice.activities .cml-home-choice-icon {{
   background: linear-gradient(135deg, #dce7ff, #adc5ec);
 }}
 
@@ -3188,11 +3192,26 @@ body {{
       </select>
     </div>
 
+    <div id="attivita-stato" style="margin-top: 10px; padding: 10px 14px; border: 1px solid #d5e4e9; border-radius: 11px; background: #f7fbfc; color: #102b3b; font-size: 12px; font-weight: 600;">
+      ℹ️ Seleziona un'attività per visualizzare le previsioni
+    </div>
+
+    <div style="display:none;">
+      <select
+        <option value="escursionismo">🥾 Escursionismo</option>
+        <option value="ciclismo">🚴 Ciclismo</option>
+        <option value="spiaggia">🏖️ Spiaggia</option>
+        <option value="fotografia">📸 Fotografia</option>
+        <option value="corsa">🏃 Corsa</option>
+        <option value="astronomia">🔭 Astronomia</option>
+      </select>
+    </div>
+
     <div id="attivita-map"></div>
 
     <div class="cml-radar-footer">
       <span>
-        🗺️ Base cartografica OpenStreetMap · Dati ICON-2I
+        🗺️ Base cartografica OpenStreetMap · Dati ICON-2I (Open-Meteo)
       </span>
 
       <span>
@@ -3217,9 +3236,8 @@ body {{
   </section>
 
   <div class="cml-note">
-    ℹ️ L'indice di compatibilità è una stima automatica basata sui parametri meteorologici
-    e non sostituisce valutazioni di sicurezza, bollettini ufficiali o conoscenza del territorio.
-    Per attività in montagna, mare o condizioni critiche consulta sempre fonti ufficiali.
+    ℹ️ L'indice di compatibilità è calcolato su dati ICON-2I reali (Open-Meteo).
+    Non sostituisce valutazioni di sicurezza, bollettini ufficiali o conoscenza del territorio.
   </div>
 
 </section>
@@ -3233,6 +3251,8 @@ let meteoChartInstance = null;
 let radarMap = null;
 let attivitaMap = null;
 let attivitaLayer = null;
+let datiCelleCache = null;
+let cacheTimestamp = null;
 
 // Griglia Calabria per attività
 const CALABRIA_BOUNDS = {
@@ -3242,11 +3262,15 @@ const CALABRIA_BOUNDS = {
   lonMax: 17.25,
 };
 
-const PASSO_LAT = 6.6 / 111.0;  // ~0.059°
-const PASSO_LON = 6.6 / 86.0;   // ~0.077°
+const PASSO_GRIGLIA_KM = 15.0;  // Passo griglia in km
+const PASSO_LAT = PASSO_GRIGLIA_KM / 111.0;
+const PASSO_LON = PASSO_GRIGLIA_KM / 86.0;
 
-// Dati simulati per le celle (da sostituire con chiamate API reali)
+// Celle della griglia
 let celleAttivita = [];
+
+// Cache duration: 15 minuti
+const CACHE_DURATION_MS = 15 * 60 * 1000;
 
 /* ---------- NAVIGAZIONE HOME / PREVISIONI / RADAR ---------- */
 
@@ -3766,7 +3790,7 @@ function togglePlayRadar() {{
   }}
 }}
 
-// ---------- MAPPA ATTIVITÀ ----------
+// ---------- MAPPA ATTIVITÀ: DATI REALI ICON-2I ----------
 
 function generaCelleCalabria() {{
   const celle = [];
@@ -3777,114 +3801,256 @@ function generaCelleCalabria() {{
 
     while (lon <= CALABRIA_BOUNDS.lonMax) {{
       celle.push({{
-        latitudine: lat,
-        longitudine: lon,
-        id: celle.length,
+        latitudine: Number(lat.toFixed(4)),
+        longitudine: Number(lon.toFixed(4)),
+        id: celle.length + 1,
       }});
-
       lon += PASSO_LON;
     }}
-
     lat += PASSO_LAT;
   }}
 
   return celle;
 }}
 
-function calcolaPunteggioAttivita(cella, tipo) {{
-  // Simulazione - da sostituire con dati reali da API
-  const rand = Math.random();
-
-  const punteggi = {{
-    escursionismo: Math.floor(50 + rand * 50),
-    ciclismo: Math.floor(45 + rand * 55),
-    spiaggia: Math.floor(40 + rand * 60),
-    fotografia: Math.floor(55 + rand * 45),
-    corsa: Math.floor(50 + rand * 50),
-    astronomia: Math.floor(35 + rand * 65),
+function weatherLabel(codice) {{
+  const labels = {{
+    0: 'Sereno', 1: 'Quasi sereno', 2: 'Parzialmente nuvoloso',
+    3: 'Coperto', 45: 'Nebbia', 48: 'Nebbia con brina',
+    51: 'Pioviggine debole', 53: 'Pioviggine moderata',
+    55: 'Pioviggine intensa', 61: 'Pioggia debole',
+    63: 'Pioggia moderata', 65: 'Pioggia forte',
+    71: 'Neve debole', 73: 'Neve moderata', 75: 'Neve forte',
+    80: 'Rovesci deboli', 81: 'Rovesci moderati',
+    82: 'Rovesci forti', 95: 'Temporale',
+    96: 'Temporale con grandine', 99: 'Temporale con forte grandine',
   }};
+  return labels[codice] || 'Condizioni non disponibili';
+}}
 
-  return punteggi[tipo] || 50;
+function punteggioAttivitaReale(dati, tipo) {{
+  const temperatura = Number(dati.temperature_2m || 0);
+  const percepita = Number(dati.apparent_temperature || temperatura);
+  const pioggia = Number(dati.precipitation || 0);
+  const vento = Number(dati.wind_speed_10m || 0);
+  const raffica = Number(dati.wind_gusts_10m || 0);
+  const nuvole = Number(dati.cloud_cover || 0);
+  const codice = Number(dati.weather_code || 0);
+  const temporale = [95, 96, 99].includes(codice);
+  const rovesci = [80, 81, 82].includes(codice);
+  const pioggiaMeteo = [51, 53, 55, 56, 57, 61, 63, 65, 66, 67].includes(codice);
+  let punteggio = 100;
+
+  // Sicurezza: temporali e fenomeni intensi penalizzano drasticamente.
+  if (temporale) punteggio -= 85;
+  if (codice === 96 || codice === 99) punteggio -= 15;
+  if (pioggia >= 2) punteggio -= Math.min(55, 20 + pioggia * 14);
+  else if (pioggia > 0) punteggio -= Math.min(30, pioggia * 18);
+  else if (rovesci || pioggiaMeteo) punteggio -= 25;
+  if (raffica >= 70) punteggio -= 55;
+  else if (raffica >= 50) punteggio -= 32;
+  else if (raffica >= 35) punteggio -= 15;
+
+  if (tipo === 'escursionismo') {{
+    if (temperatura < 4 || temperatura > 31) punteggio -= 20;
+    if (vento >= 30) punteggio -= Math.min(25, (vento - 25) * 2);
+    if (codice >= 71 && codice <= 77) punteggio -= 40;
+  }} else if (tipo === 'ciclismo') {{
+    if (temperatura < 6 || temperatura > 30) punteggio -= 22;
+    if (vento >= 20) punteggio -= Math.min(40, (vento - 18) * 2.5);
+    if (raffica >= 40) punteggio -= 18;
+  }} else if (tipo === 'spiaggia') {{
+    if (temperatura < 22) punteggio -= Math.min(55, (22 - temperatura) * 6);
+    if (temperatura > 35) punteggio -= 18;
+    if (nuvole > 75) punteggio -= 30;
+    else if (nuvole > 50) punteggio -= 12;
+    if (vento >= 30) punteggio -= 25;
+  }} else if (tipo === 'fotografia') {{
+    if (temporale || pioggia >= 3) punteggio -= 35;
+    if (nuvole >= 95) punteggio -= 25;
+    else if (nuvole >= 30 && nuvole <= 75) punteggio += 5;
+    if (raffica >= 55) punteggio -= 20;
+  }} else if (tipo === 'corsa') {{
+    if (percepita < 4 || percepita > 29) punteggio -= 28;
+    if (vento >= 28) punteggio -= Math.min(35, (vento - 22) * 2.5);
+    if (raffica >= 45) punteggio -= 18;
+  }} else if (tipo === 'astronomia') {{
+    if (nuvole > 85) punteggio -= 75;
+    else if (nuvole > 65) punteggio -= 50;
+    else if (nuvole > 40) punteggio -= 28;
+    else if (nuvole > 20) punteggio -= 10;
+    if (pioggia > 0 || pioggiaMeteo || rovesci) punteggio -= 35;
+    if (temporale) punteggio -= 30;
+    if (raffica >= 45) punteggio -= 18;
+  }}
+
+  return Math.max(0, Math.min(100, Math.round(punteggio)));
 }}
 
 function coloreDaPunteggio(punteggio) {{
-  if (punteggio >= 80) return '#22c55e';  // Verde intenso
-  if (punteggio >= 60) return '#84cc16';  // Verde chiaro
-  if (punteggio >= 40) return '#facc15';  // Giallo
-  if (punteggio >= 20) return '#f97316';  // Arancione
-  return '#ef4444';  // Rosso
+  if (punteggio >= 80) return '#16a34a';
+  if (punteggio >= 60) return '#84cc16';
+  if (punteggio >= 40) return '#eab308';
+  if (punteggio >= 20) return '#f97316';
+  return '#dc2626';
+}}
+
+function testoDaPunteggio(punteggio) {{
+  if (punteggio >= 80) return 'Molto favorevole';
+  if (punteggio >= 60) return 'Favorevole';
+  if (punteggio >= 40) return 'Possibile con attenzione';
+  if (punteggio >= 20) return 'Poco favorevole';
+  return 'Sconsigliata';
+}}
+
+function nomeAttivita(tipo) {{
+  const nomi = {{
+    escursionismo: '🥾 Escursionismo',
+    ciclismo: '🚴 Ciclismo',
+    spiaggia: '🏖️ Spiaggia',
+    fotografia: '📸 Fotografia',
+    corsa: '🏃 Corsa',
+    astronomia: '🔭 Astronomia',
+  }};
+  return nomi[tipo] || tipo;
+}}
+
+async function scaricaDatiRealiCelle() {{
+  const ora = Date.now();
+  if (datiCelleCache && cacheTimestamp && (ora - cacheTimestamp < CACHE_DURATION_MS)) {{
+    return datiCelleCache;
+  }}
+
+  const stato = document.getElementById('attivita-stato');
+  if (stato) {{
+    stato.textContent = '⏳ Scaricamento delle previsioni ICON-2I reali in corso…';
+  }}
+
+  const celle = generaCelleCalabria();
+  const dimensioneBatch = 50;
+  const risultati = [];
+
+  for (let inizio = 0; inizio < celle.length; inizio += dimensioneBatch) {{
+    const batch = celle.slice(inizio, inizio + dimensioneBatch);
+    const latitudini = batch.map(c => c.latitudine).join(',');
+    const longitudini = batch.map(c => c.longitudine).join(',');
+
+    const parametri = new URLSearchParams({{
+      latitude: latitudini,
+      longitude: longitudini,
+      models: 'italia_meteo_arpae_icon_2i',
+      timezone: 'Europe/Rome',
+      forecast_days: '1',
+      current: 'temperature_2m,apparent_temperature,precipitation,weather_code,cloud_cover,wind_speed_10m,wind_gusts_10m',
+    }});
+
+    const risposta = await fetch('https://api.open-meteo.com/v1/forecast?' + parametri.toString());
+    if (!risposta.ok) {{
+      throw new Error('Open-Meteo ha restituito errore ' + risposta.status);
+    }}
+
+    const datiBatch = await risposta.json();
+    const arrayDati = Array.isArray(datiBatch) ? datiBatch : [datiBatch];
+
+    batch.forEach(function(cella, indice) {{
+      const rispostaCella = arrayDati[indice] || {{}};
+      risultati.push({{
+        ...cella,
+        meteo: rispostaCella.current || {{}},
+        latitudineReale: rispostaCella.latitude || cella.latitudine,
+        longitudineReale: rispostaCella.longitude || cella.longitudine,
+      }});
+    }});
+
+    if (stato) {{
+      stato.textContent = `⏳ Previsioni reali: ${Math.min(inizio + batch.length, celle.length)}/${celle.length} celle…`;
+    }}
+  }}
+
+  datiCelleCache = risultati;
+  cacheTimestamp = Date.now();
+  return risultati;
 }}
 
 function inizializzaMappaAttivita() {{
-  if (attivitaMap) {{
-    return;
-  }}
+  if (attivitaMap) return;
 
   attivitaMap = L.map('attivita-map', {{
-    center: [39.0, 16.5],
+    center: [39.0, 16.45],
     zoom: 8,
     minZoom: 7,
-    maxZoom: 11,
+    maxZoom: 12,
   }});
 
   L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
     attribution: '© OpenStreetMap',
   }}).addTo(attivitaMap);
-
-  // Genera celle
-  celleAttivita = generaCelleCalabria();
-  aggiornaMappaAttivita();
 }}
 
-function aggiornaMappaAttivita() {{
-  if (!attivitaMap) {{
-    return;
-  }}
+async function aggiornaMappaAttivita() {{
+  if (!attivitaMap) return;
 
-  const tipoAttivita = document.getElementById('attivita-selector').value;
+  const selettore = document.getElementById('attivita-selector');
+  const tipo = selettore ? selettore.value : 'escursionismo';
+  const stato = document.getElementById('attivita-stato');
 
-  // Rimuovi layer precedente
-  if (attivitaLayer) {{
-    attivitaMap.removeLayer(attivitaLayer);
-  }}
+  try {{
+    const datiCelle = await scaricaDatiRealiCelle();
+    if (attivitaLayer) attivitaMap.removeLayer(attivitaLayer);
+    attivitaLayer = L.layerGroup().addTo(attivitaMap);
 
-  attivitaLayer = L.layerGroup().addTo(attivitaMap);
+    datiCelle.forEach(function(cella) {{
+      const meteo = cella.meteo || {{}};
+      const punteggio = punteggioAttivitaReale(meteo, tipo);
+      const colore = coloreDaPunteggio(punteggio);
+      const livello = testoDaPunteggio(punteggio);
+      const latS = cella.latitudine - PASSO_LAT / 2;
+      const latN = cella.latitudine + PASSO_LAT / 2;
+      const lonO = cella.longitudine - PASSO_LON / 2;
+      const lonE = cella.longitudine + PASSO_LON / 2;
 
-  celleAttivita.forEach(function(cella) {{
-    const punteggio = calcolaPunteggioAttivita(cella, tipoAttivita);
-    const colore = coloreDaPunteggio(punteggio);
+      const rettangolo = L.rectangle([[latS, lonO], [latN, lonE]], {{
+        color: colore,
+        weight: 1,
+        fillColor: colore,
+        fillOpacity: 0.55,
+      }});
 
-    const rettangolo = L.rectangle([
-      [cella.latitudine, cella.longitudine],
-      [cella.latitudine + PASSO_LAT, cella.longitudine + PASSO_LON],
-    ], {{
-      color: colore,
-      weight: 1,
-      fillOpacity: 0.5,
+      rettangolo.bindPopup(`
+        <div style="min-width: 220px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.55;">
+          <strong style="font-size: 15px;">${nomeAttivita(tipo)}</strong><br>
+          <span style="color:${colore}; font-weight:800;">${livello} · ${punteggio}/100</span>
+          <hr style="border:0; border-top:1px solid #dbe8ec; margin:8px 0;">
+          <b>Condizioni ICON-2I</b><br>
+          🌡️ ${Number(meteo.temperature_2m || 0).toFixed(1)} °C, percepita ${Number(meteo.apparent_temperature || 0).toFixed(1)} °C<br>
+          🌧️ ${Number(meteo.precipitation || 0).toFixed(1)} mm<br>
+          💨 ${Number(meteo.wind_speed_10m || 0).toFixed(0)} km/h, raffiche ${Number(meteo.wind_gusts_10m || 0).toFixed(0)} km/h<br>
+          ☁️ ${Number(meteo.cloud_cover || 0).toFixed(0)}% · ${weatherLabel(Number(meteo.weather_code || 0))}<br>
+          <small style="color:#607987;">Centro cella: ${cella.latitudine.toFixed(3)}°, ${cella.longitudine.toFixed(3)}°</small>
+        </div>
+      `);
+      attivitaLayer.addLayer(rettangolo);
     }});
 
-    rettangolo.bindPopup(`
-      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-        <strong>Cella ${cella.id}</strong><br>
-        Lat: ${cella.latitudine.toFixed(3)}°<br>
-        Lon: ${cella.longitudine.toFixed(3)}°<br>
-        Attività: <strong>${tipoAttivita}</strong><br>
-        Compatibilità: <strong style="color: ${colore};">${punteggio}/100</strong>
-      </div>
-    `);
-
-    attivitaLayer.addLayer(rettangolo);
-  }});
+    if (stato) {{
+      const orario = new Date(cacheTimestamp).toLocaleTimeString('it-IT', {{ hour: '2-digit', minute: '2-digit' }});
+      stato.textContent = `✅ ${datiCelle.length} celle aggiornate con dati ICON-2I reali · cache valida 15 min · ${orario}`;
+    }}
+  }} catch (errore) {{
+    console.error(errore);
+    if (stato) {{
+      stato.textContent = '❌ Errore nel caricamento dei dati delle celle: ' + errore.message;
+    }}
+  }}
 }}
 
-// Inizializza mappa attività quando si apre la vista
 function apriVistaAttivita() {{
+  mostraVista('attivita');
   inizializzaMappaAttivita();
   setTimeout(function() {{
-    if (attivitaMap) {{
-      attivitaMap.invalidateSize();
-    }}
-  }}, 200);
+    if (attivitaMap) attivitaMap.invalidateSize();
+    aggiornaMappaAttivita();
+  }}, 250);
 }}
 
 fetch(

@@ -953,6 +953,8 @@ def prepara_dati_terrestri(dati):
         ore_raw["time"] >= pd.Timestamp(ora_locale).floor("h")
     ].copy()
 
+    # Icone e scenari orari: codice weather_code orario di ICON-2I,
+    # senza ricalcolare la classe del cielo dalla copertura nuvolosa.
     ore["Icona"] = ore["weather_code"].map(
         lambda codice: meteo(codice)[0]
     )
@@ -1072,12 +1074,9 @@ def valuta_rischio_locale(riga):
         riga.get("wind_gusts_10m_max", 0) or 0
     )
 
-    codice_meteo = int(
-        riga.get(
-            "weather_code_prevalente",
-            riga.get("weather_code", 0),
-        )
-    )
+    # La nuvolosità media serve soltanto per l'icona della scheda giornaliera.
+    # Per i rischi usa il codice giornaliero restituito da ICON-2I.
+    codice_meteo = int(riga.get("weather_code") or 0)
 
     if (
         precipitazione >= 100
@@ -1174,6 +1173,7 @@ def genera_app_completa(
 ):
     corrente = dati_terrestri["current"]
 
+    # Condizione attuale: weather_code current di ICON-2I.
     icona_corrente, descrizione_corrente = meteo(
         corrente.get("weather_code")
     )
@@ -1385,6 +1385,7 @@ def genera_app_completa(
             else "PROSSIMAMENTE"
         )
 
+        # Solo la scheda «I prossimi tre giorni» usa il cielo medio diurno.
         codice_effettivo = riga.get(
             "weather_code_prevalente",
             riga.get("weather_code"),

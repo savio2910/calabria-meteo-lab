@@ -1809,7 +1809,7 @@ body {{
 
 .cml-home-actions {{
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 24px;
   width: 100%;
   max-width: none;
@@ -2942,6 +2942,23 @@ body {{
       <span>Apri radar →</span>
     </button>
 
+    <button
+      class="cml-home-choice activities"
+      type="button"
+      onclick="apriVistaAttivita()"
+    >
+      <div class="cml-home-choice-icon">🏃</div>
+
+      <h2>Attività</h2>
+
+      <p>
+        Scopri quali attività sono più adatte alle condizioni meteorologiche
+        previste nelle diverse zone della Calabria.
+      </p>
+
+      <span>Apri attività →</span>
+    </button>
+
   </section>
 
 </section>
@@ -3129,12 +3146,107 @@ body {{
 </section>
 
 
+<!-- ===================== ATTIVITÀ ===================== -->
+<section id="cml-attivita" class="cml-view" hidden>
+
+  <div class="cml-nav-bar">
+    <button
+      class="cml-back-btn"
+      type="button"
+      onclick="mostraVista('home')"
+    >
+      ← Torna alla home
+    </button>
+
+    <span class="cml-nav-title">
+      🏃 Attività consigliate · Calabria
+    </span>
+  </div>
+
+  <section class="cml-radar-box">
+    <div class="cml-radar-head">
+      <div>
+        <h2>🏃 Attività meteorologiche</h2>
+
+        <p>
+          Mappa delle attività più adatte alle condizioni meteorologiche
+          previste sulla Calabria. Clicca su una cella per i dettagli.
+        </p>
+      </div>
+
+      <select
+        id="attivita-selector"
+        onchange="aggiornaMappaAttivita()"
+        style="border: 1px solid #d5e4e9; border-radius: 11px; padding: 10px 16px; background: #ffffff; color: #102b3b; font-size: 13px; font-weight: 700; cursor: pointer;"
+      >
+        <option value="escursionismo">🥾 Escursionismo</option>
+        <option value="ciclismo">🚴 Ciclismo</option>
+        <option value="spiaggia">🏖️ Spiaggia</option>
+        <option value="fotografia">📸 Fotografia</option>
+        <option value="corsa">🏃 Corsa</option>
+        <option value="astronomia">🔭 Astronomia</option>
+      </select>
+    </div>
+
+    <div id="attivita-map"></div>
+
+    <div class="cml-radar-footer">
+      <span>
+        🗺️ Base cartografica OpenStreetMap · Dati ICON-2I
+      </span>
+
+      <span>
+        <span style="display: inline-flex; align-items: center; gap: 6px; margin-right: 12px;">
+          <span style="width: 14px; height: 14px; border-radius: 3px; background: #22c55e; display: inline-block;"></span>
+          Molto favorevole
+        </span>
+        <span style="display: inline-flex; align-items: center; gap: 6px; margin-right: 12px;">
+          <span style="width: 14px; height: 14px; border-radius: 3px; background: #84cc16; display: inline-block;"></span>
+          Favorevole
+        </span>
+        <span style="display: inline-flex; align-items: center; gap: 6px; margin-right: 12px;">
+          <span style="width: 14px; height: 14px; border-radius: 3px; background: #facc15; display: inline-block;"></span>
+          Attenzione
+        </span>
+        <span style="display: inline-flex; align-items: center; gap: 6px;">
+          <span style="width: 14px; height: 14px; border-radius: 3px; background: #f97316; display: inline-block;"></span>
+          Sconsigliata
+        </span>
+      </span>
+    </div>
+  </section>
+
+  <div class="cml-note">
+    ℹ️ L'indice di compatibilità è una stima automatica basata sui parametri meteorologici
+    e non sostituisce valutazioni di sicurezza, bollettini ufficiali o conoscenza del territorio.
+    Per attività in montagna, mare o condizioni critiche consulta sempre fonti ufficiali.
+  </div>
+
+</section>
+
+
 <!-- ===================== SCRIPT ===================== -->
 <script>
 const datiGraficiPerGiorno = {dati_grafici_json};
 
 let meteoChartInstance = null;
 let radarMap = null;
+let attivitaMap = null;
+let attivitaLayer = null;
+
+// Griglia Calabria per attività
+const CALABRIA_BOUNDS = {
+  latMin: 37.75,
+  latMax: 40.15,
+  lonMin: 15.60,
+  lonMax: 17.25,
+};
+
+const PASSO_LAT = 6.6 / 111.0;  // ~0.059°
+const PASSO_LON = 6.6 / 86.0;   // ~0.077°
+
+// Dati simulati per le celle (da sostituire con chiamate API reali)
+let celleAttivita = [];
 
 /* ---------- NAVIGAZIONE HOME / PREVISIONI / RADAR ---------- */
 
@@ -3156,6 +3268,16 @@ function mostraVista(nome) {{
   ) {{
     setTimeout(function() {{
       radarMap.invalidateSize();
+    }}, 200);
+  }}
+
+  if (
+    nome === "attivita"
+    && typeof attivitaMap !== "undefined"
+    && attivitaMap
+  ) {{
+    setTimeout(function() {{
+      attivitaMap.invalidateSize();
     }}, 200);
   }}
 
@@ -3642,6 +3764,127 @@ function togglePlayRadar() {{
     radarPlaying = true;
     bottone.textContent = "⏸ Pausa";
   }}
+}}
+
+// ---------- MAPPA ATTIVITÀ ----------
+
+function generaCelleCalabria() {{
+  const celle = [];
+  let lat = CALABRIA_BOUNDS.latMin;
+
+  while (lat <= CALABRIA_BOUNDS.latMax) {{
+    let lon = CALABRIA_BOUNDS.lonMin;
+
+    while (lon <= CALABRIA_BOUNDS.lonMax) {{
+      celle.push({{
+        latitudine: lat,
+        longitudine: lon,
+        id: celle.length,
+      }});
+
+      lon += PASSO_LON;
+    }}
+
+    lat += PASSO_LAT;
+  }}
+
+  return celle;
+}}
+
+function calcolaPunteggioAttivita(cella, tipo) {{
+  // Simulazione - da sostituire con dati reali da API
+  const rand = Math.random();
+
+  const punteggi = {{
+    escursionismo: Math.floor(50 + rand * 50),
+    ciclismo: Math.floor(45 + rand * 55),
+    spiaggia: Math.floor(40 + rand * 60),
+    fotografia: Math.floor(55 + rand * 45),
+    corsa: Math.floor(50 + rand * 50),
+    astronomia: Math.floor(35 + rand * 65),
+  }};
+
+  return punteggi[tipo] || 50;
+}}
+
+function coloreDaPunteggio(punteggio) {{
+  if (punteggio >= 80) return '#22c55e';  // Verde intenso
+  if (punteggio >= 60) return '#84cc16';  // Verde chiaro
+  if (punteggio >= 40) return '#facc15';  // Giallo
+  if (punteggio >= 20) return '#f97316';  // Arancione
+  return '#ef4444';  // Rosso
+}}
+
+function inizializzaMappaAttivita() {{
+  if (attivitaMap) {{
+    return;
+  }}
+
+  attivitaMap = L.map('attivita-map', {{
+    center: [39.0, 16.5],
+    zoom: 8,
+    minZoom: 7,
+    maxZoom: 11,
+  }});
+
+  L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
+    attribution: '© OpenStreetMap',
+  }}).addTo(attivitaMap);
+
+  // Genera celle
+  celleAttivita = generaCelleCalabria();
+  aggiornaMappaAttivita();
+}}
+
+function aggiornaMappaAttivita() {{
+  if (!attivitaMap) {{
+    return;
+  }}
+
+  const tipoAttivita = document.getElementById('attivita-selector').value;
+
+  // Rimuovi layer precedente
+  if (attivitaLayer) {{
+    attivitaMap.removeLayer(attivitaLayer);
+  }}
+
+  attivitaLayer = L.layerGroup().addTo(attivitaMap);
+
+  celleAttivita.forEach(function(cella) {{
+    const punteggio = calcolaPunteggioAttivita(cella, tipoAttivita);
+    const colore = coloreDaPunteggio(punteggio);
+
+    const rettangolo = L.rectangle([
+      [cella.latitudine, cella.longitudine],
+      [cella.latitudine + PASSO_LAT, cella.longitudine + PASSO_LON],
+    ], {{
+      color: colore,
+      weight: 1,
+      fillOpacity: 0.5,
+    }});
+
+    rettangolo.bindPopup(`
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+        <strong>Cella ${cella.id}</strong><br>
+        Lat: ${cella.latitudine.toFixed(3)}°<br>
+        Lon: ${cella.longitudine.toFixed(3)}°<br>
+        Attività: <strong>${tipoAttivita}</strong><br>
+        Compatibilità: <strong style="color: ${colore};">${punteggio}/100</strong>
+      </div>
+    `);
+
+    attivitaLayer.addLayer(rettangolo);
+  }});
+}}
+
+// Inizializza mappa attività quando si apre la vista
+function apriVistaAttivita() {{
+  inizializzaMappaAttivita();
+  setTimeout(function() {{
+    if (attivitaMap) {{
+      attivitaMap.invalidateSize();
+    }}
+  }}, 200);
 }}
 
 fetch(

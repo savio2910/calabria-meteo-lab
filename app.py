@@ -3924,6 +3924,36 @@ function etichettaMeteo(codice) {{
   return etichette[codice] || 'Non disponibile';
 }}
 
+function cellaCompatibileConAttivita(cella, attivita) {
+    const ambiente = cella.ambiente;
+
+    if (attivita === "spiaggia") {
+        return ambiente === "costa";
+    }
+
+    if (attivita === "escursionismo") {
+        return ambiente !== "mare";
+    }
+
+    if (attivita === "ciclismo") {
+        return ambiente !== "mare";
+    }
+
+    if (attivita === "corsa") {
+        return ambiente !== "mare";
+    }
+
+    if (attivita === "fotografia") {
+        return ambiente !== "mare";
+    }
+
+    if (attivita === "astronomia") {
+        return ambiente !== "mare";
+    }
+
+    return true;
+}
+
 function nomeAttivita(tipo) {{
   const nomi = {{
     escursionismo: '🥾 Escursionismo',
@@ -4074,12 +4104,16 @@ async function aggiornaMappaAttivita() {{
   const stato = document.getElementById('attivita-stato');
 
   try {{
-    const datiCelle = await scaricaDatiRealiCelle();
-    if (attivitaLayer) attivitaMap.removeLayer(attivitaLayer);
-    attivitaLayer = L.layerGroup().addTo(attivitaMap);
+      const datiCelle = await scaricaDatiRealiCelle();
+      if (attivitaLayer) attivitaMap.removeLayer(attivitaLayer);
+      attivitaLayer = L.layerGroup().addTo(attivitaMap);
 
-    datiCelle.forEach(function(cella) {{
-      const meteo = cella.meteo || {{}};
+      datiCelle.forEach(function(cella) {{
+      if (!cellaCompatibileConAttivita(cella, tipo)) {{
+      return;
+      }}
+
+      const meteo = cella.meteo;
       const punteggio = punteggioAttivitaReale(meteo, tipo);
       const colore = coloreDaPunteggio(punteggio);
       const livello = testoDaPunteggio(punteggio);

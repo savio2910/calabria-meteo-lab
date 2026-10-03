@@ -1,19 +1,3 @@
-# =============================================================================
-# Calabria Meteo Lab
-# Copyright (c) 2026 Saverio Campanella. Tutti i diritti riservati.
-#
-# Questo software, il codice sorgente, la grafica, la documentazione e la
-# struttura dell'applicazione sono di proprietà esclusiva dell'autore.
-#
-# È vietata la copia, modifica, distribuzione, ripubblicazione, vendita,
-# utilizzo commerciale o creazione di opere derivate, totale o parziale,
-# senza preventiva autorizzazione scritta dell'autore.
-#
-# Consultare il file LICENSE per i termini completi.
-# =============================================================================
-
-import html
-
 import html
 import json
 import math
@@ -2388,16 +2372,6 @@ body {{
   border-radius: 16px;
 }}
 
-#attivita-map {{
-  width: 100%;
-  height: 480px;
-  min-height: 480px;
-  margin-top: 16px;
-  border: 1px solid #d8e7eb;
-  border-radius: 16px;
-  background: #dcebef;
-}}
-
 .cml-radar-footer {{
   display: flex;
   flex-wrap: wrap;
@@ -2904,33 +2878,11 @@ body {{
   background: #142549;
 }}
 
-/* ===================== COPYRIGHT GLOBALE ===================== */
-
-.cml-site-copyright {{
-  width: 100%;
-  margin: 30px 0 10px;
-  padding: 16px 18px;
-  border: 1px solid #d5e4e9;
-  border-radius: 14px;
-  background: #ffffff;
-  color: #607987;
-  box-shadow: 0 6px 18px rgba(23, 67, 84, 0.07);
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1.5;
-  text-align: center;
-}}
-
 /* ===================== MEDIA ===================== */
 
 @media (max-width: 760px) {{
   body {{
     padding: 4px;
-  }}
-
-  #attivita-map {{
-  height: 390px;
-  min-height: 390px;
   }}
 
   .cml-hero {{
@@ -2946,8 +2898,6 @@ body {{
     flex-direction: column;
     padding: 26px 24px;
   }}
-
-  
 
   .cml-temperature span {{
     font-size: 69px;
@@ -3342,9 +3292,6 @@ body {{
 
 </section>
 
-<footer class="cml-site-copyright">
-  © 2026 Saverio Campanella · Calabria Meteo Lab · Tutti i diritti riservati
-</footer>
 
 <!-- ===================== SCRIPT ===================== -->
 <script>
@@ -3924,36 +3871,6 @@ function etichettaMeteo(codice) {{
   return etichette[codice] || 'Non disponibile';
 }}
 
-function cellaCompatibileConAttivita(cella, attivita) {{
-    const ambiente = cella.ambiente;
-
-    if (attivita === "spiaggia") {{
-        return ambiente === "costa";
-    }}
-
-    if (attivita === "escursionismo") {{
-        return ambiente !== "mare";
-    }}
-
-    if (attivita === "ciclismo") {{
-        return ambiente !== "mare";
-    }}
-
-    if (attivita === "corsa") {{
-        return ambiente !== "mare";
-    }}
-
-    if (attivita === "fotografia") {{
-        return ambiente !== "mare";
-    }}
-
-    if (attivita === "astronomia") {{
-        return ambiente !== "mare";
-    }}
-
-    return true;
-}}
-
 function nomeAttivita(tipo) {{
   const nomi = {{
     escursionismo: '🥾 Escursionismo',
@@ -4104,58 +4021,39 @@ async function aggiornaMappaAttivita() {{
   const stato = document.getElementById('attivita-stato');
 
   try {{
-      const datiCelle = await scaricaDatiRealiCelle();
-      if (attivitaLayer) attivitaMap.removeLayer(attivitaLayer);
-      attivitaLayer = L.layerGroup().addTo(attivitaMap);
+    const datiCelle = await scaricaDatiRealiCelle();
+    if (attivitaLayer) attivitaMap.removeLayer(attivitaLayer);
+    attivitaLayer = L.layerGroup().addTo(attivitaMap);
 
-      datiCelle.forEach(function(cella) {{
-                // FILTRO GEOGRAFICO PER ATTIVITÀ
-                if (tipo === "spiaggia") {{
-                    if (cella.distanzaCostaKm > 8 || cella.quota > 150) {{
-                        return;
-                    }}
-                }} else if (tipo === "escursionismo" || tipo === "ciclismo" || tipo === "corsa" || tipo === "fotografia" || tipo === "astronomia") {{
-                    if (cella.distanzaCostaKm === 0) {{
-                        return;
-                    }}
-                }}
+    datiCelle.forEach(function(cella) {{
+      const meteo = cella.meteo || {{}};
+      const punteggio = punteggioAttivitaReale(meteo, tipo);
+      const colore = coloreDaPunteggio(punteggio);
+      const livello = testoDaPunteggio(punteggio);
+      const latSud = cella.latitudine - PASSO_LAT / 2;
+      const latNord = cella.latitudine + PASSO_LAT / 2;
+      const lonOvest = cella.longitudine - PASSO_LON / 2;
+      const lonEst = cella.longitudine + PASSO_LON / 2;
 
-                const meteo = cella.meteo;
-                const punteggio = punteggioAttivitaReale(meteo, tipo);
-                const colore = coloreDaPunteggio(punteggio);
-                const livello = testoDaPunteggio(punteggio);
+      const rettangolo = L.rectangle([[latSud, lonOvest], [latNord, lonEst]], {{
+        color: colore, weight: 1, fillColor: colore, fillOpacity: 0.55
+      }});
 
-                const latSud = cella.latitudine - PASSO_LAT / 2;
-                const latNord = cella.latitudine + PASSO_LAT / 2;
-                const lonOvest = cella.longitudine - PASSO_LON / 2;
-                const lonEst = cella.longitudine + PASSO_LON / 2;
-
-                const rettangolo = L.rectangle(
-                    [[latSud, lonOvest], [latNord, lonEst]],
-                    {{
-                        color: colore,
-                        weight: 1,
-                        fillColor: colore,
-                        fillOpacity: 0.55,
-                    }}
-                );
-
-                rettangolo.bindPopup(`
-                    <div style="min-width:220px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;line-height:1.55;">
-                        <strong style="font-size:15px;">${{nomeAttivita(tipo)}}</strong><br>
-                        <span style="color:${{colore}};font-weight:800;">${{livello}} (${{punteggio}}/100)</span>
-                        <hr style="border:0;border-top:1px solid #dbe8ec;margin:8px 0;">
-                        <b>Condizioni ICON-2I:</b><br>
-                        ${{Number(meteo.temperature_2m).toFixed(1)}} °C, percepita ${{Number(meteo.apparent_temperature).toFixed(1)}} °C<br>
-                        ${{Number(meteo.precipitation).toFixed(1)}} mm<br>
-                        ${{Number(meteo.windspeed_10m).toFixed(0)}} km/h, raffiche ${{Number(meteo.windgusts_10m).toFixed(0)}} km/h<br>
-                        ${{Number(meteo.cloud_cover).toFixed(0)}} % · ${{etichettaMeteo(Number(meteo.weather_code))}}<br>
-                        <small style="color:#607987;">Centro: ${{cella.latitudine.toFixed(3)}}, ${{cella.longitudine.toFixed(3)}}</small>
-                    </div>
-                `);
-
-                attivitaLayer.addLayer(rettangolo);
-            }});
+      rettangolo.bindPopup(`
+        <div style="min-width:220px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;line-height:1.55;">
+          <strong style="font-size:15px;">${{nomeAttivita(tipo)}}</strong><br>
+          <span style="color:${{colore}};font-weight:800;">${{livello}} · ${{punteggio}}/100</span>
+          <hr style="border:0;border-top:1px solid #dbe8ec;margin:8px 0;">
+          <b>Condizioni ICON-2I</b><br>
+          🌡️ ${{Number(meteo.temperature_2m || 0).toFixed(1)}} °C, percepita ${{Number(meteo.apparent_temperature || 0).toFixed(1)}} °C<br>
+          🌧️ ${{Number(meteo.precipitation || 0).toFixed(1)}} mm<br>
+          💨 ${{Number(meteo.wind_speed_10m || 0).toFixed(0)}} km/h, raffiche ${{Number(meteo.wind_gusts_10m || 0).toFixed(0)}} km/h<br>
+          ☁️ ${{Number(meteo.cloud_cover || 0).toFixed(0)}}% · ${{etichettaMeteo(Number(meteo.weather_code || 0))}}<br>
+          <small style="color:#607987;">Centro: ${{cella.latitudine.toFixed(3)}}°, ${{cella.longitudine.toFixed(3)}}°</small>
+        </div>
+      `);
+      attivitaLayer.addLayer(rettangolo);
+    }});
 
     if (stato) {{
       const orario = new Date(cacheTimestamp).toLocaleTimeString('it-IT', {{hour:'2-digit',minute:'2-digit'}});

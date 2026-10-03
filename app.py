@@ -1,3 +1,19 @@
+# =============================================================================
+# Calabria Meteo Lab
+# Copyright (c) 2026 Saverio Campanella. Tutti i diritti riservati.
+#
+# Questo software, il codice sorgente, la grafica, la documentazione e la
+# struttura dell'applicazione sono di proprietà esclusiva dell'autore.
+#
+# È vietata la copia, modifica, distribuzione, ripubblicazione, vendita,
+# utilizzo commerciale o creazione di opere derivate, totale o parziale,
+# senza preventiva autorizzazione scritta dell'autore.
+#
+# Consultare il file LICENSE per i termini completi.
+# =============================================================================
+
+import html
+
 import html
 import json
 import math

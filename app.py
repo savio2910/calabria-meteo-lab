@@ -1286,6 +1286,11 @@ def genera_app_completa(
         and dati_mare.get("current")
     ):
         corrente_mare = dati_mare["current"]
+        orarie_mare = pd.DataFrame(dati_mare.get("hourly", {}))
+        giornaliere_mare = pd.DataFrame(dati_mare.get("daily", {}))
+
+        if not orarie_mare.empty and "time" in orarie_mare:
+            orarie_mare["time"] = pd.to_datetime(orarie_mare["time"])
 
         altezza_onda = corrente_mare.get("wave_height")
         direzione_onda = corrente_mare.get("wave_direction")
@@ -1296,78 +1301,68 @@ def genera_app_completa(
 
         stato_mare, icona_mare, classe_mare = stato_mare_da_onda(altezza_onda)
 
+        previsioni_mare_html = ""
+        if not giornaliere_mare.empty:
+            righe_previsioni = []
+            for _, riga_mare in giornaliere_mare.head(GIORNI_PREVISIONE).iterrows():
+                altezza_prev = riga_mare.get("wave_height_max")
+                direzione_prev = riga_mare.get("wave_direction_dominant")
+                periodo_prev = riga_mare.get("wave_period_max")
+                temperatura_prev = None
+                if not orarie_mare.empty:
+                    data_prev = pd.Timestamp(riga_mare.get("time")).date()
+                    ore_prev = orarie_mare.loc[orarie_mare["time"].dt.date == data_prev]
+                    if not ore_prev.empty:
+                        temperatura_prev = pd.to_numeric(
+                            ore_prev.get("sea_surface_temperature"), errors="coerce"
+                        ).mean()
+                stato_prev, icona_prev, classe_prev = stato_mare_da_onda(altezza_prev)
+                righe_previsioni.append(f"""
+                  <div class="cml-marine-forecast-card">
+                    <div class="cml-marine-forecast-date">
+                      {html.escape(data_it(riga_mare.get("time")).title())}
+                    </div>
+                    <div class="cml-marine-forecast-status {classe_prev}">
+                      <span>{icona_prev}</span> {html.escape(stato_prev)}
+                    </div>
+                    <div class="cml-marine-forecast-values">
+                      <span>🌊 <b>{numero(altezza_prev, 2, " m")}</b><small>Altezza onda</small></span>
+                      <span>〰️ <b>{numero(periodo_prev, 1, " s")}</b><small>Periodo</small></span>
+                      <span>🧭 <b>{direzione(direzione_prev)}</b><small>{numero(direzione_prev, 0, "°")}</small></span>
+                      <span>🌡️ <b>{numero(temperatura_prev, 1, " °C")}</b><small>Temp. mare</small></span>
+                    </div>
+                  </div>
+                """)
+            previsioni_mare_html = f"""
+              <div class="cml-marine-forecast-title">📅 Previsioni mare per i prossimi 3 giorni</div>
+              <div class="cml-marine-forecast-grid">{''.join(righe_previsioni)}</div>
+            """
+
         mare_html = f"""
         <section class="cml-marine-box">
           <div class="cml-marine-head">
             <div>
-              <span class="cml-eyebrow">
-                BOLLETTINO COSTIERO
-              </span>
-
+              <span class="cml-eyebrow">BOLLETTINO COSTIERO</span>
               <h2>🌊 Vento e stato del mare</h2>
-
-              <p>
-                Previsione marina per il comune costiero di riferimento.
-                La cella modellistica più vicina è a circa
-                {numero(distanza_mare_km, 1, " km")}
-                dal punto selezionato.
-              </p>
+              <p>Stato attuale e previsione marina per il comune costiero di riferimento. La cella modellistica più vicina è a circa {numero(distanza_mare_km, 1, " km")} dal punto selezionato.</p>
             </div>
-
             <div class="cml-sea-status {classe_mare}">
               <span>{icona_mare}</span>
-
-              <div>
-                <small>STATO DEL MARE</small>
-                <strong>{html.escape(stato_mare)}</strong>
-              </div>
+              <div><small>STATO DEL MARE</small><strong>{html.escape(stato_mare)}</strong></div>
             </div>
           </div>
 
           <div class="cml-marine-grid">
-            <div class="cml-marine-card">
-              <span>🌊 Altezza onda</span>
-              <strong>{numero(altezza_onda, 2, " m")}</strong>
-              <small>Onda significativa</small>
-            </div>
-
-            <div class="cml-marine-card">
-              <span>🧭 Provenienza onda</span>
-              <strong>{direzione(direzione_onda)}</strong>
-              <small>{numero(direzione_onda, 0, "°")}</small>
-            </div>
-
-            <div class="cml-marine-card">
-              <span>〰️ Periodo medio</span>
-              <strong>{numero(periodo_onda, 1, " s")}</strong>
-              <small>Intervallo medio d'onda</small>
-            </div>
-            
-            <div class="cml-marine-card">
-              <span>💨 Mare del vento</span>
-              <strong>{numero(altezza_mare_vento, 2, " m")}</strong>
-              <small>Componente wind sea</small>
-            </div>
-
-            <div class="cml-marine-card">
-              <span>🌐 Mare di fondo</span>
-              <strong>{numero(altezza_swell, 2, " m")}</strong>
-              <small>Componente swell</small>
-            </div>
-
-            <div class="cml-marine-card">
-              <span>🌡️ Temperatura mare</span>
-              <strong>{numero(temperatura_mare, 1, " °C")}</strong>
-              <small>Temperatura superficiale</small>
-            </div>
+            <div class="cml-marine-card"><span>🌊 Altezza onda</span><strong>{numero(altezza_onda, 2, " m")}</strong><small>Onda significativa</small></div>
+            <div class="cml-marine-card"><span>🧭 Provenienza onda</span><strong>{direzione(direzione_onda)}</strong><small>{numero(direzione_onda, 0, "°")}</small></div>
+            <div class="cml-marine-card"><span>〰️ Periodo medio</span><strong>{numero(periodo_onda, 1, " s")}</strong><small>Intervallo medio d'onda</small></div>
+            <div class="cml-marine-card"><span>💨 Mare del vento</span><strong>{numero(altezza_mare_vento, 2, " m")}</strong><small>Componente wind sea</small></div>
+            <div class="cml-marine-card"><span>🌐 Mare di fondo</span><strong>{numero(altezza_swell, 2, " m")}</strong><small>Componente swell</small></div>
+            <div class="cml-marine-card"><span>🌡️ Temperatura mare</span><strong>{numero(temperatura_mare, 1, " °C")}</strong><small>Temperatura superficiale</small></div>
           </div>
 
-          <div class="cml-marine-note">
-            ℹ️ La direzione indica <b>da dove proviene</b> il moto ondoso.
-            I valori sono stimati su griglia marina e possono essere meno
-            rappresentativi presso baie, porti, promontori e costa molto frastagliata.
-            Per navigazione e sicurezza consulta sempre fonti nautiche e avvisi ufficiali.
-          </div>
+          {previsioni_mare_html}
+          <div class="cml-marine-note">ℹ️ La direzione indica <b>da dove proviene</b> il moto ondoso. I valori sono stimati su griglia marina e possono essere meno rappresentativi presso baie, porti, promontori e costa molto frastagliata. Per navigazione e sicurezza consulta sempre fonti nautiche e avvisi ufficiali.</div>
         </section>
         """
 
@@ -2260,6 +2255,72 @@ body {{
   font-size: 12px;
   line-height: 1.6;
 }}
+
+/* ===================== PREVISIONI MARE ===================== */
+
+.cml-marine-forecast-title {
+  margin: 24px 0 12px;
+  color: var(--ink);
+  font-size: 19px;
+  font-weight: 850;
+}
+
+.cml-marine-forecast-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.cml-marine-forecast-card {
+  padding: 15px;
+  border: 1px solid #dbe8ec;
+  border-radius: 15px;
+  background: #f7fbfc;
+}
+
+.cml-marine-forecast-date {
+  margin-bottom: 8px;
+  color: #143b4b;
+  font-size: 14px;
+  font-weight: 850;
+  text-transform: capitalize;
+}
+
+.cml-marine-forecast-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+  padding: 5px 8px;
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.cml-marine-forecast-values {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 9px;
+}
+
+.cml-marine-forecast-values span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: #54707c;
+  font-size: 12px;
+}
+
+.cml-marine-forecast-values b {
+  color: #143b4b;
+  font-size: 16px;
+}
+
+.cml-marine-forecast-values small {
+  color: #768c95;
+  font-size: 10px;
+}
 
 /* ===================== RADAR ===================== */
 

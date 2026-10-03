@@ -1849,9 +1849,9 @@ body {{
   font-size: 31px;
 }}
 
-.cml-home-choice.radar .cml-home-choice-icon {
+.cml-home-choice.radar .cml-home-choice-icon {{
   background: linear-gradient(135deg, #dce7ff, #adc5ec);
-}
+}}
 
 .cml-home-choice.activities .cml-home-choice-icon {{
   background: linear-gradient(135deg, #dce7ff, #adc5ec);

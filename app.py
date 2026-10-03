@@ -2258,35 +2258,35 @@ body {{
 
 /* ===================== PREVISIONI MARE ===================== */
 
-.cml-marine-forecast-title {
+.cml-marine-forecast-title {{
   margin: 24px 0 12px;
   color: var(--ink);
   font-size: 19px;
   font-weight: 850;
-}
+}}
 
-.cml-marine-forecast-grid {
+.cml-marine-forecast-grid {{
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
-}
+}}
 
-.cml-marine-forecast-card {
+.cml-marine-forecast-card {{
   padding: 15px;
   border: 1px solid #dbe8ec;
   border-radius: 15px;
   background: #f7fbfc;
-}
+}}
 
-.cml-marine-forecast-date {
+.cml-marine-forecast-date {{
   margin-bottom: 8px;
   color: #143b4b;
   font-size: 14px;
   font-weight: 850;
   text-transform: capitalize;
-}
+}}
 
-.cml-marine-forecast-status {
+.cml-marine-forecast-status {{
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -2296,31 +2296,31 @@ body {{
   color: #ffffff;
   font-size: 11px;
   font-weight: 800;
-}
+}}
 
-.cml-marine-forecast-values {
+.cml-marine-forecast-values {{
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 9px;
-}
+}}
 
-.cml-marine-forecast-values span {
+.cml-marine-forecast-values span {{
   display: flex;
   flex-direction: column;
   gap: 2px;
   color: #54707c;
   font-size: 12px;
-}
+}}
 
-.cml-marine-forecast-values b {
+.cml-marine-forecast-values b {{
   color: #143b4b;
   font-size: 16px;
-}
+}}
 
-.cml-marine-forecast-values small {
+.cml-marine-forecast-values small {{
   color: #768c95;
   font-size: 10px;
-}
+}}
 
 /* ===================== RADAR ===================== */
 

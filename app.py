@@ -3924,35 +3924,35 @@ function etichettaMeteo(codice) {{
   return etichette[codice] || 'Non disponibile';
 }}
 
-function cellaCompatibileConAttivita(cella, attivita) {
+function cellaCompatibileConAttivita(cella, attivita) {{
     const ambiente = cella.ambiente;
 
-    if (attivita === "spiaggia") {
+    if (attivita === "spiaggia") {{
         return ambiente === "costa";
-    }
+    }}
 
-    if (attivita === "escursionismo") {
+    if (attivita === "escursionismo") {{
         return ambiente !== "mare";
-    }
+    }}
 
-    if (attivita === "ciclismo") {
+    if (attivita === "ciclismo") {{
         return ambiente !== "mare";
-    }
+    }}
 
-    if (attivita === "corsa") {
+    if (attivita === "corsa") {{
         return ambiente !== "mare";
-    }
+    }}
 
-    if (attivita === "fotografia") {
+    if (attivita === "fotografia") {{
         return ambiente !== "mare";
-    }
+    }}
 
-    if (attivita === "astronomia") {
+    if (attivita === "astronomia") {{
         return ambiente !== "mare";
-    }
+    }}
 
     return true;
-}
+}}
 
 function nomeAttivita(tipo) {{
   const nomi = {{

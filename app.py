@@ -2904,6 +2904,17 @@ body {{
   background: #142549;
 }}
 
+/* ===================== COPYRIGHT ===================== */
+
+.cml-copyright {{
+  margin: 22px 0 8px;
+  padding: 14px 16px;
+  border-top: 1px solid #d5e4e9;
+  color: #607987;
+  font-size: 12px;
+  text-align: center;
+}}
+
 /* ===================== MEDIA ===================== */
 
 @media (max-width: 760px) {{

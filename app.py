@@ -3190,9 +3190,9 @@ body {{
     Open-Meteo.
   </div>
 
-  <div class="cml-copyright">
-  © 2026 Saverio Campanella · Calabria Meteo Lab · Tutti i diritti riservati
-  </div>
+  <footer class="cml-site-copyright">
+     © 2026 Saverio Campanella · Calabria Meteo Lab · Tutti i diritti riservati
+  </footer>
 
 </section>
 

@@ -1278,7 +1278,7 @@ def genera_app_completa(
         for icona, etichetta, valore in metriche
     )
 
-        mare_html = ""
+    mare_html = ""
 
     if (
         dati_mare is not None

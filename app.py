@@ -2904,14 +2904,20 @@ body {{
   background: #142549;
 }}
 
-/* ===================== COPYRIGHT ===================== */
+/* ===================== COPYRIGHT GLOBALE ===================== */
 
-.cml-copyright {{
-  margin: 22px 0 8px;
-  padding: 14px 16px;
-  border-top: 1px solid #d5e4e9;
+.cml-site-copyright {{
+  width: 100%;
+  margin: 30px 0 10px;
+  padding: 16px 18px;
+  border: 1px solid #d5e4e9;
+  border-radius: 14px;
+  background: #ffffff;
   color: #607987;
+  box-shadow: 0 6px 18px rgba(23, 67, 84, 0.07);
   font-size: 12px;
+  font-weight: 700;
+  line-height: 1.5;
   text-align: center;
 }}
 
@@ -3340,6 +3346,9 @@ body {{
 
 </section>
 
+<footer class="cml-site-copyright">
+  © 2026 Saverio Campanella · Calabria Meteo Lab · Tutti i diritti riservati
+</footer>
 
 <!-- ===================== SCRIPT ===================== -->
 <script>

@@ -3305,12 +3305,12 @@ let datiCelleCache = null;
 let cacheTimestamp = null;
 
 // Griglia Calabria per attività
-const CALABRIA_BOUNDS = {
+const CALABRIA_BOUNDS = {{
   latMin: 37.75,
   latMax: 40.15,
   lonMin: 15.60,
   lonMax: 17.25,
-};
+}};
 
 const PASSO_GRIGLIA_KM = 15.0;
 const PASSO_LAT = PASSO_GRIGLIA_KM / 111.0;

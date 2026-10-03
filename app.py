@@ -2090,7 +2090,7 @@ body {{
   padding: 14px 16px;
   border: 1px solid #dce9ed;
   border-radius: 15px;
-  background: #f7fbfc;
+  background-color: #f7fbfc;
 }}
 
 .cml-metric-icon {{

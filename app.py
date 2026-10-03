@@ -1278,7 +1278,7 @@ def genera_app_completa(
         for icona, etichetta, valore in metriche
     )
 
-    mare_html = ""
+        mare_html = ""
 
     if (
         dati_mare is not None
@@ -1290,86 +1290,84 @@ def genera_app_completa(
         altezza_onda = corrente_mare.get("wave_height")
         direzione_onda = corrente_mare.get("wave_direction")
         periodo_onda = corrente_mare.get("wave_period")
-        altezza_mare_vento = corrente_mare.get("wind_wave_height")
-        altezza_swell = corrente_mare.get("swell_wave_height")
-        temperatura_mare = corrente_mare.get("sea_surface_temperature")
+        temperatura_mare = corrente_mare.get(
+            "sea_surface_temperature"
+        )
 
-        stato_mare, icona_mare, classe_mare = stato_mare_da_onda(altezza_onda)
+        stato_mare, icona_mare, classe_mare = (
+            stato_mare_da_onda(altezza_onda)
+        )
 
         mare_html = f"""
-        <section class="cml-marine-box">
-          <div class="cml-marine-head">
-            <div>
-              <span class="cml-eyebrow">
-                BOLLETTINO COSTIERO
-              </span>
-
-              <h2>🌊 Vento e stato del mare</h2>
-
-              <p>
-                Previsione marina per il comune costiero di riferimento.
-                La cella modellistica più vicina è a circa
-                {numero(distanza_mare_km, 1, " km")}
-                dal punto selezionato.
-              </p>
-            </div>
-
-            <div class="cml-sea-status {classe_mare}">
-              <span>{icona_mare}</span>
-
-              <div>
-                <small>STATO DEL MARE</small>
-                <strong>{html.escape(stato_mare)}</strong>
+            <section class="cml-marine-box">
+              <div class="cml-marine-head">
+                <div>
+                  <span class="cml-eyebrow">
+                    BOLLETTINO COSTIERO
+                  </span>
+    
+                  <h2>🌊 Stato del mare</h2>
+    
+                  <p>
+                    Previsione marina per la località costiera selezionata.
+                    La direzione indica da dove proviene il moto ondoso.
+                  </p>
+                </div>
+    
+                <div class="cml-sea-status {classe_mare}">
+                  <span>{icona_mare}</span>
+    
+                  <div>
+                    <small>STATO DEL MARE</small>
+                    <strong>{html.escape(stato_mare)}</strong>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-
-          <div class="cml-marine-grid">
-            <div class="cml-marine-card">
-              <span>🌊 Altezza onda</span>
-              <strong>{numero(altezza_onda, 2, " m")}</strong>
-              <small>Onda significativa</small>
-            </div>
-
-            <div class="cml-marine-card">
-              <span>🧭 Provenienza onda</span>
-              <strong>{direzione(direzione_onda)}</strong>
-              <small>{numero(direzione_onda, 0, "°")}</small>
-            </div>
-
-            <div class="cml-marine-card">
-              <span>〰️ Periodo medio</span>
-              <strong>{numero(periodo_onda, 1, " s")}</strong>
-              <small>Intervallo medio d'onda</small>
-            </div>
-            
-            <div class="cml-marine-card">
-              <span>💨 Mare del vento</span>
-              <strong>{numero(altezza_mare_vento, 2, " m")}</strong>
-              <small>Componente wind sea</small>
-            </div>
-
-            <div class="cml-marine-card">
-              <span>🌐 Mare di fondo</span>
-              <strong>{numero(altezza_swell, 2, " m")}</strong>
-              <small>Componente swell</small>
-            </div>
-
-            <div class="cml-marine-card">
-              <span>🌡️ Temperatura mare</span>
-              <strong>{numero(temperatura_mare, 1, " °C")}</strong>
-              <small>Temperatura superficiale</small>
-            </div>
-          </div>
-
-          <div class="cml-marine-note">
-            ℹ️ La direzione indica <b>da dove proviene</b> il moto ondoso.
-            I valori sono stimati su griglia marina e possono essere meno
-            rappresentativi presso baie, porti, promontori e costa molto frastagliata.
-            Per navigazione e sicurezza consulta sempre fonti nautiche e avvisi ufficiali.
-          </div>
-        </section>
-        """
+    
+              <div class="cml-marine-grid">
+                <div class="cml-marine-card">
+                  <span>🌊 Altezza onda</span>
+                  <strong>
+                    {numero(altezza_onda, 2, " m")}
+                  </strong>
+                  <small>Altezza significativa</small>
+                </div>
+    
+                <div class="cml-marine-card">
+                  <span>〰️ Periodo onda</span>
+                  <strong>
+                    {numero(periodo_onda, 1, " s")}
+                  </strong>
+                  <small>Periodo medio</small>
+                </div>
+    
+                <div class="cml-marine-card">
+                  <span>🧭 Provenienza onda</span>
+                  <strong>
+                    {direzione(direzione_onda)}
+                  </strong>
+                  <small>
+                    {numero(direzione_onda, 0, "°")} · da dove proviene
+                  </small>
+                </div>
+    
+                <div class="cml-marine-card">
+                  <span>🌡️ Temperatura mare</span>
+                  <strong>
+                    {numero(temperatura_mare, 1, " °C")}
+                  </strong>
+                  <small>Temperatura superficiale</small>
+                </div>
+              </div>
+    
+              <div class="cml-marine-note">
+                ℹ️ I dati sono riferiti alla cella marina più vicina alla
+                località selezionata. In prossimità di porti, baie,
+                promontori e coste molto frastagliate i valori possono
+                differire dalle condizioni locali.
+              </div>
+            </section>
+            """
 
     # ---------------------------------------------------------
     # SCHEDE GIORNALIERE

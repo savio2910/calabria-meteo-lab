@@ -1290,84 +1290,86 @@ def genera_app_completa(
         altezza_onda = corrente_mare.get("wave_height")
         direzione_onda = corrente_mare.get("wave_direction")
         periodo_onda = corrente_mare.get("wave_period")
-        temperatura_mare = corrente_mare.get(
-            "sea_surface_temperature"
-        )
+        altezza_mare_vento = corrente_mare.get("wind_wave_height")
+        altezza_swell = corrente_mare.get("swell_wave_height")
+        temperatura_mare = corrente_mare.get("sea_surface_temperature")
 
-        stato_mare, icona_mare, classe_mare = (
-            stato_mare_da_onda(altezza_onda)
-        )
+        stato_mare, icona_mare, classe_mare = stato_mare_da_onda(altezza_onda)
 
         mare_html = f"""
-            <section class="cml-marine-box">
-              <div class="cml-marine-head">
-                <div>
-                  <span class="cml-eyebrow">
-                    BOLLETTINO COSTIERO
-                  </span>
-    
-                  <h2>🌊 Stato del mare</h2>
-    
-                  <p>
-                    Previsione marina per la località costiera selezionata.
-                    La direzione indica da dove proviene il moto ondoso.
-                  </p>
-                </div>
-    
-                <div class="cml-sea-status {classe_mare}">
-                  <span>{icona_mare}</span>
-    
-                  <div>
-                    <small>STATO DEL MARE</small>
-                    <strong>{html.escape(stato_mare)}</strong>
-                  </div>
-                </div>
+        <section class="cml-marine-box">
+          <div class="cml-marine-head">
+            <div>
+              <span class="cml-eyebrow">
+                BOLLETTINO COSTIERO
+              </span>
+
+              <h2>🌊 Vento e stato del mare</h2>
+
+              <p>
+                Previsione marina per il comune costiero di riferimento.
+                La cella modellistica più vicina è a circa
+                {numero(distanza_mare_km, 1, " km")}
+                dal punto selezionato.
+              </p>
+            </div>
+
+            <div class="cml-sea-status {classe_mare}">
+              <span>{icona_mare}</span>
+
+              <div>
+                <small>STATO DEL MARE</small>
+                <strong>{html.escape(stato_mare)}</strong>
               </div>
-    
-              <div class="cml-marine-grid">
-                <div class="cml-marine-card">
-                  <span>🌊 Altezza onda</span>
-                  <strong>
-                    {numero(altezza_onda, 2, " m")}
-                  </strong>
-                  <small>Altezza significativa</small>
-                </div>
-    
-                <div class="cml-marine-card">
-                  <span>〰️ Periodo onda</span>
-                  <strong>
-                    {numero(periodo_onda, 1, " s")}
-                  </strong>
-                  <small>Periodo medio</small>
-                </div>
-    
-                <div class="cml-marine-card">
-                  <span>🧭 Provenienza onda</span>
-                  <strong>
-                    {direzione(direzione_onda)}
-                  </strong>
-                  <small>
-                    {numero(direzione_onda, 0, "°")} · da dove proviene
-                  </small>
-                </div>
-    
-                <div class="cml-marine-card">
-                  <span>🌡️ Temperatura mare</span>
-                  <strong>
-                    {numero(temperatura_mare, 1, " °C")}
-                  </strong>
-                  <small>Temperatura superficiale</small>
-                </div>
-              </div>
-    
-              <div class="cml-marine-note">
-                ℹ️ I dati sono riferiti alla cella marina più vicina alla
-                località selezionata. In prossimità di porti, baie,
-                promontori e coste molto frastagliate i valori possono
-                differire dalle condizioni locali.
-              </div>
-            </section>
-            """
+            </div>
+          </div>
+
+          <div class="cml-marine-grid">
+            <div class="cml-marine-card">
+              <span>🌊 Altezza onda</span>
+              <strong>{numero(altezza_onda, 2, " m")}</strong>
+              <small>Onda significativa</small>
+            </div>
+
+            <div class="cml-marine-card">
+              <span>🧭 Provenienza onda</span>
+              <strong>{direzione(direzione_onda)}</strong>
+              <small>{numero(direzione_onda, 0, "°")}</small>
+            </div>
+
+            <div class="cml-marine-card">
+              <span>〰️ Periodo medio</span>
+              <strong>{numero(periodo_onda, 1, " s")}</strong>
+              <small>Intervallo medio d'onda</small>
+            </div>
+            
+            <div class="cml-marine-card">
+              <span>💨 Mare del vento</span>
+              <strong>{numero(altezza_mare_vento, 2, " m")}</strong>
+              <small>Componente wind sea</small>
+            </div>
+
+            <div class="cml-marine-card">
+              <span>🌐 Mare di fondo</span>
+              <strong>{numero(altezza_swell, 2, " m")}</strong>
+              <small>Componente swell</small>
+            </div>
+
+            <div class="cml-marine-card">
+              <span>🌡️ Temperatura mare</span>
+              <strong>{numero(temperatura_mare, 1, " °C")}</strong>
+              <small>Temperatura superficiale</small>
+            </div>
+          </div>
+
+          <div class="cml-marine-note">
+            ℹ️ La direzione indica <b>da dove proviene</b> il moto ondoso.
+            I valori sono stimati su griglia marina e possono essere meno
+            rappresentativi presso baie, porti, promontori e costa molto frastagliata.
+            Per navigazione e sicurezza consulta sempre fonti nautiche e avvisi ufficiali.
+          </div>
+        </section>
+        """
 
     # ---------------------------------------------------------
     # SCHEDE GIORNALIERE
@@ -1807,7 +1809,7 @@ body {{
 
 .cml-home-actions {{
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 24px;
   width: 100%;
   max-width: none;
@@ -1852,7 +1854,11 @@ body {{
   font-size: 31px;
 }}
 
-.cml-home-choice.radar .cml-home-choice-icon {{
+.cml-home-choice.radar .cml-home-choice-icon {
+  background: linear-gradient(135deg, #dce7ff, #adc5ec);
+}
+
+.cml-home-choice.activities .cml-home-choice-icon {{
   background: linear-gradient(135deg, #dce7ff, #adc5ec);
 }}
 
@@ -2940,6 +2946,23 @@ body {{
       <span>Apri radar →</span>
     </button>
 
+    <button
+      class="cml-home-choice activities"
+      type="button"
+      onclick="apriVistaAttivita()"
+    >
+      <div class="cml-home-choice-icon">🏃</div>
+
+      <h2>Attività</h2>
+
+      <p>
+        Scopri quali attività sono più adatte alle condizioni meteorologiche
+        previste nelle diverse zone della Calabria.
+      </p>
+
+      <span>Apri attività →</span>
+    </button>
+
   </section>
 
 </section>
@@ -3127,12 +3150,113 @@ body {{
 </section>
 
 
+<!-- ===================== ATTIVITÀ ===================== -->
+<section id="cml-attivita" class="cml-view" hidden>
+
+  <div class="cml-nav-bar">
+    <button
+      class="cml-back-btn"
+      type="button"
+      onclick="mostraVista('home')"
+    >
+      ← Torna alla home
+    </button>
+
+    <span class="cml-nav-title">
+      🏃 Attività consigliate · Calabria
+    </span>
+  </div>
+
+  <section class="cml-radar-box">
+    <div class="cml-radar-head">
+      <div>
+        <h2>🏃 Attività meteorologiche</h2>
+
+        <p>
+          Mappa delle attività più adatte alle condizioni meteorologiche
+          previste sulla Calabria. Clicca su una cella per i dettagli.
+        </p>
+      </div>
+
+      <select
+        id="attivita-selector"
+        onchange="aggiornaMappaAttivita()"
+        style="border: 1px solid #d5e4e9; border-radius: 11px; padding: 10px 16px; background: #ffffff; color: #102b3b; font-size: 13px; font-weight: 700; cursor: pointer;"
+      >
+        <option value="escursionismo">🥾 Escursionismo</option>
+        <option value="ciclismo">🚴 Ciclismo</option>
+        <option value="spiaggia">🏖️ Spiaggia</option>
+        <option value="fotografia">📸 Fotografia</option>
+        <option value="corsa">🏃 Corsa</option>
+        <option value="astronomia">🔭 Astronomia</option>
+      </select>
+
+      <div id="attivita-stato" style="margin-top: 10px; padding: 10px 14px; border: 1px solid #d5e4e9; border-radius: 11px; background: #f7fbfc; color: #102b3b; font-size: 12px; font-weight: 600;">
+        ℹ️ Seleziona un'attività per visualizzare le previsioni
+      </div>
+    </div>
+
+    <div id="attivita-map"></div>
+
+    <div class="cml-radar-footer">
+      <span>
+        🗺️ Base cartografica OpenStreetMap · Dati ICON-2I (Open-Meteo)
+      </span>
+
+      <span>
+        <span style="display: inline-flex; align-items: center; gap: 6px; margin-right: 12px;">
+          <span style="width: 14px; height: 14px; border-radius: 3px; background: #22c55e; display: inline-block;"></span>
+          Molto favorevole
+        </span>
+        <span style="display: inline-flex; align-items: center; gap: 6px; margin-right: 12px;">
+          <span style="width: 14px; height: 14px; border-radius: 3px; background: #84cc16; display: inline-block;"></span>
+          Favorevole
+        </span>
+        <span style="display: inline-flex; align-items: center; gap: 6px; margin-right: 12px;">
+          <span style="width: 14px; height: 14px; border-radius: 3px; background: #facc15; display: inline-block;"></span>
+          Attenzione
+        </span>
+        <span style="display: inline-flex; align-items: center; gap: 6px;">
+          <span style="width: 14px; height: 14px; border-radius: 3px; background: #f97316; display: inline-block;"></span>
+          Sconsigliata
+        </span>
+      </span>
+    </div>
+  </section>
+
+  <div class="cml-note">
+    ℹ️ L'indice di compatibilità è calcolato su dati ICON-2I reali (Open-Meteo).
+    Non sostituisce valutazioni di sicurezza, bollettini ufficiali o conoscenza del territorio.
+  </div>
+
+</section>
+
+
 <!-- ===================== SCRIPT ===================== -->
 <script>
 const datiGraficiPerGiorno = {dati_grafici_json};
 
 let meteoChartInstance = null;
 let radarMap = null;
+let attivitaMap = null;
+let attivitaLayer = null;
+let datiCelleCache = null;
+let cacheTimestamp = null;
+
+// Griglia Calabria per attività
+const CALABRIA_BOUNDS = {
+  latMin: 37.75,
+  latMax: 40.15,
+  lonMin: 15.60,
+  lonMax: 17.25,
+};
+
+const PASSO_GRIGLIA_KM = 15.0;
+const PASSO_LAT = PASSO_GRIGLIA_KM / 111.0;
+const PASSO_LON = PASSO_GRIGLIA_KM / 86.0;
+
+let celleAttivita = [];
+const CACHE_DURATION_MS = 15 * 60 * 1000;
 
 /* ---------- NAVIGAZIONE HOME / PREVISIONI / RADAR ---------- */
 
@@ -3154,6 +3278,16 @@ function mostraVista(nome) {{
   ) {{
     setTimeout(function() {{
       radarMap.invalidateSize();
+    }}, 200);
+  }}
+
+  if (
+    nome === "attivita"
+    && typeof attivitaMap !== "undefined"
+    && attivitaMap
+  ) {{
+    setTimeout(function() {{
+      attivitaMap.invalidateSize();
     }}, 200);
   }}
 
@@ -3640,6 +3774,243 @@ function togglePlayRadar() {{
     radarPlaying = true;
     bottone.textContent = "⏸ Pausa";
   }}
+}}
+
+// ---------- MAPPA ATTIVITÀ: DATI REALI ICON-2I ----------
+
+function generaCelleCalabria() {{
+  const celle = [];
+  let lat = CALABRIA_BOUNDS.latMin;
+
+  while (lat <= CALABRIA_BOUNDS.latMax) {{
+    let lon = CALABRIA_BOUNDS.lonMin;
+    while (lon <= CALABRIA_BOUNDS.lonMax) {{
+      celle.push({{
+        latitudine: Number(lat.toFixed(4)),
+        longitudine: Number(lon.toFixed(4)),
+        id: celle.length + 1
+      }});
+      lon += PASSO_LON;
+    }}
+    lat += PASSO_LAT;
+  }}
+  return celle;
+}}
+
+function etichettaMeteo(codice) {{
+  const etichette = {{
+    0: 'Sereno', 1: 'Quasi sereno', 2: 'Parzialmente nuvoloso', 3: 'Coperto',
+    45: 'Nebbia', 48: 'Nebbia con brina', 51: 'Pioviggine debole',
+    53: 'Pioviggine moderata', 55: 'Pioviggine intensa', 61: 'Pioggia debole',
+    63: 'Pioggia moderata', 65: 'Pioggia forte', 71: 'Neve debole',
+    73: 'Neve moderata', 75: 'Neve forte', 80: 'Rovesci deboli',
+    81: 'Rovesci moderati', 82: 'Rovesci forti', 95: 'Temporale',
+    96: 'Temporale con grandine', 99: 'Temporale con forte grandine'
+  }};
+  return etichette[codice] || 'Non disponibile';
+}}
+
+function nomeAttivita(tipo) {{
+  const nomi = {{
+    escursionismo: '🥾 Escursionismo',
+    ciclismo: '🚴 Ciclismo',
+    spiaggia: '🏖️ Spiaggia',
+    fotografia: '📸 Fotografia',
+    corsa: '🏃 Corsa',
+    astronomia: '🔭 Astronomia'
+  }};
+  return nomi[tipo] || tipo;
+}}
+
+function punteggioAttivitaReale(dati, tipo) {{
+  const temperatura = Number(dati.temperature_2m || 0);
+  const percepita = Number(dati.apparent_temperature || temperatura);
+  const pioggia = Number(dati.precipitation || 0);
+  const vento = Number(dati.wind_speed_10m || 0);
+  const raffica = Number(dati.wind_gusts_10m || 0);
+  const nuvole = Number(dati.cloud_cover || 0);
+  const codice = Number(dati.weather_code || 0);
+  const temporale = [95, 96, 99].includes(codice);
+  const rovesci = [80, 81, 82].includes(codice);
+  const pioggiaMeteo = [51, 53, 55, 56, 57, 61, 63, 65, 66, 67].includes(codice);
+  let punteggio = 100;
+
+  if (temporale) punteggio -= 85;
+  if (pioggia >= 2) punteggio -= Math.min(55, 20 + pioggia * 14);
+  else if (pioggia > 0) punteggio -= Math.min(30, pioggia * 18);
+  else if (rovesci || pioggiaMeteo) punteggio -= 25;
+  if (raffica >= 70) punteggio -= 55;
+  else if (raffica >= 50) punteggio -= 32;
+  else if (raffica >= 35) punteggio -= 15;
+
+  if (tipo === 'escursionismo') {{
+    if (temperatura < 4 || temperatura > 31) punteggio -= 20;
+    if (vento >= 30) punteggio -= Math.min(25, (vento - 25) * 2);
+    if (codice >= 71 && codice <= 77) punteggio -= 40;
+  }} else if (tipo === 'ciclismo') {{
+    if (temperatura < 6 || temperatura > 30) punteggio -= 22;
+    if (vento >= 20) punteggio -= Math.min(40, (vento - 18) * 2.5);
+    if (raffica >= 40) punteggio -= 18;
+  }} else if (tipo === 'spiaggia') {{
+    if (temperatura < 22) punteggio -= Math.min(55, (22 - temperatura) * 6);
+    if (temperatura > 35) punteggio -= 18;
+    if (nuvole > 75) punteggio -= 30;
+    else if (nuvole > 50) punteggio -= 12;
+    if (vento >= 30) punteggio -= 25;
+  }} else if (tipo === 'fotografia') {{
+    if (temporale || pioggia >= 3) punteggio -= 35;
+    if (nuvole >= 95) punteggio -= 25;
+    else if (nuvole >= 30 && nuvole <= 75) punteggio += 5;
+    if (raffica >= 55) punteggio -= 20;
+  }} else if (tipo === 'corsa') {{
+    if (percepita < 4 || percepita > 29) punteggio -= 28;
+    if (vento >= 28) punteggio -= Math.min(35, (vento - 22) * 2.5);
+    if (raffica >= 45) punteggio -= 18;
+  }} else if (tipo === 'astronomia') {{
+    if (nuvole > 85) punteggio -= 75;
+    else if (nuvole > 65) punteggio -= 50;
+    else if (nuvole > 40) punteggio -= 28;
+    else if (nuvole > 20) punteggio -= 10;
+    if (pioggia > 0 || pioggiaMeteo || rovesci) punteggio -= 35;
+    if (temporale) punteggio -= 30;
+    if (raffica >= 45) punteggio -= 18;
+  }}
+
+  return Math.max(0, Math.min(100, Math.round(punteggio)));
+}}
+
+function coloreDaPunteggio(punteggio) {{
+  if (punteggio >= 80) return '#16a34a';
+  if (punteggio >= 60) return '#84cc16';
+  if (punteggio >= 40) return '#eab308';
+  if (punteggio >= 20) return '#f97316';
+  return '#dc2626';
+}}
+
+function testoDaPunteggio(punteggio) {{
+  if (punteggio >= 80) return 'Molto favorevole';
+  if (punteggio >= 60) return 'Favorevole';
+  if (punteggio >= 40) return 'Possibile con attenzione';
+  if (punteggio >= 20) return 'Poco favorevole';
+  return 'Sconsigliata';
+}}
+
+async function scaricaDatiRealiCelle() {{
+  const adesso = Date.now();
+  if (datiCelleCache && cacheTimestamp && adesso - cacheTimestamp < CACHE_DURATION_MS) {{
+    return datiCelleCache;
+  }}
+
+  const stato = document.getElementById('attivita-stato');
+  if (stato) stato.textContent = '⏳ Download previsioni ICON-2I reali in corso…';
+
+  const celle = generaCelleCalabria();
+  const dimensioneBatch = 50;
+  const risultati = [];
+
+  for (let inizio = 0; inizio < celle.length; inizio += dimensioneBatch) {{
+    const batch = celle.slice(inizio, inizio + dimensioneBatch);
+    const parametri = new URLSearchParams({{
+      latitude: batch.map(c => c.latitudine).join(','),
+      longitude: batch.map(c => c.longitudine).join(','),
+      models: 'italia_meteo_arpae_icon_2i',
+      timezone: 'Europe/Rome',
+      forecast_days: '1',
+      current: 'temperature_2m,apparent_temperature,precipitation,weather_code,cloud_cover,wind_speed_10m,wind_gusts_10m'
+    }});
+
+    const risposta = await fetch('https://api.open-meteo.com/v1/forecast?' + parametri.toString());
+    if (!risposta.ok) throw new Error('Errore Open-Meteo ' + risposta.status);
+
+    const datiBatch = await risposta.json();
+    const arrayDati = Array.isArray(datiBatch) ? datiBatch : [datiBatch];
+
+    batch.forEach(function(cella, indice) {{
+      const dati = arrayDati[indice] || {{}};
+      risultati.push({{
+        ...cella,
+        meteo: dati.current || {{}}
+      }});
+    }});
+
+    if (stato) {{
+      stato.textContent = `⏳ Previsioni reali: ${{Math.min(inizio + batch.length, celle.length)}}/${{celle.length}} celle…`;
+    }}
+  }}
+
+  datiCelleCache = risultati;
+  cacheTimestamp = Date.now();
+  return risultati;
+}}
+
+function inizializzaMappaAttivita() {{
+  if (attivitaMap) return;
+  attivitaMap = L.map('attivita-map', {{
+    center: [39.0, 16.45], zoom: 8, minZoom: 7, maxZoom: 12
+  }});
+  L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
+    attribution: '© OpenStreetMap'
+  }}).addTo(attivitaMap);
+}}
+
+async function aggiornaMappaAttivita() {{
+  if (!attivitaMap) return;
+  const selettore = document.getElementById('attivita-selector');
+  const tipo = selettore ? selettore.value : 'escursionismo';
+  const stato = document.getElementById('attivita-stato');
+
+  try {{
+    const datiCelle = await scaricaDatiRealiCelle();
+    if (attivitaLayer) attivitaMap.removeLayer(attivitaLayer);
+    attivitaLayer = L.layerGroup().addTo(attivitaMap);
+
+    datiCelle.forEach(function(cella) {{
+      const meteo = cella.meteo || {{}};
+      const punteggio = punteggioAttivitaReale(meteo, tipo);
+      const colore = coloreDaPunteggio(punteggio);
+      const livello = testoDaPunteggio(punteggio);
+      const latSud = cella.latitudine - PASSO_LAT / 2;
+      const latNord = cella.latitudine + PASSO_LAT / 2;
+      const lonOvest = cella.longitudine - PASSO_LON / 2;
+      const lonEst = cella.longitudine + PASSO_LON / 2;
+
+      const rettangolo = L.rectangle([[latSud, lonOvest], [latNord, lonEst]], {{
+        color: colore, weight: 1, fillColor: colore, fillOpacity: 0.55
+      }});
+
+      rettangolo.bindPopup(`
+        <div style="min-width:220px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;line-height:1.55;">
+          <strong style="font-size:15px;">${{nomeAttivita(tipo)}}</strong><br>
+          <span style="color:${{colore}};font-weight:800;">${{livello}} · ${{punteggio}}/100</span>
+          <hr style="border:0;border-top:1px solid #dbe8ec;margin:8px 0;">
+          <b>Condizioni ICON-2I</b><br>
+          🌡️ ${{Number(meteo.temperature_2m || 0).toFixed(1)}} °C, percepita ${{Number(meteo.apparent_temperature || 0).toFixed(1)}} °C<br>
+          🌧️ ${{Number(meteo.precipitation || 0).toFixed(1)}} mm<br>
+          💨 ${{Number(meteo.wind_speed_10m || 0).toFixed(0)}} km/h, raffiche ${{Number(meteo.wind_gusts_10m || 0).toFixed(0)}} km/h<br>
+          ☁️ ${{Number(meteo.cloud_cover || 0).toFixed(0)}}% · ${{etichettaMeteo(Number(meteo.weather_code || 0))}}<br>
+          <small style="color:#607987;">Centro: ${{cella.latitudine.toFixed(3)}}°, ${{cella.longitudine.toFixed(3)}}°</small>
+        </div>
+      `);
+      attivitaLayer.addLayer(rettangolo);
+    }});
+
+    if (stato) {{
+      const orario = new Date(cacheTimestamp).toLocaleTimeString('it-IT', {{hour:'2-digit',minute:'2-digit'}});
+      stato.textContent = `✅ ${{datiCelle.length}} celle con dati ICON-2I reali · cache 15 min · ${{orario}}`;
+    }}
+  }} catch (errore) {{
+    console.error(errore);
+    if (stato) stato.textContent = '❌ Errore nel download: ' + errore.message;
+  }}
+}}
+
+function apriVistaAttivita() {{
+  mostraVista('attivita');
+  inizializzaMappaAttivita();
+  setTimeout(function() {{
+    if (attivitaMap) attivitaMap.invalidateSize();
+    aggiornaMappaAttivita();
+  }}, 250);
 }}
 
 fetch(

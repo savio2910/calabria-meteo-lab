@@ -4109,38 +4109,53 @@ async function aggiornaMappaAttivita() {{
       attivitaLayer = L.layerGroup().addTo(attivitaMap);
 
       datiCelle.forEach(function(cella) {{
-      if (!cellaCompatibileConAttivita(cella, tipo)) {{
-      return;
-      }}
+                // FILTRO GEOGRAFICO PER ATTIVITÀ
+                if (tipo === "spiaggia") {{
+                    if (cella.distanzaCostaKm > 8 || cella.quota > 150) {{
+                        return;
+                    }}
+                }} else if (tipo === "escursionismo" || tipo === "ciclismo" || tipo === "corsa" || tipo === "fotografia" || tipo === "astronomia") {{
+                    if (cella.distanzaCostaKm === 0) {{
+                        return;
+                    }}
+                }}
 
-      const meteo = cella.meteo;
-      const punteggio = punteggioAttivitaReale(meteo, tipo);
-      const colore = coloreDaPunteggio(punteggio);
-      const livello = testoDaPunteggio(punteggio);
-      const latSud = cella.latitudine - PASSO_LAT / 2;
-      const latNord = cella.latitudine + PASSO_LAT / 2;
-      const lonOvest = cella.longitudine - PASSO_LON / 2;
-      const lonEst = cella.longitudine + PASSO_LON / 2;
+                const meteo = cella.meteo;
+                const punteggio = punteggioAttivitaReale(meteo, tipo);
+                const colore = coloreDaPunteggio(punteggio);
+                const livello = testoDaPunteggio(punteggio);
 
-      const rettangolo = L.rectangle([[latSud, lonOvest], [latNord, lonEst]], {{
-        color: colore, weight: 1, fillColor: colore, fillOpacity: 0.55
-      }});
+                const latSud = cella.latitudine - PASSO_LAT / 2;
+                const latNord = cella.latitudine + PASSO_LAT / 2;
+                const lonOvest = cella.longitudine - PASSO_LON / 2;
+                const lonEst = cella.longitudine + PASSO_LON / 2;
 
-      rettangolo.bindPopup(`
-        <div style="min-width:220px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;line-height:1.55;">
-          <strong style="font-size:15px;">${{nomeAttivita(tipo)}}</strong><br>
-          <span style="color:${{colore}};font-weight:800;">${{livello}} · ${{punteggio}}/100</span>
-          <hr style="border:0;border-top:1px solid #dbe8ec;margin:8px 0;">
-          <b>Condizioni ICON-2I</b><br>
-          🌡️ ${{Number(meteo.temperature_2m || 0).toFixed(1)}} °C, percepita ${{Number(meteo.apparent_temperature || 0).toFixed(1)}} °C<br>
-          🌧️ ${{Number(meteo.precipitation || 0).toFixed(1)}} mm<br>
-          💨 ${{Number(meteo.wind_speed_10m || 0).toFixed(0)}} km/h, raffiche ${{Number(meteo.wind_gusts_10m || 0).toFixed(0)}} km/h<br>
-          ☁️ ${{Number(meteo.cloud_cover || 0).toFixed(0)}}% · ${{etichettaMeteo(Number(meteo.weather_code || 0))}}<br>
-          <small style="color:#607987;">Centro: ${{cella.latitudine.toFixed(3)}}°, ${{cella.longitudine.toFixed(3)}}°</small>
-        </div>
-      `);
-      attivitaLayer.addLayer(rettangolo);
-    }});
+                const rettangolo = L.rectangle(
+                    [[latSud, lonOvest], [latNord, lonEst]],
+                    {{
+                        color: colore,
+                        weight: 1,
+                        fillColor: colore,
+                        fillOpacity: 0.55,
+                    }}
+                );
+
+                rettangolo.bindPopup(`
+                    <div style="min-width:220px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;line-height:1.55;">
+                        <strong style="font-size:15px;">${{nomeAttivita(tipo)}}</strong><br>
+                        <span style="color:${{colore}};font-weight:800;">${{livello}} (${{punteggio}}/100)</span>
+                        <hr style="border:0;border-top:1px solid #dbe8ec;margin:8px 0;">
+                        <b>Condizioni ICON-2I:</b><br>
+                        ${{Number(meteo.temperature_2m).toFixed(1)}} °C, percepita ${{Number(meteo.apparent_temperature).toFixed(1)}} °C<br>
+                        ${{Number(meteo.precipitation).toFixed(1)}} mm<br>
+                        ${{Number(meteo.windspeed_10m).toFixed(0)}} km/h, raffiche ${{Number(meteo.windgusts_10m).toFixed(0)}} km/h<br>
+                        ${{Number(meteo.cloud_cover).toFixed(0)}} % · ${{etichettaMeteo(Number(meteo.weather_code))}}<br>
+                        <small style="color:#607987;">Centro: ${{cella.latitudine.toFixed(3)}}, ${{cella.longitudine.toFixed(3)}}</small>
+                    </div>
+                `);
+
+                attivitaLayer.addLayer(rettangolo);
+            }});
 
     if (stato) {{
       const orario = new Date(cacheTimestamp).toLocaleTimeString('it-IT', {{hour:'2-digit',minute:'2-digit'}});

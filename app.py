@@ -32,23 +32,23 @@ st.markdown(
       header {visibility: hidden;}
       footer {visibility: hidden;}
 
-      .block-container {
+      .block-container {{
       max-width: none !important;
       width: 100% !important;
       padding: 0.5rem 1rem 2rem 1rem !important;
-      }
+      }}
 
-      [data-testid="stAppViewContainer"] {
+      [data-testid="stAppViewContainer"] {{
         background: #eef5f8;
-      }
+      }}
 
-      [data-testid="stHeader"] {
+      [data-testid="stHeader"] {{
         background: transparent;
-      }
+      }}
 
-      iframe {
+      iframe {{
         background: #eef5f8 !important;
-      }
+      }}
     </style>
     """,
     unsafe_allow_html=True,

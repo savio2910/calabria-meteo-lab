@@ -2372,6 +2372,16 @@ body {{
   border-radius: 16px;
 }}
 
+#attivita-map {{
+  width: 100%;
+  height: 480px;
+  min-height: 480px;
+  margin-top: 16px;
+  border: 1px solid #d8e7eb;
+  border-radius: 16px;
+  background: #dcebef;
+}}
+
 .cml-radar-footer {{
   display: flex;
   flex-wrap: wrap;
@@ -2885,6 +2895,11 @@ body {{
     padding: 4px;
   }}
 
+  #attivita-map {{
+  height: 390px;
+  min-height: 390px;
+  }}
+
   .cml-hero {{
     padding: 31px 25px;
   }}
@@ -2898,6 +2913,8 @@ body {{
     flex-direction: column;
     padding: 26px 24px;
   }}
+
+  
 
   .cml-temperature span {{
     font-size: 69px;

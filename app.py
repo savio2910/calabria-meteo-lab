@@ -3196,10 +3196,6 @@ body {{
     Open-Meteo.
   </div>
 
-  <footer class="cml-site-copyright">
-     © 2026 Saverio Campanella · Calabria Meteo Lab · Tutti i diritti riservati
-  </footer>
-
 </section>
 
 

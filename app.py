@@ -2456,18 +2456,18 @@ body {{
 }}
 
 
-.cml-activity-bar {
+.cml-activity-bar {{
   width: 100%;
   min-width: 180px;
   height: 10px;
   border-radius: 999px;
   background: #e5eef1;
   overflow: hidden;
-}
-.cml-activity-bar-fill {
+}}
+.cml-activity-bar-fill {{
   height: 100%;
   border-radius: 999px;
-}
+}}
 
 /* ===================== RADAR ===================== */
 

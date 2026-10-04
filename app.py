@@ -1,3 +1,11 @@
+# =============================================================================
+# Calabria Meteo Lab
+# Copyright (c) 2026 Saverio Campanella
+# Tutti i diritti riservati.
+# Uso personale e didattico soltanto: vietate copia, modifica, redistribuzione
+# o riutilizzo, anche parziale, senza autorizzazione scritta dell’autore.
+# =============================================================================
+
 import html
 import json
 import math
@@ -3045,6 +3053,35 @@ body {{
   background: #142549;
 }}
 
+/* ===================== COPYRIGHT ===================== */
+
+.cml-copyright {{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 20px;
+  margin: 28px 0 12px;
+  padding: 14px 18px;
+  border: 1px solid #d5e4e9;
+  border-radius: 14px;
+  background: #ffffff;
+  color: #607987;
+  font-size: 12px;
+  line-height: 1.5;
+}}
+
+.cml-copyright strong {{
+  color: #102b3b;
+}}
+
+@media (max-width: 760px) {{
+  .cml-copyright {{
+    flex-direction: column;
+    align-items: flex-start;
+  }}
+}}
+
 /* ===================== MEDIA ===================== */
 
 @media (max-width: 760px) {{
@@ -3118,6 +3155,16 @@ body {{
 }}
 </style>
 </head>
+
+<!-- ===================== COPYRIGHT ===================== -->
+<footer class="cml-copyright">
+  <div>
+    <strong>Calabria Meteo Lab</strong> · © 2026 Saverio Campanella · Tutti i diritti riservati
+  </div>
+  <div>
+    Codice, interfaccia e contenuti dell’applicazione sono protetti da copyright.
+  </div>
+</footer>
 
 <body>
 

@@ -1157,6 +1157,111 @@ def badge_rischio_html(livello, rischio):
     )
 
 
+
+def tabella_attivita_luogo_html(luogo, corrente):
+    attivita = [
+        ("escursionismo", "🥾 Escursionismo"),
+        ("ciclismo", "🚴 Ciclismo"),
+        ("spiaggia", "🏖️ Spiaggia"),
+        ("fotografia", "📸 Fotografia"),
+        ("corsa", "🏃 Corsa"),
+        ("astronomia", "🔭 Astronomia"),
+    ]
+
+    righe = []
+    for tipo, nome in attivita:
+        punteggio = punteggio_attivita_luogo(corrente, tipo)
+        colore = {
+            4: "#16a34a", 3: "#84cc16", 2: "#eab308", 1: "#f97316", 0: "#dc2626"
+        }[min(4, punteggio // 20)]
+        righe.append(f"""
+          <tr>
+            <td>{html.escape(nome)}</td>
+            <td>
+              <div class="cml-activity-bar">
+                <div class="cml-activity-bar-fill" style="width:{punteggio}%;background:{colore};"></div>
+              </div>
+            </td>
+            <td><b style="color:{colore};">{punteggio}%</b></td>
+          </tr>
+        """)
+
+    return f"""
+    <section class="cml-radar-box">
+      <div class="cml-radar-head">
+        <div>
+          <h2>🏃 Attività per {html.escape(luogo)}</h2>
+          <p>Percentuale di svolgimento stimata dalle condizioni meteorologiche attuali previste per la località cercata.</p>
+        </div>
+      </div>
+      <div class="cml-table-wrap">
+        <table class="cml-table" style="min-width:620px;">
+          <thead><tr><th>Attività</th><th>Percentuale di svolgimento</th><th>Valore</th></tr></thead>
+          <tbody>{''.join(righe)}</tbody>
+        </table>
+      </div>
+      <div class="cml-marine-note">
+        ℹ️ Valori stimati su dati ICON-2I della località selezionata. Per la spiaggia non è valutata la balneabilità;
+        per l’astronomia non sono considerati buio e inquinamento luminoso.
+      </div>
+    </section>
+    """
+
+def punteggio_attivita_luogo(dati, tipo):
+    temperatura = float(dati.get("temperature_2m") or 0)
+    percepita = float(dati.get("apparent_temperature") or temperatura)
+    pioggia = float(dati.get("precipitation") or 0)
+    vento = float(dati.get("wind_speed_10m") or 0)
+    raffica = float(dati.get("wind_gusts_10m") or 0)
+    nuvole = float(dati.get("cloud_cover") or 0)
+    codice = int(dati.get("weather_code") or 0)
+    temporale = codice in (95, 96, 99)
+    rovesci = codice in (80, 81, 82)
+    pioggia_meteo = codice in (51, 53, 55, 56, 57, 61, 63, 65, 66, 67)
+    punteggio = 100
+
+    if temporale: punteggio -= 85
+    if pioggia >= 2: punteggio -= min(55, 20 + pioggia * 14)
+    elif pioggia > 0: punteggio -= min(30, pioggia * 18)
+    elif rovesci or pioggia_meteo: punteggio -= 25
+    if raffica >= 70: punteggio -= 55
+    elif raffica >= 50: punteggio -= 32
+    elif raffica >= 35: punteggio -= 15
+
+    if tipo == "escursionismo":
+        if temperatura < 4 or temperatura > 31: punteggio -= 20
+        if vento >= 30: punteggio -= min(25, (vento - 25) * 2)
+        if 71 <= codice <= 77: punteggio -= 40
+    elif tipo == "ciclismo":
+        if temperatura < 6 or temperatura > 30: punteggio -= 22
+        if vento >= 20: punteggio -= min(40, (vento - 18) * 2.5)
+        if raffica >= 40: punteggio -= 18
+    elif tipo == "spiaggia":
+        if temperatura < 22: punteggio -= min(55, (22 - temperatura) * 6)
+        if temperatura > 35: punteggio -= 18
+        if nuvole > 75: punteggio -= 30
+        elif nuvole > 50: punteggio -= 12
+        if vento >= 30: punteggio -= 25
+    elif tipo == "fotografia":
+        if temporale or pioggia >= 3: punteggio -= 35
+        if nuvole >= 95: punteggio -= 25
+        elif 30 <= nuvole <= 75: punteggio += 5
+        if raffica >= 55: punteggio -= 20
+    elif tipo == "corsa":
+        if percepita < 4 or percepita > 29: punteggio -= 28
+        if vento >= 28: punteggio -= min(35, (vento - 22) * 2.5)
+        if raffica >= 45: punteggio -= 18
+    elif tipo == "astronomia":
+        if nuvole > 85: punteggio -= 75
+        elif nuvole > 65: punteggio -= 50
+        elif nuvole > 40: punteggio -= 28
+        elif nuvole > 20: punteggio -= 10
+        if pioggia > 0 or pioggia_meteo or rovesci: punteggio -= 35
+        if temporale: punteggio -= 30
+        if raffica >= 45: punteggio -= 18
+
+    return max(0, min(100, round(punteggio)))
+
 # =============================================================================
 # GENERAZIONE HTML
 # =============================================================================
@@ -1723,6 +1828,11 @@ def genera_app_completa(
     # ---------------------------------------------------------
     # HTML COMPLETO CON HOME / PREVISIONI / RADAR
     # ---------------------------------------------------------
+
+    tabella_attivita_luogo = tabella_attivita_luogo_html(
+        luogo,
+        corrente,
+    )
 
     documento_html = f"""
 <!DOCTYPE html>
@@ -2332,6 +2442,20 @@ body {{
   color: #768c95;
   font-size: 10px;
 }}
+
+
+.cml-activity-bar {
+  width: 100%;
+  min-width: 180px;
+  height: 10px;
+  border-radius: 999px;
+  background: #e5eef1;
+  overflow: hidden;
+}
+.cml-activity-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+}
 
 /* ===================== RADAR ===================== */
 
@@ -3246,7 +3370,7 @@ body {{
 
         <p>
           Mappa delle attività più adatte alle condizioni meteorologiche
-          previste sui luoghi censiti. Clicca sui punti per la percentuale di svolgimento di ogni attività.
+          previste sui luoghi censiti. Clicca sui punti per le attività del singolo posto.
         </p>
       </div>
 
@@ -3267,6 +3391,8 @@ body {{
         ℹ️ Seleziona un'attività per visualizzare le previsioni
       </div>
     </div>
+
+  {tabella_attivita_luogo}
 
     <div id="attivita-map"></div>
 
@@ -4116,34 +4242,6 @@ function cellaDelLuogo(luogo, celle) {{
   );
 }}
 
-function barraAttivita(punteggio) {{
-  const valore = Math.max(0, Math.min(100, Math.round(punteggio)));
-  const colore = coloreDaPunteggio(valore);
-  return '<div style="margin-top:7px;">' +
-    '<div style="display:flex;justify-content:space-between;font-size:11px;font-weight:800;color:#102b3b;">' +
-    '<span>Percentuale di svolgimento</span><span>' + valore + '%</span></div>' +
-    '<div style="height:8px;border-radius:999px;background:#e5eef1;overflow:hidden;">' +
-    '<div style="height:100%;width:' + valore + '%;background:' + colore + ';border-radius:999px;"></div>' +
-    '</div></div>';
-}}
-
-function bloccoAttivitaLuogo(nome, tipi, meteo, validi) {{
-  const righe = tipi.map(t => {{
-    const punteggio = validi ? punteggioAttivitaReale(meteo, t) : null;
-    const livello = validi ? testoDaPunteggio(punteggio) : 'dati incompleti';
-    const barra = validi ? barraAttivita(punteggio) : '';
-    return '<div style="margin-bottom:10px;">' +
-      '<b>' + escapeAttivita(nomeAttivita(t)) + '</b><br>' +
-      '<span style="font-size:12px;color:#607987;">' + escapeAttivita(livello) +
-      (validi ? ' · ' + punteggio + '/100' : '') + '</span>' + barra + '</div>';
-  }}).join('');
-  return '<div style="min-width:250px;line-height:1.55;">' +
-    '<b style="font-size:15px;">' + escapeAttivita(nome) + '</b><hr>' +
-    righe + '<hr>' +
-    '<small>Percentuale stimata dalle condizioni ICON-2I della cella di 15 km; ' +
-    'non è una misura puntuale sul luogo.</small></div>';
-}}
-
 async function aggiornaMappaAttivita() {{
   if (!attivitaMap) return;
   const versione = ++versioneAttivita;
@@ -4187,22 +4285,26 @@ async function aggiornaMappaAttivita() {{
       ], {{color: colore, weight: 1, fillColor: colore, fillOpacity: 0.55}});
       rettangolo.bindPopup('<b>' + escapeAttivita(nomeAttivita(tipo)) + '</b><br>' +
         escapeAttivita(livello) + (validi ? ' · ' + punteggio + '/100' : '') +
-        (validi ? barraAttivita(punteggio) : '') +
         '<hr>Luoghi censiti in questa cella:<br>' +
         posti.map(p => escapeAttivita(p.nome)).join('<br>') + '<hr>' + riepilogo);
       nuovoLayer.addLayer(rettangolo);
       posti.forEach(p => {{
         numeroLuoghi++;
+        const righe = p.tipi.map(t => {{
+          const score = validi ? punteggioAttivitaReale(meteo, t) : null;
+          return escapeAttivita(nomeAttivita(t)) + ': ' +
+            (validi ? escapeAttivita(testoDaPunteggio(score)) + ' · ' + score + '/100' : 'dati incompleti');
+        }}).join('<br>');
         L.circleMarker([p.latitudine, p.longitudine], {{
           radius: 5, color: '#ffffff', weight: 2, fillColor: colore, fillOpacity: 1
         }}).bindTooltip(escapeAttivita(p.nome)).bindPopup(
-          bloccoAttivitaLuogo(p.nome, p.tipi, meteo, validi) +
-          '<hr>' + riepilogo +
+          '<div style="min-width:230px;line-height:1.55"><b>' + escapeAttivita(p.nome) +
+          '</b><hr>' + righe + '<hr>' + riepilogo +
           '<hr><small>Attività associate ai tag OSM; accessibilità e apertura da verificare. ' +
           'Per spiaggia non è valutata la balneabilità; per astronomia non sono valutati buio e inquinamento luminoso. ' +
           'Per sentieri e piste il punto rappresenta il centro dell’elemento, non tutto il percorso.</small><br>' +
           '<a target="_blank" rel="noopener noreferrer" href="https://www.openstreetmap.org/' +
-          p.id + '">Vedi luogo in OpenStreetMap</a>'
+          p.id + '">Vedi luogo in OpenStreetMap</a></div>'
         ).addTo(nuovoLayer);
       }});
     }});
@@ -4210,7 +4312,7 @@ async function aggiornaMappaAttivita() {{
     attivitaLayer = nuovoLayer.addTo(attivitaMap);
     if (stato) stato.textContent = numeroLuoghi
       ? '✅ ' + numeroLuoghi + ' elementi OSM per ' + nomeAttivita(tipo) +
-        ' · clicca sui punti per la percentuale di svolgimento di ogni attività'
+        ' · clicca sui punti per le attività del singolo luogo'
       : 'ℹ️ Nessun luogo censito per questa attività nell’area. Non significa che non esista.';
   }} catch (errore) {{
     if (versione !== versioneAttivita) return;

@@ -1158,55 +1158,6 @@ def badge_rischio_html(livello, rischio):
 
 
 
-def tabella_attivita_luogo_html(luogo, corrente):
-    attivita = [
-        ("escursionismo", "🥾 Escursionismo"),
-        ("ciclismo", "🚴 Ciclismo"),
-        ("spiaggia", "🏖️ Spiaggia"),
-        ("fotografia", "📸 Fotografia"),
-        ("corsa", "🏃 Corsa"),
-        ("astronomia", "🔭 Astronomia"),
-    ]
-
-    righe = []
-    for tipo, nome in attivita:
-        punteggio = punteggio_attivita_luogo(corrente, tipo)
-        colore = {
-            4: "#16a34a", 3: "#84cc16", 2: "#eab308", 1: "#f97316", 0: "#dc2626"
-        }[min(4, punteggio // 20)]
-        righe.append(f"""
-          <tr>
-            <td>{html.escape(nome)}</td>
-            <td>
-              <div class="cml-activity-bar">
-                <div class="cml-activity-bar-fill" style="width:{punteggio}%;background:{colore};"></div>
-              </div>
-            </td>
-            <td><b style="color:{colore};">{punteggio}%</b></td>
-          </tr>
-        """)
-
-    return f"""
-    <section class="cml-radar-box">
-      <div class="cml-radar-head">
-        <div>
-          <h2>🏃 Attività per {html.escape(luogo)}</h2>
-          <p>Percentuale di svolgimento stimata dalle condizioni meteorologiche attuali previste per la località cercata.</p>
-        </div>
-      </div>
-      <div class="cml-table-wrap">
-        <table class="cml-table" style="min-width:620px;">
-          <thead><tr><th>Attività</th><th>Percentuale di svolgimento</th><th>Valore</th></tr></thead>
-          <tbody>{''.join(righe)}</tbody>
-        </table>
-      </div>
-      <div class="cml-marine-note">
-        ℹ️ Valori stimati su dati ICON-2I della località selezionata. Per la spiaggia non è valutata la balneabilità;
-        per l’astronomia non sono considerati buio e inquinamento luminoso.
-      </div>
-    </section>
-    """
-
 def punteggio_attivita_luogo(dati, tipo):
     temperatura = float(dati.get("temperature_2m") or 0)
     percepita = float(dati.get("apparent_temperature") or temperatura)
@@ -1262,6 +1213,65 @@ def punteggio_attivita_luogo(dati, tipo):
 
     return max(0, min(100, round(punteggio)))
 
+
+def tabella_attivita_luogo_html(luogo, corrente, is_costiero=False):
+    attivita = [
+        ("escursionismo", "🥾 Escursionismo"),
+        ("ciclismo", "🚴 Ciclismo"),
+        ("fotografia", "📸 Fotografia"),
+        ("corsa", "🏃 Corsa"),
+        ("astronomia", "🔭 Astronomia"),
+    ]
+
+    if is_costiero:
+        attivita.insert(2, ("spiaggia", "🏖️ Spiaggia"))
+
+    righe = []
+    for tipo, nome in attivita:
+        punteggio = punteggio_attivita_luogo(corrente, tipo)
+        colore = {
+            4: "#16a34a", 3: "#84cc16", 2: "#eab308", 1: "#f97316", 0: "#dc2626"
+        }[min(4, punteggio // 20)]
+        righe.append(f"""
+          <tr>
+            <td>{html.escape(nome)}</td>
+            <td>
+              <div class="cml-activity-bar">
+                <div class="cml-activity-bar-fill" style="width:{punteggio}%;background:{colore};"></div>
+              </div>
+            </td>
+            <td><b style="color:{colore};">{punteggio}%</b></td>
+          </tr>
+        """)
+
+    nota_costa = (
+        "La località risulta costiera: è inclusa anche la valutazione per la spiaggia."
+        if is_costiero else
+        "La località non risulta costiera: l’attività «Spiaggia» non è valutata."
+    )
+
+    return f"""
+    <section class="cml-radar-box">
+      <div class="cml-radar-head">
+        <div>
+          <h2>🏃 Attività per {html.escape(luogo)}</h2>
+          <p>Percentuale di svolgimento stimata dalle condizioni meteorologiche previste per la località cercata.</p>
+        </div>
+      </div>
+      <div class="cml-table-wrap">
+        <table class="cml-table" style="min-width:620px;">
+          <thead><tr><th>Attività</th><th>Percentuale di svolgimento</th><th>Valore</th></tr></thead>
+          <tbody>{''.join(righe)}</tbody>
+        </table>
+      </div>
+      <div class="cml-marine-note">
+        ℹ️ {nota_costa} Valori stimati su dati ICON-2I della località selezionata.
+        Per la spiaggia non è valutata la balneabilità; per l’astronomia non sono considerati
+        buio e inquinamento luminoso.
+      </div>
+    </section>
+    """
+
 # =============================================================================
 # GENERAZIONE HTML
 # =============================================================================
@@ -1275,6 +1285,7 @@ def genera_app_completa(
     giorni,
     dati_mare=None,
     distanza_mare_km=None,
+    is_costiero=False,
 ):
     corrente = dati_terrestri["current"]
 
@@ -1832,6 +1843,7 @@ def genera_app_completa(
     tabella_attivita_luogo = tabella_attivita_luogo_html(
         luogo,
         corrente,
+        is_costiero,
     )
 
     documento_html = f"""
@@ -2444,18 +2456,18 @@ body {{
 }}
 
 
-.cml-activity-bar {{
+.cml-activity-bar {
   width: 100%;
   min-width: 180px;
   height: 10px;
   border-radius: 999px;
   background: #e5eef1;
   overflow: hidden;
-}}
-.cml-activity-bar-fill {{
+}
+.cml-activity-bar-fill {
   height: 100%;
   border-radius: 999px;
-}}
+}
 
 /* ===================== RADAR ===================== */
 
@@ -4509,6 +4521,7 @@ try:
         dati_giornalieri,
         dati_mare,
         distanza_mare_km,
+        is_costiero,
     )
 
     components.html(

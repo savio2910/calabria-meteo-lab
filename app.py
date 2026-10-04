@@ -3235,7 +3235,7 @@ body {{
 
         <p>
           Mappa delle attività più adatte alle condizioni meteorologiche
-          previste sulla Calabria. Clicca su una cella per i dettagli.
+          previste sui luoghi censiti. Clicca sui punti per le attività del singolo posto.
         </p>
       </div>
 
@@ -4014,54 +4014,174 @@ function inizializzaMappaAttivita() {{
   }}).addTo(attivitaMap);
 }}
 
+
+let luoghiAttivitaPromise = null;
+let versioneAttivita = 0;
+
+function escapeAttivita(testo) {{
+  return String(testo ?? '').replace(/[&<>"']/g, c => ({{
+    '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+  }}[c]));
+}}
+
+function tipiDelLuogo(tags) {{
+  if (['private', 'no'].includes(tags.access)) return [];
+  const tipi = new Set();
+  const sport = (tags.sport || '').split(';');
+  if (tags.natural === 'beach') tipi.add('spiaggia');
+  if (tags.highway === 'path' &&
+      (tags.sac_scale || tags.hiking === 'yes' || tags.foot === 'designated')) {{
+    tipi.add('escursionismo');
+  }}
+  if (tags.highway === 'cycleway' || tags.bicycle === 'designated') tipi.add('ciclismo');
+  if (sport.includes('running') || sport.includes('athletics')) tipi.add('corsa');
+  if (['viewpoint', 'attraction'].includes(tags.tourism)) tipi.add('fotografia');
+  if (tags.man_made === 'observatory' && tags.observatory !== 'meteorological') {{
+    tipi.add('astronomia');
+  }}
+  return [...tipi];
+}}
+
+async function scaricaLuoghiAttivita() {{
+  if (luoghiAttivitaPromise) return luoghiAttivitaPromise;
+  luoghiAttivitaPromise = (async () => {{
+    const b = CALABRIA_BOUNDS;
+    const bbox = [b.latMin, b.lonMin, b.latMax, b.lonMax].join(',');
+    const filtri = [
+      '[natural=beach]', '[tourism=viewpoint]', '[tourism=attraction]',
+      '[highway=cycleway]', '[bicycle=designated]',
+      '[highway=path][sac_scale]', '[highway=path][hiking=yes]',
+      '[highway=path][foot=designated]',
+      '[sport~"(^|;)(running|athletics)(;|$)"]', '[man_made=observatory]'
+    ];
+    const query = '[out:json][timeout:60];(' +
+      filtri.map(f => 'nwr' + f + '(' + bbox + ');').join('') +
+      ');out center tags;';
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 75000);
+    try {{
+      const risposta = await fetch('https://overpass-api.de/api/interpreter', {{
+        method: 'POST',
+        body: new URLSearchParams({{data: query}}),
+        signal: controller.signal
+      }});
+      if (!risposta.ok) throw new Error('Luoghi OSM: HTTP ' + risposta.status);
+      const payload = await risposta.json();
+      if (payload.remark) throw new Error('Risposta OSM incompleta: ' + payload.remark);
+      return (payload.elements || []).map(elemento => {{
+        const tags = elemento.tags || {{}};
+        const lat = elemento.lat ?? elemento.center?.lat;
+        const lon = elemento.lon ?? elemento.center?.lon;
+        return {{
+          id: elemento.type + '/' + elemento.id,
+          latitudine: lat, longitudine: lon, tags,
+          nome: tags.name || tags['name:it'] || (
+            tags.natural === 'beach' ? 'Spiaggia senza nome in OSM' :
+            tags.highway === 'cycleway' ? 'Pista ciclabile senza nome in OSM' :
+            tags.highway === 'path' ? 'Sentiero senza nome in OSM' :
+            tags.man_made === 'observatory' ? 'Osservatorio senza nome in OSM' :
+            'Luogo senza nome in OSM'
+          ),
+          tipi: tipiDelLuogo(tags)
+        }};
+      }}).filter(p => Number.isFinite(p.latitudine) &&
+                    Number.isFinite(p.longitudine) && p.tipi.length);
+    }} finally {{
+      clearTimeout(timer);
+    }}
+  }})();
+  try {{
+    return await luoghiAttivitaPromise;
+  }} catch (errore) {{
+    luoghiAttivitaPromise = null;
+    throw errore;
+  }}
+}}
+
+function cellaDelLuogo(luogo, celle) {{
+  return celle.find(c =>
+    Math.abs(c.latitudine - luogo.latitudine) <= PASSO_LAT / 2 &&
+    Math.abs(c.longitudine - luogo.longitudine) <= PASSO_LON / 2
+  );
+}}
+
 async function aggiornaMappaAttivita() {{
   if (!attivitaMap) return;
-  const selettore = document.getElementById('attivita-selector');
-  const tipo = selettore ? selettore.value : 'escursionismo';
+  const versione = ++versioneAttivita;
+  const tipo = document.getElementById('attivita-selector')?.value || 'escursionismo';
   const stato = document.getElementById('attivita-stato');
-
+  if (stato) stato.textContent = '⏳ Caricamento luoghi censiti e dati ICON-2I…';
   try {{
-    const datiCelle = await scaricaDatiRealiCelle();
-    if (attivitaLayer) attivitaMap.removeLayer(attivitaLayer);
-    attivitaLayer = L.layerGroup().addTo(attivitaMap);
-
-    datiCelle.forEach(function(cella) {{
-      const meteo = cella.meteo || {{}};
-      const punteggio = punteggioAttivitaReale(meteo, tipo);
-      const colore = coloreDaPunteggio(punteggio);
-      const livello = testoDaPunteggio(punteggio);
-      const latSud = cella.latitudine - PASSO_LAT / 2;
-      const latNord = cella.latitudine + PASSO_LAT / 2;
-      const lonOvest = cella.longitudine - PASSO_LON / 2;
-      const lonEst = cella.longitudine + PASSO_LON / 2;
-
-      const rettangolo = L.rectangle([[latSud, lonOvest], [latNord, lonEst]], {{
-        color: colore, weight: 1, fillColor: colore, fillOpacity: 0.55
-      }});
-
-      rettangolo.bindPopup(`
-        <div style="min-width:220px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;line-height:1.55;">
-          <strong style="font-size:15px;">${{nomeAttivita(tipo)}}</strong><br>
-          <span style="color:${{colore}};font-weight:800;">${{livello}} · ${{punteggio}}/100</span>
-          <hr style="border:0;border-top:1px solid #dbe8ec;margin:8px 0;">
-          <b>Condizioni ICON-2I</b><br>
-          🌡️ ${{Number(meteo.temperature_2m || 0).toFixed(1)}} °C, percepita ${{Number(meteo.apparent_temperature || 0).toFixed(1)}} °C<br>
-          🌧️ ${{Number(meteo.precipitation || 0).toFixed(1)}} mm<br>
-          💨 ${{Number(meteo.wind_speed_10m || 0).toFixed(0)}} km/h, raffiche ${{Number(meteo.wind_gusts_10m || 0).toFixed(0)}} km/h<br>
-          ☁️ ${{Number(meteo.cloud_cover || 0).toFixed(0)}}% · ${{etichettaMeteo(Number(meteo.weather_code || 0))}}<br>
-          <small style="color:#607987;">Centro: ${{cella.latitudine.toFixed(3)}}°, ${{cella.longitudine.toFixed(3)}}°</small>
-        </div>
-      `);
-      attivitaLayer.addLayer(rettangolo);
+    const [datiCelle, luoghi] = await Promise.all([
+      scaricaDatiRealiCelle(), scaricaLuoghiAttivita()
+    ]);
+    if (versione !== versioneAttivita) return;
+    const nuovoLayer = L.layerGroup();
+    const luoghiPerCella = new Map();
+    luoghi.forEach(p => {{
+      const cella = cellaDelLuogo(p, datiCelle);
+      if (!cella) return;
+      if (!luoghiPerCella.has(cella.id)) luoghiPerCella.set(cella.id, []);
+      luoghiPerCella.get(cella.id).push(p);
     }});
-
-    if (stato) {{
-      const orario = new Date(cacheTimestamp).toLocaleTimeString('it-IT', {{hour:'2-digit',minute:'2-digit'}});
-      stato.textContent = `✅ ${{datiCelle.length}} celle con dati ICON-2I reali · cache 15 min · ${{orario}}`;
-    }}
+    let numeroLuoghi = 0;
+    datiCelle.forEach(cella => {{
+      const posti = (luoghiPerCella.get(cella.id) || []).filter(p => p.tipi.includes(tipo));
+      if (!posti.length) return;
+      const meteo = cella.meteo || {{}};
+      const campi = ['temperature_2m', 'precipitation', 'weather_code',
+                     'cloud_cover', 'wind_speed_10m', 'wind_gusts_10m'];
+      const validi = campi.every(k => meteo[k] != null && Number.isFinite(Number(meteo[k])));
+      const punteggio = validi ? punteggioAttivitaReale(meteo, tipo) : null;
+      const colore = validi ? coloreDaPunteggio(punteggio) : '#94a3b8';
+      const livello = validi ? testoDaPunteggio(punteggio) : 'Dati meteo incompleti';
+      const valore = k => meteo[k] == null ? '—' : escapeAttivita(meteo[k]);
+      const riepilogo = '<b>Condizioni della cella ICON-2I</b><br>' +
+        '🌡️ ' + valore('temperature_2m') + ' °C · 🌧️ ' + valore('precipitation') + ' mm<br>' +
+        '💨 ' + valore('wind_speed_10m') + ' km/h · raffiche ' + valore('wind_gusts_10m') + ' km/h<br>' +
+        '☁️ ' + valore('cloud_cover') + '%<br>' +
+        '<small>Valido: ' + escapeAttivita(meteo.time || 'non disponibile') +
+        '. Stima della cella, non una misura sul posto.</small>';
+      const rettangolo = L.rectangle([
+        [cella.latitudine - PASSO_LAT / 2, cella.longitudine - PASSO_LON / 2],
+        [cella.latitudine + PASSO_LAT / 2, cella.longitudine + PASSO_LON / 2]
+      ], {{color: colore, weight: 1, fillColor: colore, fillOpacity: 0.55}});
+      rettangolo.bindPopup('<b>' + escapeAttivita(nomeAttivita(tipo)) + '</b><br>' +
+        escapeAttivita(livello) + (validi ? ' · ' + punteggio + '/100' : '') +
+        '<hr>Luoghi censiti in questa cella:<br>' +
+        posti.map(p => escapeAttivita(p.nome)).join('<br>') + '<hr>' + riepilogo);
+      nuovoLayer.addLayer(rettangolo);
+      posti.forEach(p => {{
+        numeroLuoghi++;
+        const righe = p.tipi.map(t => {{
+          const score = validi ? punteggioAttivitaReale(meteo, t) : null;
+          return escapeAttivita(nomeAttivita(t)) + ': ' +
+            (validi ? escapeAttivita(testoDaPunteggio(score)) + ' · ' + score + '/100' : 'dati incompleti');
+        }}).join('<br>');
+        L.circleMarker([p.latitudine, p.longitudine], {{
+          radius: 5, color: '#ffffff', weight: 2, fillColor: colore, fillOpacity: 1
+        }}).bindTooltip(escapeAttivita(p.nome)).bindPopup(
+          '<div style="min-width:230px;line-height:1.55"><b>' + escapeAttivita(p.nome) +
+          '</b><hr>' + righe + '<hr>' + riepilogo +
+          '<hr><small>Attività associate ai tag OSM; accessibilità e apertura da verificare. ' +
+          'Per spiaggia non è valutata la balneabilità; per astronomia non sono valutati buio e inquinamento luminoso. ' +
+          'Per sentieri e piste il punto rappresenta il centro dell’elemento, non tutto il percorso.</small><br>' +
+          '<a target="_blank" rel="noopener noreferrer" href="https://www.openstreetmap.org/' +
+          p.id + '">Vedi luogo in OpenStreetMap</a></div>'
+        ).addTo(nuovoLayer);
+      }});
+    }});
+    if (attivitaLayer) attivitaMap.removeLayer(attivitaLayer);
+    attivitaLayer = nuovoLayer.addTo(attivitaMap);
+    if (stato) stato.textContent = numeroLuoghi
+      ? '✅ ' + numeroLuoghi + ' elementi OSM per ' + nomeAttivita(tipo) +
+        ' · clicca sui punti per le attività del singolo luogo'
+      : 'ℹ️ Nessun luogo censito per questa attività nell’area. Non significa che non esista.';
   }} catch (errore) {{
+    if (versione !== versioneAttivita) return;
+    if (attivitaLayer) {{ attivitaMap.removeLayer(attivitaLayer); attivitaLayer = null; }}
+    if (stato) stato.textContent = '❌ Caricamento non riuscito: ' + errore.message;
     console.error(errore);
-    if (stato) stato.textContent = '❌ Errore nel download: ' + errore.message;
   }}
 }}
 

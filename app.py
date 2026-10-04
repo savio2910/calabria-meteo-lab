@@ -1321,10 +1321,6 @@ def genera_app_completa(
                           {icona_prev} {html.escape(stato_prev)}</span></td>
                         <td>{numero(riga_mare.get("wave_height"), 2)}</td>
                         <td>{direzione(riga_mare.get("wave_direction"))} · {numero(riga_mare.get("wave_direction"), 0, "°")}</td>
-                        <td>{numero(riga_mare.get("wave_period"), 1)}</td>
-                        <td>{numero(riga_mare.get("wave_peak_period"), 1)}</td>
-                        <td>{numero(riga_mare.get("wind_wave_height"), 2)}</td>
-                        <td>{numero(riga_mare.get("swell_wave_height"), 2)}</td>
                         <td>{numero(riga_mare.get("sea_surface_temperature"), 1)}</td>
                       </tr>
                     """)
@@ -1333,11 +1329,10 @@ def genera_app_completa(
                     {html.escape(data_it(data_mare).title())}
                   </div>
                   <div class="cml-table-wrap">
-                    <table class="cml-table" style="min-width:950px;">
+                    <table class="cml-table" style="min-width:680px;">
                       <thead><tr>
-                        <th>Ora</th><th>Stato del mare</th><th>Onda significativa m</th>
-                        <th>Provenienza onda</th><th>Periodo medio s</th><th>Periodo di picco s</th>
-                        <th>Mare del vento m</th><th>Mare di fondo m</th><th>Temp. mare °C</th>
+                        <th>Ora</th><th>Stato del mare</th><th>Altezza onda m</th>
+                        <th>Direzione onda</th><th>Temp. mare °C</th>
                       </tr></thead>
                       <tbody>{''.join(righe_mare)}</tbody>
                     </table>

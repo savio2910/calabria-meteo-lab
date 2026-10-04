@@ -3246,7 +3246,7 @@ body {{
 
         <p>
           Mappa delle attività più adatte alle condizioni meteorologiche
-          previste sui luoghi censiti. Clicca sui punti per le attività del singolo posto.
+          previste sui luoghi censiti. Clicca sui punti per la percentuale di svolgimento di ogni attività.
         </p>
       </div>
 
@@ -4116,6 +4116,34 @@ function cellaDelLuogo(luogo, celle) {{
   );
 }}
 
+function barraAttivita(punteggio) {{
+  const valore = Math.max(0, Math.min(100, Math.round(punteggio)));
+  const colore = coloreDaPunteggio(valore);
+  return '<div style="margin-top:7px;">' +
+    '<div style="display:flex;justify-content:space-between;font-size:11px;font-weight:800;color:#102b3b;">' +
+    '<span>Percentuale di svolgimento</span><span>' + valore + '%</span></div>' +
+    '<div style="height:8px;border-radius:999px;background:#e5eef1;overflow:hidden;">' +
+    '<div style="height:100%;width:' + valore + '%;background:' + colore + ';border-radius:999px;"></div>' +
+    '</div></div>';
+}}
+
+function bloccoAttivitaLuogo(nome, tipi, meteo, validi) {{
+  const righe = tipi.map(t => {{
+    const punteggio = validi ? punteggioAttivitaReale(meteo, t) : null;
+    const livello = validi ? testoDaPunteggio(punteggio) : 'dati incompleti';
+    const barra = validi ? barraAttivita(punteggio) : '';
+    return '<div style="margin-bottom:10px;">' +
+      '<b>' + escapeAttivita(nomeAttivita(t)) + '</b><br>' +
+      '<span style="font-size:12px;color:#607987;">' + escapeAttivita(livello) +
+      (validi ? ' · ' + punteggio + '/100' : '') + '</span>' + barra + '</div>';
+  }}).join('');
+  return '<div style="min-width:250px;line-height:1.55;">' +
+    '<b style="font-size:15px;">' + escapeAttivita(nome) + '</b><hr>' +
+    righe + '<hr>' +
+    '<small>Percentuale stimata dalle condizioni ICON-2I della cella di 15 km; ' +
+    'non è una misura puntuale sul luogo.</small></div>';
+}}
+
 async function aggiornaMappaAttivita() {{
   if (!attivitaMap) return;
   const versione = ++versioneAttivita;
@@ -4159,26 +4187,22 @@ async function aggiornaMappaAttivita() {{
       ], {{color: colore, weight: 1, fillColor: colore, fillOpacity: 0.55}});
       rettangolo.bindPopup('<b>' + escapeAttivita(nomeAttivita(tipo)) + '</b><br>' +
         escapeAttivita(livello) + (validi ? ' · ' + punteggio + '/100' : '') +
+        (validi ? barraAttivita(punteggio) : '') +
         '<hr>Luoghi censiti in questa cella:<br>' +
         posti.map(p => escapeAttivita(p.nome)).join('<br>') + '<hr>' + riepilogo);
       nuovoLayer.addLayer(rettangolo);
       posti.forEach(p => {{
         numeroLuoghi++;
-        const righe = p.tipi.map(t => {{
-          const score = validi ? punteggioAttivitaReale(meteo, t) : null;
-          return escapeAttivita(nomeAttivita(t)) + ': ' +
-            (validi ? escapeAttivita(testoDaPunteggio(score)) + ' · ' + score + '/100' : 'dati incompleti');
-        }}).join('<br>');
         L.circleMarker([p.latitudine, p.longitudine], {{
           radius: 5, color: '#ffffff', weight: 2, fillColor: colore, fillOpacity: 1
         }}).bindTooltip(escapeAttivita(p.nome)).bindPopup(
-          '<div style="min-width:230px;line-height:1.55"><b>' + escapeAttivita(p.nome) +
-          '</b><hr>' + righe + '<hr>' + riepilogo +
+          bloccoAttivitaLuogo(p.nome, p.tipi, meteo, validi) +
+          '<hr>' + riepilogo +
           '<hr><small>Attività associate ai tag OSM; accessibilità e apertura da verificare. ' +
           'Per spiaggia non è valutata la balneabilità; per astronomia non sono valutati buio e inquinamento luminoso. ' +
           'Per sentieri e piste il punto rappresenta il centro dell’elemento, non tutto il percorso.</small><br>' +
           '<a target="_blank" rel="noopener noreferrer" href="https://www.openstreetmap.org/' +
-          p.id + '">Vedi luogo in OpenStreetMap</a></div>'
+          p.id + '">Vedi luogo in OpenStreetMap</a>'
         ).addTo(nuovoLayer);
       }});
     }});
@@ -4186,7 +4210,7 @@ async function aggiornaMappaAttivita() {{
     attivitaLayer = nuovoLayer.addTo(attivitaMap);
     if (stato) stato.textContent = numeroLuoghi
       ? '✅ ' + numeroLuoghi + ' elementi OSM per ' + nomeAttivita(tipo) +
-        ' · clicca sui punti per le attività del singolo luogo'
+        ' · clicca sui punti per la percentuale di svolgimento di ogni attività'
       : 'ℹ️ Nessun luogo censito per questa attività nell’area. Non significa che non esista.';
   }} catch (errore) {{
     if (versione !== versioneAttivita) return;

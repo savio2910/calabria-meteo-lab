@@ -1302,41 +1302,57 @@ def genera_app_completa(
         stato_mare, icona_mare, classe_mare = stato_mare_da_onda(altezza_onda)
 
         previsioni_mare_html = ""
-        if not giornaliere_mare.empty:
-            righe_previsioni = []
-            for _, riga_mare in giornaliere_mare.head(GIORNI_PREVISIONE).iterrows():
-                altezza_prev = riga_mare.get("wave_height_max")
-                direzione_prev = riga_mare.get("wave_direction_dominant")
-                periodo_prev = riga_mare.get("wave_period_max")
-                temperatura_prev = None
-                if not orarie_mare.empty:
-                    data_prev = pd.Timestamp(riga_mare.get("time")).date()
-                    ore_prev = orarie_mare.loc[orarie_mare["time"].dt.date == data_prev]
-                    if not ore_prev.empty:
-                        temperatura_prev = pd.to_numeric(
-                            ore_prev.get("sea_surface_temperature"), errors="coerce"
-                        ).mean()
-                stato_prev, icona_prev, classe_prev = stato_mare_da_onda(altezza_prev)
-                righe_previsioni.append(f"""
-                  <div class="cml-marine-forecast-card">
-                    <div class="cml-marine-forecast-date">
-                      {html.escape(data_it(riga_mare.get("time")).title())}
-                    </div>
-                    <div class="cml-marine-forecast-status {classe_prev}">
-                      <span>{icona_prev}</span> {html.escape(stato_prev)}
-                    </div>
-                    <div class="cml-marine-forecast-values">
-                      <span>🌊 <b>{numero(altezza_prev, 2, " m")}</b><small>Altezza onda</small></span>
-                      <span>〰️ <b>{numero(periodo_prev, 1, " s")}</b><small>Periodo</small></span>
-                      <span>🧭 <b>{direzione(direzione_prev)}</b><small>{numero(direzione_prev, 0, "°")}</small></span>
-                      <span>🌡️ <b>{numero(temperatura_prev, 1, " °C")}</b><small>Temp. mare</small></span>
-                    </div>
+        if not orarie_mare.empty and "time" in orarie_mare:
+            adesso_mare = pd.Timestamp(datetime.now(FUSO_ORARIO).replace(tzinfo=None))
+            triorarie = orarie_mare.loc[
+                (orarie_mare["time"].dt.hour % 3 == 0)
+                & (orarie_mare["time"].dt.minute == 0)
+                & (orarie_mare["time"] >= adesso_mare.floor("h"))
+            ].sort_values("time").copy()
+            sezioni_mare = []
+            for data_mare, gruppo_mare in triorarie.groupby(triorarie["time"].dt.date):
+                righe_mare = []
+                for _, riga_mare in gruppo_mare.iterrows():
+                    stato_prev, icona_prev, classe_prev = stato_mare_da_onda(riga_mare.get("wave_height"))
+                    righe_mare.append(f"""
+                      <tr>
+                        <td>{ora_it(riga_mare.get("time"))}</td>
+                        <td><span class="cml-marine-forecast-status {classe_prev}" style="margin:0;">
+                          {icona_prev} {html.escape(stato_prev)}</span></td>
+                        <td>{numero(riga_mare.get("wave_height"), 2)}</td>
+                        <td>{direzione(riga_mare.get("wave_direction"))} · {numero(riga_mare.get("wave_direction"), 0, "°")}</td>
+                        <td>{numero(riga_mare.get("wave_period"), 1)}</td>
+                        <td>{numero(riga_mare.get("wave_peak_period"), 1)}</td>
+                        <td>{numero(riga_mare.get("wind_wave_height"), 2)}</td>
+                        <td>{numero(riga_mare.get("swell_wave_height"), 2)}</td>
+                        <td>{numero(riga_mare.get("sea_surface_temperature"), 1)}</td>
+                      </tr>
+                    """)
+                sezioni_mare.append(f"""
+                  <div class="cml-marine-forecast-date" style="margin-top:18px;">
+                    {html.escape(data_it(data_mare).title())}
+                  </div>
+                  <div class="cml-table-wrap">
+                    <table class="cml-table" style="min-width:950px;">
+                      <thead><tr>
+                        <th>Ora</th><th>Stato del mare</th><th>Onda significativa m</th>
+                        <th>Provenienza onda</th><th>Periodo medio s</th><th>Periodo di picco s</th>
+                        <th>Mare del vento m</th><th>Mare di fondo m</th><th>Temp. mare °C</th>
+                      </tr></thead>
+                      <tbody>{''.join(righe_mare)}</tbody>
+                    </table>
                   </div>
                 """)
             previsioni_mare_html = f"""
-              <div class="cml-marine-forecast-title">📅 Previsioni mare per i prossimi 3 giorni</div>
-              <div class="cml-marine-forecast-grid">{''.join(righe_previsioni)}</div>
+              <div class="cml-marine-forecast-title">🌊 Previsioni mare ogni 3 ore · prossimi {GIORNI_PREVISIONE} giorni</div>
+              <p style="color:#607987;font-size:12px;">
+                Orari locali Europe/Rome. Valori alle ore indicate, non medie su tre ore.
+                Per oggi sono mostrate solo le scadenze dall’ora corrente in avanti.
+              </p>
+              {''.join(sezioni_mare) if sezioni_mare else '<p>Nessuna scadenza trioraria disponibile.</p>'}
             """
+        else:
+            previsioni_mare_html = '<p>Previsioni marine orarie non disponibili.</p>'
 
         mare_html = f"""
         <section class="cml-marine-box">

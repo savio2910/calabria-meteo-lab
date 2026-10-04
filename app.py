@@ -1289,9 +1289,29 @@ def genera_app_completa(
 ):
     corrente = dati_terrestri["current"]
 
-    # Condizione attuale: weather_code current di ICON-2I.
+    # Condizione attuale: icona coerente con la nuvolosità
+    # quando non sono previsti fenomeni significativi.
+    codice_corrente = corrente.get("weather_code")
+    nuvolosita_corrente = corrente.get("cloud_cover")
+
+    if (
+        codice_corrente in (0, 1, 2, 3)
+        and nuvolosita_corrente is not None
+        and not pd.isna(nuvolosita_corrente)
+    ):
+        nuvolosita = float(nuvolosita_corrente)
+
+        if nuvolosita <= 15:
+            codice_corrente = 0
+        elif nuvolosita <= 45:
+            codice_corrente = 1
+        elif nuvolosita <= 75:
+            codice_corrente = 2
+        else:
+            codice_corrente = 3
+
     icona_corrente, descrizione_corrente = meteo(
-        corrente.get("weather_code")
+        codice_corrente
     )
     sintesi_html = sintesi_oraria_html(ore)
     ora_corrente = corrente.get("time")

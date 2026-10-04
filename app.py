@@ -16,6 +16,12 @@ from zoneinfo import ZoneInfo
 
 import pandas as pd
 import requests
+
+try:
+    from meteostat import Stations, Hourly
+    METEOSTAT_DISPONIBILE = True
+except ImportError:
+    METEOSTAT_DISPONIBILE = False
 import streamlit as st
 import streamlit.components.v1 as components
 from geopy.exc import GeocoderServiceError, GeocoderTimedOut
@@ -1166,6 +1172,217 @@ def badge_rischio_html(livello, rischio):
 
 
 
+# =============================================================================
+# OSSERVAZIONI REALI E CORREZIONE ADATTIVA
+# =============================================================================
+
+@st.cache_data(ttl=900, show_spinner=False)
+def scarica_osservazioni_meteostat(latitudine, longitudine):
+    """Scarica le osservazioni delle ultime 6 ore dalla stazione Meteostat più vicina."""
+    if not METEOSTAT_DISPONIBILE:
+        return None, None, None
+
+    try:
+        stazioni = Stations().nearby(latitudine, longitudine)
+        elenco = stazioni.fetch(5)
+
+        if elenco.empty:
+            return None, None, None
+
+        fine = pd.Timestamp.utcnow().tz_localize(None).floor("h")
+        inizio = fine - pd.Timedelta(hours=6)
+
+        for _, stazione in elenco.iterrows():
+            try:
+                dati = Hourly(
+                    stazione.name,
+                    start=inizio.to_pydatetime(),
+                    end=fine.to_pydatetime(),
+                ).fetch()
+
+                if dati.empty:
+                    continue
+
+                dati = dati.dropna(subset=["temp"], how="all")
+
+                if dati.empty:
+                    continue
+
+                ultima = dati.index.max()
+                if pd.Timestamp.utcnow().tz_localize(None) - ultima > pd.Timedelta(hours=3):
+                    continue
+
+                return dati, stazione, ultima
+
+            except Exception:
+                continue
+
+        return None, None, None
+
+    except Exception:
+        return None, None, None
+
+
+def calcola_correzione_osservativa(dati_terrestri, osservazioni, stazione, ultima_osservazione):
+    """Calcola il bias locale osservato nelle ultime 3 ore e lo applica alle prossime 6 ore."""
+    if osservazioni is None or osservazioni.empty or stazione is None:
+        return None
+
+    try:
+        ore_modello = pd.DataFrame(dati_terrestri["hourly"])
+        ore_modello["time"] = pd.to_datetime(ore_modello["time"])
+        ore_modello = ore_modello.set_index("time")
+
+        ultime_3 = osservazioni.last("3h")
+        if ultime_3.empty:
+            return None
+
+        bias_temp = []
+        bias_umidita = []
+        rapporto_vento = []
+
+        for istante, riga_oss in ultime_3.iterrows():
+            ora_modello = istante.floor("h")
+            if ora_modello not in ore_modello.index:
+                continue
+
+            riga_modello = ore_modello.loc[ora_modello]
+
+            if pd.notna(riga_oss.get("temp")) and pd.notna(riga_modello.get("temperature_2m")):
+                bias_temp.append(float(riga_oss["temp"]) - float(riga_modello["temperature_2m"]))
+
+            if pd.notna(riga_oss.get("rhum")) and pd.notna(riga_modello.get("relative_humidity_2m")):
+                bias_umidita.append(float(riga_oss["rhum"]) - float(riga_modello["relative_humidity_2m"]))
+
+            if (
+                pd.notna(riga_oss.get("wspd"))
+                and pd.notna(riga_modello.get("wind_speed_10m"))
+                and float(riga_modello["wind_speed_10m"]) > 1
+            ):
+                rapporto_vento.append(float(riga_oss["wspd"]) / float(riga_modello["wind_speed_10m"]))
+
+        if not bias_temp and not bias_umidita and not rapporto_vento:
+            return None
+
+        bias_temp = float(pd.Series(bias_temp).mean()) if bias_temp else 0.0
+        bias_umidita = float(pd.Series(bias_umidita).mean()) if bias_umidita else 0.0
+        rapporto_vento = float(pd.Series(rapporto_vento).mean()) if rapporto_vento else 1.0
+        rapporto_vento = max(0.5, min(2.0, rapporto_vento))
+
+        ore = pd.DataFrame(dati_terrestri["hourly"])
+        ore["time"] = pd.to_datetime(ore["time"])
+
+        adesso = pd.Timestamp.utcnow().tz_localize(None).floor("h")
+        prossime = ore.loc[
+            (ore["time"] >= adesso)
+            & (ore["time"] < adesso + pd.Timedelta(hours=6))
+        ].copy()
+
+        for indice, riga in prossime.iterrows():
+            ore_trascorse = int((riga["time"] - adesso).total_seconds() // 3600)
+            peso = max(0.0, 1.0 - ore_trascorse / 6.0)
+
+            if pd.notna(ore.at[indice, "temperature_2m"]):
+                ore.at[indice, "temperature_2m"] += bias_temp * peso
+
+            if pd.notna(ore.at[indice, "relative_humidity_2m"]):
+                valore = ore.at[indice, "relative_humidity_2m"] + bias_umidita * peso
+                ore.at[indice, "relative_humidity_2m"] = max(0.0, min(100.0, valore))
+
+            if pd.notna(ore.at[indice, "wind_speed_10m"]):
+                ore.at[indice, "wind_speed_10m"] *= (1 + (rapporto_vento - 1) * peso)
+
+            if pd.notna(ore.at[indice, "wind_gusts_10m"]):
+                ore.at[indice, "wind_gusts_10m"] *= (1 + (rapporto_vento - 1) * peso)
+
+        dati_terrestri["hourly"] = ore.to_dict("list")
+
+        return {
+            "stazione": str(stazione.get("name", "Stazione senza nome")),
+            "distanza_km": float(stazione.get("distance", 0)) / 1000
+                if stazione.get("distance") is not None else None,
+            "ultima_osservazione": ultima_osservazione,
+            "bias_temp": bias_temp,
+            "bias_umidita": bias_umidita,
+            "rapporto_vento": rapporto_vento,
+            "numero_osservazioni": len(ultime_3),
+        }
+
+    except Exception:
+        return None
+
+
+def riquadro_correzione_html(correzione):
+    if not correzione:
+        return ""
+
+    distanza = (
+        f"{correzione['distanza_km']:.1f} km"
+        if correzione.get("distanza_km") is not None
+        else "non disponibile"
+    )
+
+    bias_temp = correzione["bias_temp"]
+    segno_temp = "+" if bias_temp >= 0 else ""
+
+    bias_umidita = correzione["bias_umidita"]
+    segno_umidita = "+" if bias_umidita >= 0 else ""
+
+    rapporto = correzione["rapporto_vento"]
+    variazione_vento = (rapporto - 1) * 100
+    segno_vento = "+" if variazione_vento >= 0 else ""
+
+    return f"""
+    <section class="cml-nowcast-box">
+      <div class="cml-nowcast-head">
+        <span class="cml-eyebrow">CORREZIONE CON OSSERVAZIONI</span>
+        <h2>🔎 Previsione adattata alle osservazioni</h2>
+        <p>
+          Le prossime 6 ore sono corrette usando le osservazioni recenti della stazione
+          Meteostat più vicina e affidabile.
+        </p>
+      </div>
+
+      <div class="cml-marine-grid">
+        <div class="cml-marine-card">
+          <span>📍 Stazione</span>
+          <strong style="font-size:16px;">{html.escape(correzione['stazione'])}</strong>
+          <small>Distanza: {html.escape(distanza)}</small>
+        </div>
+
+        <div class="cml-marine-card">
+          <span>🕒 Ultima osservazione</span>
+          <strong>{ora_it(correzione['ultima_osservazione'])}</strong>
+          <small>{correzione['numero_osservazioni']} osservazioni nelle ultime 3 ore</small>
+        </div>
+
+        <div class="cml-marine-card">
+          <span>🌡️ Correzione temperatura</span>
+          <strong>{segno_temp}{bias_temp:.1f} °C</strong>
+          <small>Bias medio osservato</small>
+        </div>
+
+        <div class="cml-marine-card">
+          <span>💧 Correzione umidità</span>
+          <strong>{segno_umidita}{bias_umidita:.0f} %</strong>
+          <small>Bias medio osservato</small>
+        </div>
+
+        <div class="cml-marine-card">
+          <span>💨 Correzione vento</span>
+          <strong>{segno_vento}{variazione_vento:.0f} %</strong>
+          <small>Rapporto osservazione/modello</small>
+        </div>
+      </div>
+
+      <div class="cml-nowcast-note">
+        ℹ️ La correzione è più forte nelle prossime ore e si attenua progressivamente entro 6 ore.
+        È una stima automatica e non sostituisce avvisi ufficiali o valutazioni di sicurezza.
+      </div>
+    </section>
+    """
+
+
 def punteggio_attivita_luogo(dati, tipo):
     temperatura = float(dati.get("temperature_2m") or 0)
     percepita = float(dati.get("apparent_temperature") or temperatura)
@@ -1294,7 +1511,6 @@ def genera_app_completa(
     giorni,
     dati_mare=None,
     distanza_mare_km=None,
-    is_costiero=False,
 ):
     corrente = dati_terrestri["current"]
 
@@ -1469,7 +1685,7 @@ def genera_app_completa(
                   <div class="cml-table-wrap">
                     <table class="cml-table" style="min-width:680px;">
                       <thead><tr>
-                        <th>Ora</th><th>Stato del mare</th><th>Altezza onda m</th>
+                        <th>Ora</th><th>Stazione del mare</th><th>Altezza onda m</th>
                         <th>Direzione onda</th><th>Temp. mare °C</th>
                       </tr></thead>
                       <tbody>{''.join(righe_mare)}</tbody>
@@ -1861,6 +2077,10 @@ def genera_app_completa(
     # ---------------------------------------------------------
     # HTML COMPLETO CON HOME / PREVISIONI / RADAR
     # ---------------------------------------------------------
+
+    riquadro_correzione = riquadro_correzione_html(
+        correzione_osservativa
+    )
 
     tabella_attivita_luogo = tabella_attivita_luogo_html(
         luogo,
@@ -3312,6 +3532,7 @@ body {{
   </section>
 
   {mare_html}
+  {riquadro_correzione}
   {sintesi_html}
 
   <section class="cml-three-days">
@@ -4365,6 +4586,27 @@ try:
             )
         )
 
+        osservazioni, stazione_oss, ultima_osservazione = (
+            scarica_osservazioni_meteostat(
+                latitudine,
+                longitudine,
+            )
+        )
+
+        correzione_osservativa = calcola_correzione_osservativa(
+            dati_terrestri,
+            osservazioni,
+            stazione_oss,
+            ultima_osservazione,
+        )
+
+        # Ricalcola le serie dopo la correzione osservativa
+        dati_orari, dati_giornalieri = (
+            prepara_dati_terrestri(
+                dati_terrestri
+            )
+        )
+
         dati_mare = None
         distanza_mare_km = None
 
@@ -4398,7 +4640,6 @@ try:
         dati_giornalieri,
         dati_mare,
         distanza_mare_km,
-        is_costiero,
     )
 
     components.html(

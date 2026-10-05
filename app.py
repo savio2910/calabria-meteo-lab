@@ -245,6 +245,15 @@ VARIABILI_MARINE_GIORNALIERE = [
 
 
 # =============================================================================
+# COSTANTI PER IL PERCORSO METEO‑ASSISTITO
+# =============================================================================
+
+API_GEOCODIFICA_URL = "https://nominatim.openstreetmap.org/search"
+API_ROUTING_URL = "https://api.openrouteservice.org/v2/directions/driving-car/geojson"
+ORARI_DA_CONFRONTARE = [-120, -90, -60, -30, 0, 30, 60]
+
+
+# =============================================================================
 # FORMATTAZIONE
 # =============================================================================
 
@@ -1495,6 +1504,242 @@ def tabella_attivita_luogo_html(luogo, corrente, is_costiero=False):
         Per la spiaggia non è valutata la balneabilità; per l’astronomia non sono considerati
         buio e inquinamento luminoso.
       </div>
+    </section>
+    """
+
+
+
+# =============================================================================
+# FUNZIONI PER IL PERCORSO METEO‑ASSISTITO
+# =============================================================================
+
+def geocodifica_generale(nome, nazione="Italia"):
+    try:
+        geocoder = Nominatim(user_agent="calabria_meteo_lab_percorso_v1", timeout=30)
+        risposta = geocoder.geocode(f"{nome}, {nazione}", exactly_one=True, addressdetails=True, timeout=15)
+    except (GeocoderServiceError, GeocoderTimedOut) as exc:
+        raise RuntimeError("Servizio di geolocalizzazione temporaneamente non disponibile.") from exc
+    if risposta is None:
+        raise ValueError(f"Località «{nome}» non trovata.")
+    latitudine = float(risposta.latitude)
+    longitudine = float(risposta.longitude)
+    indirizzo = risposta.raw.get("address", {})
+    nome_risolto = indirizzo.get("city") or indirizzo.get("town") or indirizzo.get("village") or indirizzo.get("municipality") or nome.title()
+    return nome_risolto, latitudine, longitudine
+
+
+def scarica_percorso_ors(lat_partenza, lon_partenza, lat_arrivo, lon_arrivo, profilo="driving-car", api_key=None):
+    import base64
+    url = f"https://api.openrouteservice.org/v2/directions/{profilo}/geojson"
+    headers = {"Accept": "application/json, application/geo+json", "Content-Type": "application/json; charset=UTF-8"}
+    if api_key:
+        headers["Authorization"] = api_key
+    body = {"coordinates": [[lon_partenza, lat_partenza], [lon_arrivo, lat_arrivo]], "elevation": False, "format": "geojson"}
+    try:
+        risposta = requests.post(url, json=body, headers=headers, timeout=30)
+        risposta.raise_for_status()
+        dati = risposta.json()
+    except requests.RequestException as exc:
+        raise RuntimeError(f"Errore nel calcolo del percorso: {exc}") from exc
+    features = dati.get("features", [])
+    if not features:
+        raise ValueError("Nessun percorso trovato.")
+    feature = features[0]
+    geometria = feature.get("geometry", {}).get("coordinates", [])
+    properties = feature.get("properties", {})
+    segments = properties.get("segments", [{}])
+    segmento = segments[0] if segments else {}
+    distanza_m = segmento.get("distance", 0)
+    durata_s = segmento.get("duration", 0)
+    return {"geometria": geometria, "distanza_km": distanza_m / 1000.0 if distanza_m else 0, "durata_secondi": durata_s, "istruzioni": segmento.get("steps", [])}
+
+
+def estrai_punti_percorso(geometria, numero_punti=12):
+    if not geometria:
+        return []
+    n = len(geometria)
+    if n <= numero_punti:
+        return [(lat, lon) for lon, lat in geometria]
+    passo = max(1, n // numero_punti)
+    punti = []
+    for i in range(0, n, passo):
+        if len(punti) >= numero_punti:
+            break
+        lon, lat = geometria[i]
+        punti.append((lat, lon))
+    if punti and punti[-1] != (geometria[-1][1], geometria[-1][0]):
+        punti.append((geometria[-1][1], geometria[-1][0]))
+    return punti
+
+
+def scarica_meteo_punti_percorso(punti, data_partenza, ora_partenza, durata_stimata_minuti):
+    risultati = []
+    inizio = datetime.combine(data_partenza, ora_partenza)
+    fine = inizio + timedelta(minutes=durata_stimata_minuti + 60)
+    for lat, lon in punti:
+        parametri = {"latitude": lat, "longitude": lon, "models": MODELLO_TERRESTRE, "timezone": "Europe/Rome", "forecast_days": 3, "temperature_unit": "celsius", "wind_speed_unit": "kmh", "precipitation_unit": "mm", "hourly": ",".join(["temperature_2m", "precipitation", "rain", "showers", "snowfall", "weather_code", "wind_speed_10m", "wind_gusts_10m", "cloud_cover", "visibility"])}
+        try:
+            risposta = requests.get(API_METEO_URL, params=parametri, timeout=25)
+            risposta.raise_for_status()
+            dati = risposta.json()
+        except requests.RequestException:
+            continue
+        ore_raw = pd.DataFrame(dati.get("hourly", {}))
+        if ore_raw.empty:
+            continue
+        ore_raw["time"] = pd.to_datetime(ore_raw["time"])
+        ore_filtrate = ore_raw.loc[(ore_raw["time"] >= pd.Timestamp(inizio)) & (ore_raw["time"] <= pd.Timestamp(fine))].copy()
+        if ore_filtrate.empty:
+            continue
+        meteo_orario = []
+        for _, riga in ore_filtrate.iterrows():
+            meteo_orario.append({"time": riga["time"], "temperature_2m": riga.get("temperature_2m"), "precipitation": riga.get("precipitation"), "rain": riga.get("rain"), "snowfall": riga.get("snowfall"), "weather_code": riga.get("weather_code"), "wind_speed_10m": riga.get("wind_speed_10m"), "wind_gusts_10m": riga.get("wind_gusts_10m"), "cloud_cover": riga.get("cloud_cover"), "visibility": riga.get("visibility")})
+        risultati.append({"lat": lat, "lon": lon, "meteo_orario": meteo_orario})
+    return risultati
+
+
+def valuta_condizioni_punto(meteo_orario):
+    if not meteo_orario:
+        return {"precipitazione_max_mm": 0, "pioggia_max_mm": 0, "neve_max_mm": 0, "codice_meteo_max": 0, "vento_max_kmh": 0, "raffica_max_kmh": 0, "visibilita_min_m": 10000, "indice_rischio": 0, "criticita": []}
+    precip_max = pioggia_max = neve_max = codice_max = vento_max = raffica_max = 0
+    visibilita_min = 10000
+    for riga in meteo_orario:
+        precip = float(riga.get("precipitation") or 0)
+        pioggia = float(riga.get("rain") or 0)
+        neve = float(riga.get("snowfall") or 0)
+        codice = int(riga.get("weather_code") or 0)
+        vento = float(riga.get("wind_speed_10m") or 0)
+        raffica = float(riga.get("wind_gusts_10m") or 0)
+        vis = float(riga.get("visibility") or 10000)
+        precip_max = max(precip_max, precip)
+        pioggia_max = max(pioggia_max, pioggia)
+        neve_max = max(neve_max, neve)
+        codice_max = max(codice_max, codice)
+        vento_max = max(vento_max, vento)
+        raffica_max = max(raffica_max, raffica)
+        visibilita_min = min(visibilita_min, vis)
+    rischio = 0
+    if precip_max >= 2: rischio += 25
+    elif precip_max > 0: rischio += 10
+    if pioggia_max >= 2: rischio += 15
+    if neve_max > 0: rischio += 35
+    if codice_max in (95, 96, 99): rischio += 45
+    if raffica_max >= 70: rischio += 30
+    elif raffica_max >= 50: rischio += 15
+    if visibilita_min < 1000: rischio += 25
+    elif visibilita_min < 3000: rischio += 10
+    rischio = min(rischio, 100)
+    criticita = []
+    if precip_max >= 2: criticita.append(f"Precipitazione fino a {precip_max:.1f} mm/h")
+    elif precip_max > 0: criticita.append(f"Precipitazione debole ({precip_max:.1f} mm/h)")
+    if neve_max > 0: criticita.append(f"Neve prevista ({neve_max:.1f} mm/h)")
+    if codice_max in (95, 96, 99): criticita.append("Temporale previsto")
+    if raffica_max >= 70: criticita.append(f"Raffiche forti ({raffica_max:.0f} km/h)")
+    elif raffica_max >= 50: criticita.append(f"Raffiche moderate ({raffica_max:.0f} km/h)")
+    if visibilita_min < 1000: criticita.append(f"Visibilità molto ridotta ({visibilita_min:.0f} m)")
+    elif visibilita_min < 3000: criticita.append(f"Visibilità ridotta ({visibilita_min:.0f} m)")
+    return {"precipitazione_max_mm": precip_max, "pioggia_max_mm": pioggia_max, "neve_max_mm": neve_max, "codice_meteo_max": codice_max, "vento_max_kmh": vento_max, "raffica_max_kmh": raffica_max, "visibilita_min_m": visibilita_min, "indice_rischio": rischio, "criticita": criticita}
+
+
+def valuta_percorso_completo(dati_punti):
+    if not dati_punti:
+        return {"indice_rischio_medio": 0, "indice_rischio_max": 0, "punto_peggiore": {"lat": 0, "lon": 0, "indice": 0}, "criticita_totali": [], "dettaglio_punti": []}
+    valutazioni = []
+    criticita_totali = []
+    rischio_max = 0
+    punto_peggiore = {"lat": 0, "lon": 0, "indice": 0}
+    for punto in dati_punti:
+        valutazione = valuta_condizioni_punto(punto.get("meteo_orario", []))
+        valutazione["lat"] = punto["lat"]
+        valutazione["lon"] = punto["lon"]
+        valutazioni.append(valutazione)
+        criticita_totali.extend(valutazione["criticita"])
+        if valutazione["indice_rischio"] > rischio_max:
+            rischio_max = valutazione["indice_rischio"]
+            punto_peggiore = {"lat": punto["lat"], "lon": punto["lon"], "indice": rischio_max}
+    indici = [v["indice_rischio"] for v in valutazioni]
+    rischio_medio = sum(indici) / len(indici) if indici else 0
+    criticita_univoche = list(dict.fromkeys(criticita_totali))
+    return {"indice_rischio_medio": round(rischio_medio), "indice_rischio_max": rischio_max, "punto_peggiore": punto_peggiore, "criticita_totali": criticita_univoche, "dettaglio_punti": valutazioni}
+
+
+def confronta_orari_partenza(percorso, data_partenza, ora_desiderata, punti, scarti_minuti=ORARI_DA_CONFRONTARE):
+    risultati = []
+    durata_minuti = percorso.get("durata_secondi", 0) / 60.0
+    for scarto in scarti_minuti:
+        ora_test = datetime.combine(data_partenza, ora_desiderata) + timedelta(minutes=scarto)
+        if ora_test < datetime.now():
+            continue
+        dati_meteo = scarica_meteo_punti_percorso(punti, ora_test.date(), ora_test.time(), durata_minuti)
+        valutazione = valuta_percorso_completo(dati_meteo)
+        risultati.append({"orario_partenza": ora_test, "indice_rischio_medio": valutazione["indice_rischio_medio"], "indice_rischio_max": valutazione["indice_rischio_max"], "criticita_totali": valutazione["criticita_totali"]})
+    risultati.sort(key=lambda x: x["indice_rischio_medio"])
+    return risultati
+
+
+def genera_consiglio_orario(risultati_confronto, ora_desiderata):
+    if not risultati_confronto:
+        return {"orario_consigliato": None, "testo_consiglio": "Nessun orario disponibile per il confronto.", "testo_avviso": ""}
+    migliore = risultati_confronto[0]
+    ora_migliore = migliore["orario_partenza"]
+    differenza_minuti = (ora_migliore - datetime.combine(ora_migliore.date(), ora_desiderata)).total_seconds() / 60.0
+    if abs(differenza_minuti) <= 15:
+        testo = f"✅ L'orario da te scelto ({ora_desiderata.strftime('%H:%M')}) è già ottimale. Indice meteo stimato: {migliore['indice_rischio_medio']}/100."
+    elif differenza_minuti < 0:
+        testo = f"⏰ Ti consigliamo di partire alle {ora_migliore.strftime('%H:%M')} ({int(-differenza_minuti)} minuti prima). Indice meteo stimato: {migliore['indice_rischio_medio']}/100."
+    else:
+        testo = f"⏰ Ti consigliamo di partire alle {ora_migliore.strftime('%H:%M')} ({int(differenza_minuti)} minuti dopo). Indice meteo stimato: {migliore['indice_rischio_medio']}/100."
+    avviso = ""
+    if migliore["indice_rischio_max"] >= 60:
+        avviso = f"<br><br>⚠️ Attenzione: lungo il percorso è prevista una sezione con condizioni meteorologiche difficili (indice di rischio fino a {migliore['indice_rischio_max']}/100). Valuta se posticipare o anticipare ulteriormente la partenza."
+    return {"orario_consigliato": ora_migliore, "testo_consiglio": testo, "testo_avviso": avviso}
+
+
+def genera_riepilogo_percorso_html(percorso, valutazione, consiglio, nome_partenza, nome_arrivo):
+    distanza_km = percorso.get("distanza_km", 0)
+    durata_minuti = percorso.get("durata_secondi", 0) / 60.0
+    ore = int(durata_minuti // 60)
+    minuti = int(durata_minuti % 60)
+    durata_testo = f"{ore} h {minuti} min" if ore > 0 else f"{minuti} min"
+    indice_medio = valutazione.get("indice_rischio_medio", 0)
+    indice_max = valutazione.get("indice_rischio_max", 0)
+    if indice_medio <= 20:
+        colore = "#16a34a"
+        testo_condizioni = "Condizioni favorevoli"
+    elif indice_medio <= 40:
+        colore = "#eab308"
+        testo_condizioni = "Attenzione moderata"
+    elif indice_medio <= 60:
+        colore = "#f97316"
+        testo_condizioni = "Condizioni difficili"
+    else:
+        colore = "#dc2626"
+        testo_condizioni = "Condizioni molto difficili"
+    criticita_html = ""
+    if valutazione.get("criticita_totali"):
+        criticita_html = "<br><br><strong>Criticità previste:</strong><ul>"
+        for c in valutazione["criticita_totali"][:5]:
+            criticita_html += f"<li>{html.escape(c)}</li>"
+        criticita_html += "</ul>"
+    return f"""
+    <section class="cml-nowcast-box">
+      <div class="cml-nowcast-head">
+        <span class="cml-eyebrow">PERCORSO METEO‑ASSISTITO</span>
+        <h2>🚗 Riepilogo del viaggio</h2>
+      </div>
+      <p style="font-size:16px; margin-bottom:18px;"><strong>{html.escape(nome_partenza)}</strong> → <strong>{html.escape(nome_arrivo)}</strong></p>
+      <div class="cml-marine-grid" style="margin-bottom:20px;">
+        <div class="cml-marine-card"><span>📏 Distanza</span><strong>{distanza_km:.1f} km</strong></div>
+        <div class="cml-marine-card"><span>⏱️ Durata stimata</span><strong>{durata_testo}</strong></div>
+        <div class="cml-marine-card"><span>🌡️ Condizioni meteo</span><strong style="color:{colore};">{testo_condizioni}</strong><small>Indice: {indice_medio}/100 (max {indice_max})</small></div>
+      </div>
+      <div style="background:#f0f9ff; border:1px solid #bae6fd; border-radius:12px; padding:16px; margin-bottom:18px;">
+        <strong style="color:#0369a1; font-size:16px;">💡 Consiglio sull'orario</strong><br><br>
+        <span style="color:#0c4a6e; font-size:14px;">{consiglio["testo_consiglio"]}</span>
+        {consiglio["testo_avviso"]}
+      </div>
+      {criticita_html}
+      <div class="cml-nowcast-note">ℹ️ L'indice meteo è una stima basata su precipitazioni, vento, temporali, neve e visibilità. Non tiene conto di traffico, incidenti o lavori stradali. Consulta sempre fonti ufficiali e guidare con prudenza.</div>
     </section>
     """
 
@@ -4730,3 +4975,135 @@ try:
 
 except Exception as errore:
     st.error(str(errore))
+
+
+# =============================================================================
+# PERCORSO METEO‑ASSISTITO
+# =============================================================================
+
+st.markdown("---")
+
+st.header("🚗 Percorso meteo‑assistito")
+
+st.markdown(
+    """
+    Calcola il percorso migliore tra due località e ricevi un consiglio sull'orario
+    di partenza in base alle condizioni meteorologiche previste (pioggia, temporali,
+    vento, neve, visibilità).
+    """
+)
+
+colonna_1, colonna_2 = st.columns(2)
+
+with colonna_1:
+    partenza = st.text_input(
+        "Luogo di partenza",
+        placeholder="Es. Crotone",
+        key="percorso_partenza",
+    )
+
+with colonna_2:
+    arrivo = st.text_input(
+        "Luogo di arrivo",
+        placeholder="Es. Catanzaro",
+        key="percorso_arrivo",
+    )
+
+colonna_3, colonna_4, colonna_5 = st.columns(3)
+
+with colonna_3:
+    data_partenza = st.date_input(
+        "Data di partenza",
+        value=datetime.now().date(),
+        key="percorso_data",
+    )
+
+with colonna_4:
+    ora_partenza = st.time_input(
+        "Ora di partenza",
+        value=datetime.now().time(),
+        key="percorso_ora",
+    )
+
+with colonna_5:
+    mezzo = st.selectbox(
+        "Mezzo di trasporto",
+        ["Automobile", "Bicicletta", "A piedi"],
+        key="percorso_mezzo",
+    )
+
+if st.button("Calcola percorso", key="percorso_calcola"):
+    if not partenza or not arrivo:
+        st.error("Inserisci sia il luogo di partenza che quello di arrivo.")
+    else:
+        try:
+            with st.spinner("Geocodifica delle località in corso..."):
+                nome_partenza, lat_partenza, lon_partenza = geocodifica_generale(partenza)
+                nome_arrivo, lat_arrivo, lon_arrivo = geocodifica_generale(arrivo)
+
+            with st.spinner("Calcolo del percorso stradale..."):
+                # Nota: senza API key di OpenRouteService, questa chiamata fallirà.
+                # Per un uso reale, ottieni una API key gratuita da https://openrouteservice.org/
+                percorso = scarica_percorso_ors(
+                    lat_partenza,
+                    lon_partenza,
+                    lat_arrivo,
+                    lon_arrivo,
+                    profilo="driving-car",
+                    api_key=eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjhlOTE0MDk3MjlhNjRkYTU4M2RhNWMwNmFmNjlhNTlmIiwiaCI6Im11cm11cjY0In0=,  # Inserisci la tua API key qui
+                )
+
+            with st.spinner("Estrazione punti lungo il percorso..."):
+                punti = estrai_punti_percorso(percorso["geometria"], numero_punti=12)
+
+            with st.spinner("Scaricamento previsioni meteo lungo il percorso..."):
+                dati_meteo = scarica_meteo_punti_percorso(
+                    punti,
+                    data_partenza,
+                    ora_partenza,
+                    percorso["durata_secondi"] / 60.0,
+                )
+
+            with st.spinner("Valutazione condizioni meteo..."):
+                valutazione = valuta_percorso_completo(dati_meteo)
+
+            with st.spinner("Confronto orari di partenza..."):
+                risultati = confronta_orari_partenza(
+                    percorso,
+                    data_partenza,
+                    ora_partenza,
+                    punti,
+                )
+
+            consiglio = genera_consiglio_orario(risultati, ora_partenza)
+
+            riepilogo_html = genera_riepilogo_percorso_html(
+                percorso,
+                valutazione,
+                consiglio,
+                nome_partenza,
+                nome_arrivo,
+            )
+
+            components.html(riepilogo_html, height=600, scrolling=True)
+
+            # Mostra tabella con classifica orari
+            if risultati:
+                st.subheader("📊 Classifica orari di partenza")
+                dati_tabella = []
+                for r in risultati[:5]:
+                    dati_tabella.append({
+                        "Orario": r["orario_partenza"].strftime("%H:%M"),
+                        "Indice meteo medio": r["indice_rischio_medio"],
+                        "Indice meteo max": r["indice_rischio_max"],
+                    })
+                df_tabella = pd.DataFrame(dati_tabella)
+                st.dataframe(df_tabella, hide_index=True, use_container_width=True)
+
+        except Exception as errore:
+            st.error(f"Errore nel calcolo del percorso: {errore}")
+            st.info(
+                "Nota: il calcolo del percorso richiede una API key di OpenRouteService. "
+                "Ottienine una gratuita su https://openrouteservice.org/ e inseriscila nel codice."
+            )
+

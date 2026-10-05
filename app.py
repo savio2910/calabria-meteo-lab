@@ -3584,7 +3584,7 @@ body {{
     </button>
 
     <span class="cml-nav-title">
-      📡 Radar precipitazioni · {html.escape(luogo)}
+      📡 Radar precipitazioni, nuvolosità e fulminazioni · {html.escape(luogo)}
     </span>
   </div>
 

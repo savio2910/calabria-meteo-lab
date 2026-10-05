@@ -4715,7 +4715,7 @@ try:
             latitudine,
             longitudine,
             quota_locale=None,  # Se hai quota reale, passala
-            osservazioni=osservazioni  # Se hai osservazioni Meteostat
+            osservazioni=None  # Se hai osservazioni Meteostat
         )
         # Prepara info per l'interfaccia
         info_correzione = prepara_info_correzione(

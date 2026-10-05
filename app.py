@@ -26,7 +26,6 @@ import streamlit as st
 import streamlit.components.v1 as components
 from geopy.exc import GeocoderServiceError, GeocoderTimedOut
 from geopy.geocoders import Nominatim
-from calabria_model import SistemaCalabria
 
 
 # =============================================================================
@@ -546,41 +545,6 @@ def sintesi_oraria_html(ore):
       <div class="cml-nowcast-note">
         ℹ️ Questa sintesi è generata in modo automatico dai dati orari
         e non sostituisce avvisi ufficiali o bollettini di protezione civile.
-      </div>
-    </section>
-    """
-def riquadro_info_calabria_html(info):
-    return f"""
-    <section class="cml-nowcast-box">
-      <div class="cml-nowcast-head">
-        <span class="cml-eyebrow">MODELLO CALABRIA</span>
-        <h2>🏔️ Correzione territoriale attiva</h2>
-      </div>
-      
-      <div class="cml-marine-grid">
-        <div class="cml-marine-card">
-          <span>Posizione</span>
-          <strong>{html.escape(info['tipo_posizione'].title())}</strong>
-          <small>Tipo di posizione orografica</small>
-        </div>
-        
-        <div class="cml-marine-card">
-          <span>Regime</span>
-          <strong>{html.escape(info['regime'])}</strong>
-          <small>Situazione meteorologica</small>
-        </div>
-        
-        <div class="cml-marine-card">
-          <span>Bias osservato</span>
-          <strong>{info['bias_temperatura']:+.1f} °C</strong>
-          <small>Correzione dalle osservazioni</small>
-        </div>
-      </div>
-      
-      <div class="cml-nowcast-note">
-        ℹ️ Il sistema applica correzioni basate su orografia, 
-        regime meteorologico e osservazioni recenti. 
-        Le correzioni sono calibrate su dati storici calabresi.
       </div>
     </section>
     """
@@ -1669,12 +1633,7 @@ def genera_app_completa(
     )
 
     mare_html = ""
-    # Riquadro Calabria (se info_correzione è disponibile)
-    riquadro_calabria = ""
-    if info_correzione is not None:
-        riquadro_calabria = riquadro_info_calabria_html(
-            info_correzione
-        )
+
     if (
         dati_mare is not None
         and isinstance(dati_mare, dict)
@@ -4700,29 +4659,7 @@ try:
             latitudine,
             longitudine,
         )
-        # Importa il sistema Calabria
-        from calabria_model import SistemaCalabria, prepara_info_correzione
-        
-        # Inizializza (senza DEM per ora)
-        sistema_calabria = SistemaCalabria()
-        
-        # Dopo aver scaricato ICON-2I:
-        dati_terrestri = scarica_previsione_terrestre(latitudine, longitudine)
-        
-        # Applica correzioni Calabria
-        dati_terrestri, descrittori, regime = sistema_calabria.elabora_previsione(
-            dati_terrestri,
-            latitudine,
-            longitudine,
-            quota_locale=None,  # Se hai quota reale, passala
-            osservazioni=None  # Se hai osservazioni Meteostat
-        )
-        # Prepara info per l'interfaccia
-        info_correzione = prepara_info_correzione(
-            descrittori,
-            regime,
-            bias=correzione_osservativa['bias_temp'] if correzione_osservativa else None
-        )
+
         dati_orari, dati_giornalieri = (
             prepara_dati_terrestri(
                 dati_terrestri

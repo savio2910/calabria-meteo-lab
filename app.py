@@ -4884,99 +4884,6 @@ if not testo_localita.strip():
 if not cerca_localita and "previsione_caricata" not in st.session_state:
     st.stop()
 
-
-# =============================================================================
-# ESECUZIONE
-# =============================================================================
-
-try:
-    (
-        luogo,
-        latitudine,
-        longitudine,
-        comune_amministrativo,
-    ) = risolvi_localita(testo_localita)
-
-    with st.spinner(
-        f"Elaborazione previsione ICON-2I e radar per {luogo}..."
-    ):
-        dati_terrestri = scarica_previsione_terrestre(
-            latitudine,
-            longitudine,
-        )
-
-        dati_orari, dati_giornalieri = (
-            prepara_dati_terrestri(
-                dati_terrestri
-            )
-        )
-
-        osservazioni, stazione_oss, ultima_osservazione = (
-            scarica_osservazioni_meteostat(
-                latitudine,
-                longitudine,
-            )
-        )
-
-        correzione_osservativa = calcola_correzione_osservativa(
-            dati_terrestri,
-            osservazioni,
-            stazione_oss,
-            ultima_osservazione,
-        )
-
-        # Ricalcola le serie dopo la correzione osservativa
-        dati_orari, dati_giornalieri = (
-            prepara_dati_terrestri(
-                dati_terrestri
-            )
-        )
-
-        dati_mare = None
-        distanza_mare_km = None
-
-        is_costiero = comune_e_costiero(
-            comune_amministrativo,
-            COMUNI_COSTIERI,
-        )
-
-        if is_costiero:
-            try:
-                (
-                    dati_mare,
-                    distanza_mare_km,
-                ) = scarica_previsione_mare(
-                    latitudine,
-                    longitudine,
-                )
-
-            except RuntimeError:
-                dati_mare = None
-                distanza_mare_km = None
-
-    st.session_state.previsione_caricata = True
-
-    documento = genera_app_completa(
-        luogo,
-        latitudine,
-        longitudine,
-        dati_terrestri,
-        dati_orari,
-        dati_giornalieri,
-        dati_mare,
-        distanza_mare_km,
-    )
-
-    components.html(
-        documento,
-        height=4300,
-        scrolling=True,
-    )
-
-except Exception as errore:
-    st.error(str(errore))
-
-
 # =============================================================================
 # PERCORSO METEO‑ASSISTITO
 # =============================================================================
@@ -5106,4 +5013,95 @@ if st.button("Calcola percorso", key="percorso_calcola"):
                 "Nota: il calcolo del percorso richiede una API key di OpenRouteService. "
                 "Ottienine una gratuita su https://openrouteservice.org/ e inseriscila nel codice."
             )
+
+# =============================================================================
+# ESECUZIONE
+# =============================================================================
+
+try:
+    (
+        luogo,
+        latitudine,
+        longitudine,
+        comune_amministrativo,
+    ) = risolvi_localita(testo_localita)
+
+    with st.spinner(
+        f"Elaborazione previsione ICON-2I e radar per {luogo}..."
+    ):
+        dati_terrestri = scarica_previsione_terrestre(
+            latitudine,
+            longitudine,
+        )
+
+        dati_orari, dati_giornalieri = (
+            prepara_dati_terrestri(
+                dati_terrestri
+            )
+        )
+
+        osservazioni, stazione_oss, ultima_osservazione = (
+            scarica_osservazioni_meteostat(
+                latitudine,
+                longitudine,
+            )
+        )
+
+        correzione_osservativa = calcola_correzione_osservativa(
+            dati_terrestri,
+            osservazioni,
+            stazione_oss,
+            ultima_osservazione,
+        )
+
+        # Ricalcola le serie dopo la correzione osservativa
+        dati_orari, dati_giornalieri = (
+            prepara_dati_terrestri(
+                dati_terrestri
+            )
+        )
+
+        dati_mare = None
+        distanza_mare_km = None
+
+        is_costiero = comune_e_costiero(
+            comune_amministrativo,
+            COMUNI_COSTIERI,
+        )
+
+        if is_costiero:
+            try:
+                (
+                    dati_mare,
+                    distanza_mare_km,
+                ) = scarica_previsione_mare(
+                    latitudine,
+                    longitudine,
+                )
+
+            except RuntimeError:
+                dati_mare = None
+                distanza_mare_km = None
+
+    st.session_state.previsione_caricata = True
+
+    documento = genera_app_completa(
+        luogo,
+        latitudine,
+        longitudine,
+        dati_terrestri,
+        dati_orari,
+        dati_giornalieri,
+        dati_mare,
+        distanza_mare_km,
+    )
+
+    components.html(
+        documento,
+        height=4300,
+        scrolling=True,
+    )
+
+except Exception as errore:
+    st.error(str(errore))
 

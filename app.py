@@ -630,7 +630,7 @@ def geocodifica_calabria(nome):
     try:
         geocoder = Nominatim(
             user_agent="calabria_meteo_lab_v23",
-            timeout=15,
+            timeout=30,
         )
 
         risposta = geocoder.geocode(

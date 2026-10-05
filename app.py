@@ -1536,42 +1536,31 @@ def scarica_percorso_ors(
     profilo="driving-car",
     api_key=None,
 ):
-    """
-    Calcola un percorso stradale tramite OpenRouteService.
-    Le coordinate devono essere espresse come:
-    latitudine, longitudine.
-    """
-
     if not api_key:
         raise ValueError(
-            "Manca la API key di OpenRouteService."
+            "Manca OPENROUTESERVICE_API_KEY nei Secrets."
         )
 
     url = (
         "https://api.openrouteservice.org/v2/"
-        f"directions/{profilo}/geojson"
+        f"directions/{profilo}"
     )
 
     headers = {
         "Authorization": api_key,
         "Content-Type": "application/json",
-        "Accept": "application/geo+json",
+        "Accept": "application/json",
     }
 
     payload = {
         "coordinates": [
-            [
-                float(lon_partenza),
-                float(lat_partenza),
-            ],
-            [
-                float(lon_arrivo),
-                float(lat_arrivo),
-            ],
+            [float(lon_partenza), float(lat_partenza)],
+            [float(lon_arrivo), float(lat_arrivo)],
         ],
         "instructions": True,
         "instructions_format": "text",
         "language": "it",
+        "geometry": True,
     }
 
     try:
@@ -1582,21 +1571,23 @@ def scarica_percorso_ors(
             timeout=40,
         )
 
+        testo_risposta = risposta.text
+
         if risposta.status_code == 401:
             raise RuntimeError(
-                "API key OpenRouteService non valida o non autorizzata."
+                "API key non valida. Ricontrolla il valore nei Secrets."
             )
 
         if risposta.status_code == 403:
             raise RuntimeError(
-                "Accesso negato da OpenRouteService. "
-                "Controlla la API key e i limiti del tuo account."
+                "La API key non ha accesso al servizio Directions "
+                "oppure è stato raggiunto il limite di richieste."
             )
 
         if risposta.status_code == 404:
             raise RuntimeError(
-                "Endpoint OpenRouteService non trovato. "
-                "Controlla il profilo e l'URL utilizzato."
+                "OpenRouteService restituisce 404. "
+                "Il token potrebbe non avere accesso a Directions."
             )
 
         risposta.raise_for_status()
@@ -1604,61 +1595,33 @@ def scarica_percorso_ors(
         dati = risposta.json()
 
     except requests.RequestException as exc:
-        testo_errore = ""
-
-        try:
-            testo_errore = risposta.text[:500]
-        except Exception:
-            pass
-
         raise RuntimeError(
-            f"Errore HTTP OpenRouteService: {exc}. "
-            f"Risposta: {testo_errore}"
+            f"Errore OpenRouteService: {exc}. "
+            f"Dettaglio risposta: {testo_risposta[:500]}"
         ) from exc
 
-    features = dati.get("features", [])
+    routes = dati.get("routes", [])
 
-    if not features:
+    if not routes:
         raise RuntimeError(
-            "OpenRouteService non ha restituito alcun percorso."
+            f"Nessun percorso ricevuto. Risposta: {dati}"
         )
 
-    feature = features[0]
+    route = routes[0]
 
-    geometria = feature.get("geometry", {}).get(
-        "coordinates",
-        [],
-    )
+    riepilogo = route.get("summary", {})
 
-    proprieta = feature.get("properties", {})
-
-    segments = proprieta.get("segments", [])
-
-    if not segments:
-        raise RuntimeError(
-            "Il percorso ricevuto non contiene segmenti validi."
-        )
-
-    segmento = segments[0]
-
-    distanza_m = float(
-        segmento.get("distance", 0)
-    )
-
-    durata_s = float(
-        segmento.get("duration", 0)
-    )
+    distanza_m = float(riepilogo.get("distance", 0))
+    durata_s = float(riepilogo.get("duration", 0))
 
     return {
-        "geometria": geometria,
+        "geometria": route.get("geometry", ""),
         "distanza_km": distanza_m / 1000.0,
         "durata_secondi": durata_s,
-        "istruzioni": segmento.get(
-            "steps",
-            [],
+        "istruzioni": (
+            route.get("segments", [{}])[0].get("steps", [])
         ),
     }
-
 
 def estrai_punti_percorso(geometria, numero_punti=12):
     if not geometria:

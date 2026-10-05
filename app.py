@@ -2,7 +2,7 @@
 # Calabria Meteo Lab
 # Copyright (c) 2026 Saverio Campanella
 # Tutti i diritti riservati.
-# Uso personale e didattico soltanto: vietate copia, modifica, redistribuzione
+# Uso personale soltanto: vietate copia, modifica, redistribuzione
 # o riutilizzo, anche parziale, senza autorizzazione scritta dell’autore.
 # =============================================================================
 

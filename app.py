@@ -1528,30 +1528,136 @@ def geocodifica_generale(nome, nazione="Italia"):
     return nome_risolto, latitudine, longitudine
 
 
-def scarica_percorso_ors(lat_partenza, lon_partenza, lat_arrivo, lon_arrivo, profilo="driving-car", api_key=None):
-    import base64
-    url = f"https://api.openrouteservice.org/v2/directions/{profilo}/geojson"
-    headers = {"Accept": "application/json, application/geo+json", "Content-Type": "application/json; charset=UTF-8"}
-    if api_key:
-        headers["Authorization"] = api_key
-    body = {"coordinates": [[lon_partenza, lat_partenza], [lon_arrivo, lat_arrivo]], "elevation": False, "format": "geojson"}
+def scarica_percorso_ors(
+    lat_partenza,
+    lon_partenza,
+    lat_arrivo,
+    lon_arrivo,
+    profilo="driving-car",
+    api_key=None,
+):
+    """
+    Calcola un percorso stradale tramite OpenRouteService.
+    Le coordinate devono essere espresse come:
+    latitudine, longitudine.
+    """
+
+    if not api_key:
+        raise ValueError(
+            "Manca la API key di OpenRouteService."
+        )
+
+    url = (
+        "https://api.openrouteservice.org/v2/"
+        f"directions/{profilo}/geojson"
+    )
+
+    headers = {
+        "Authorization": api_key,
+        "Content-Type": "application/json",
+        "Accept": "application/geo+json",
+    }
+
+    payload = {
+        "coordinates": [
+            [
+                float(lon_partenza),
+                float(lat_partenza),
+            ],
+            [
+                float(lon_arrivo),
+                float(lat_arrivo),
+            ],
+        ],
+        "instructions": True,
+        "instructions_format": "text",
+        "language": "it",
+    }
+
     try:
-        risposta = requests.post(url, json=body, headers=headers, timeout=30)
+        risposta = requests.post(
+            url,
+            headers=headers,
+            json=payload,
+            timeout=40,
+        )
+
+        if risposta.status_code == 401:
+            raise RuntimeError(
+                "API key OpenRouteService non valida o non autorizzata."
+            )
+
+        if risposta.status_code == 403:
+            raise RuntimeError(
+                "Accesso negato da OpenRouteService. "
+                "Controlla la API key e i limiti del tuo account."
+            )
+
+        if risposta.status_code == 404:
+            raise RuntimeError(
+                "Endpoint OpenRouteService non trovato. "
+                "Controlla il profilo e l'URL utilizzato."
+            )
+
         risposta.raise_for_status()
+
         dati = risposta.json()
+
     except requests.RequestException as exc:
-        raise RuntimeError(f"Errore nel calcolo del percorso: {exc}") from exc
+        testo_errore = ""
+
+        try:
+            testo_errore = risposta.text[:500]
+        except Exception:
+            pass
+
+        raise RuntimeError(
+            f"Errore HTTP OpenRouteService: {exc}. "
+            f"Risposta: {testo_errore}"
+        ) from exc
+
     features = dati.get("features", [])
+
     if not features:
-        raise ValueError("Nessun percorso trovato.")
+        raise RuntimeError(
+            "OpenRouteService non ha restituito alcun percorso."
+        )
+
     feature = features[0]
-    geometria = feature.get("geometry", {}).get("coordinates", [])
-    properties = feature.get("properties", {})
-    segments = properties.get("segments", [{}])
-    segmento = segments[0] if segments else {}
-    distanza_m = segmento.get("distance", 0)
-    durata_s = segmento.get("duration", 0)
-    return {"geometria": geometria, "distanza_km": distanza_m / 1000.0 if distanza_m else 0, "durata_secondi": durata_s, "istruzioni": segmento.get("steps", [])}
+
+    geometria = feature.get("geometry", {}).get(
+        "coordinates",
+        [],
+    )
+
+    proprieta = feature.get("properties", {})
+
+    segments = proprieta.get("segments", [])
+
+    if not segments:
+        raise RuntimeError(
+            "Il percorso ricevuto non contiene segmenti validi."
+        )
+
+    segmento = segments[0]
+
+    distanza_m = float(
+        segmento.get("distance", 0)
+    )
+
+    durata_s = float(
+        segmento.get("duration", 0)
+    )
+
+    return {
+        "geometria": geometria,
+        "distanza_km": distanza_m / 1000.0,
+        "durata_secondi": durata_s,
+        "istruzioni": segmento.get(
+            "steps",
+            [],
+        ),
+    }
 
 
 def estrai_punti_percorso(geometria, numero_punti=12):
@@ -4951,13 +5057,15 @@ if st.button("Calcola percorso", key="percorso_calcola"):
             with st.spinner("Calcolo del percorso stradale..."):
                 # Nota: senza API key di OpenRouteService, questa chiamata fallirà.
                 # Per un uso reale, ottieni una API key gratuita da https://openrouteservice.org/
+                api_key = st.secrets["OPENROUTESERVICE_API_KEY"]
+                
                 percorso = scarica_percorso_ors(
                     lat_partenza,
                     lon_partenza,
                     lat_arrivo,
                     lon_arrivo,
                     profilo="driving-car",
-                    api_key="eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjhlOTE0MDk3MjlhNjRkYTU4M2RhNWMwNmFmNjlhNTlmIiwiaCI6Im11cm11cjY0In0=",  # Inserisci la tua API key qui
+                    api_key=api_key,
                 )
 
             with st.spinner("Estrazione punti lungo il percorso..."):

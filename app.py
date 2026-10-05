@@ -3418,7 +3418,7 @@ body {{
     >
       <div class="cml-home-choice-icon">📡</div>
 
-      <h2>Radar precipitazioni</h2>
+      <h2>Radar precipitazioni, nuvolosità e fulminazioni</h2>
 
       <p>
         Visualizza la sequenza radar delle precipitazioni in tempo quasi

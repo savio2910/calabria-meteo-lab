@@ -5050,7 +5050,7 @@ if st.button("Calcola percorso", key="percorso_calcola"):
                     lat_arrivo,
                     lon_arrivo,
                     profilo="driving-car",
-                    api_key=eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjhlOTE0MDk3MjlhNjRkYTU4M2RhNWMwNmFmNjlhNTlmIiwiaCI6Im11cm11cjY0In0=,  # Inserisci la tua API key qui
+                    api_key="eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjhlOTE0MDk3MjlhNjRkYTU4M2RhNWMwNmFmNjlhNTlmIiwiaCI6Im11cm11cjY0In0=",  # Inserisci la tua API key qui
                 )
 
             with st.spinner("Estrazione punti lungo il percorso..."):

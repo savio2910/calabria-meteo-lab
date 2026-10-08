@@ -2125,265 +2125,132 @@ body {{
   display: none !important;
 }}
 
-<!-- HOME -->
+/* ===================== HOME ===================== */
 
-<section id="cml-home" class="cml-view">
-
-  <section class="cml-home-hero">
-    <div class="cml-brand">
-      <span class="cml-brand-mark"></span>
-      CALABRIA METEOROLOGIA LOCALE
-    </div>
-
-    <h1>Calabria Meteo Lab</h1>
-
-    <p>
-      Previsioni meteorologiche locali e radar delle precipitazioni per la Calabria.
-      Scegli la sezione che vuoi consultare.
-    </p>
-  </section>
-
-  <!-- IN ALTO: PREVISIONI ORARIE E ATTIVITÀ -->
-
-  <section class="cml-home-actions">
-
-    <button
-      class="cml-home-choice"
-      type="button"
-      onclick="mostraVista('previsioni')">
-
-      <div class="cml-home-choice-icon">🌤️</div>
-
-      <h2>Previsioni orarie</h2>
-
-      <p>
-        Consulta condizioni attuali, temperatura, vento, precipitazioni,
-        tabelle ora per ora e grafici per i prossimi tre giorni.
-      </p>
-
-      <span>Apri previsioni</span>
-    </button>
-
-    <button
-      class="cml-home-choice activities"
-      type="button"
-      onclick="apriVistaAttivita()">
-
-      <div class="cml-home-choice-icon">🏃</div>
-
-      <h2>Attività</h2>
-
-      <p>
-        Scopri quali attività sono più adatte alle condizioni meteorologiche
-        previste nelle diverse zone della Calabria.
-      </p>
-
-      <span>Apri attività</span>
-    </button>
-
-  </section>
-
-  <!-- IN BASSO: TUTTI I RADAR -->
-
-  <section class="cml-home-radar">
-    <div class="cml-home-radar-head">
-      <div>
-        <span class="cml-eyebrow">RADAR METEOROLOGICI</span>
-
-        <h2>📡 Radar Calabria</h2>
-
-        <p>
-          Precipitazioni, nuvolosità e fulminazioni sull’intero territorio calabrese.
-        </p>
-      </div>
-    </div>
-
-    <!-- RADAR PRECIPITAZIONI -->
-
-    <section class="cml-radar-box">
-      <div class="cml-radar-head">
-        <div>
-          <h2>🌧️ Radar precipitazioni</h2>
-
-          <p>
-            Sequenza radar RainViewer aggiornata automaticamente.
-          </p>
-        </div>
-
-        <button
-          class="cml-radar-btn"
-          id="btn-play"
-          type="button"
-          onclick="togglePlayRadar()">
-          Pausa
-        </button>
-      </div>
-
-      <div id="radar-map"></div>
-
-      <div class="cml-radar-footer">
-        <span>
-          Base cartografica OpenStreetMap · Overlay radar RainViewer
-        </span>
-
-        <span>
-          Frame:
-          <span id="radar-timestamp" class="cml-radar-time">
-            caricamento...
-          </span>
-        </span>
-      </div>
-
-      <div class="cml-note">
-        Il radar mostra le precipitazioni osservate dai frame disponibili.
-        Non costituisce un bollettino di allerta né una previsione ufficiale.
-      </div>
-    </section>
-
-    <!-- RADAR NUVOLOSITÀ -->
-
-    <section class="cml-radar-box">
-      <div class="cml-radar-head">
-        <div>
-          <h2>☁️ Radar nuvolosità</h2>
-
-          <p>
-            Immagine satellitare della copertura nuvolosa sull’intera Calabria.
-          </p>
-        </div>
-      </div>
-
-      <iframe
-        title="Satellite della nuvolosità sulla Calabria"
-        loading="lazy"
-        src="https://embed.windy.com/embed2.html?lat=39.0&lon=16.5&zoom=8&level=surface&overlay=satellite&product=satellite&menu=&message=true&marker=true&calendar=now&pressure=&type=map&location=coordinates&detail=&metricWind=km%2Fh&metricTemp=%C2%B0C"
-        style="display:block;width:100%;height:520px;border:1px solid #d8e7eb;border-radius:16px;"
-        allowfullscreen>
-      </iframe>
-
-      <div class="cml-radar-footer">
-        <span>Visualizzazione satellitare Windy</span>
-
-        <a
-          href="https://www.windy.com/-Satellite-satellite?39.0,16.5,8"
-          target="_blank"
-          rel="noopener noreferrer">
-          Apri il satellite su Windy
-        </a>
-      </div>
-
-      <div class="cml-note">
-        Le immagini satellitari mostrano la copertura nuvolosa.
-        Non rappresentano direttamente la pioggia al suolo.
-      </div>
-    </section>
-
-    <!-- RADAR FULMINAZIONI -->
-
-    <section class="cml-radar-box">
-      <div class="cml-radar-head">
-        <div>
-          <h2>⚡ Radar fulminazioni</h2>
-
-          <p>
-            Scariche elettriche rilevate sull’intera Calabria.
-          </p>
-        </div>
-      </div>
-
-      <iframe
-        title="Mappa delle fulminazioni sulla Calabria"
-        loading="lazy"
-        src="https://map.blitzortung.org/index.php?interactive=1&NavigationControl=1&FullScreenControl=1&Cookies=0&InfoDiv=1&MenuButtonDiv=1&ScaleControl=1&lat=39.0&lon=16.5&zoom=8"
-        style="display:block;width:100%;height:520px;border:1px solid #d8e7eb;border-radius:16px;"
-        allowfullscreen>
-      </iframe>
-
-      <div class="cml-radar-footer">
-        <span>
-          Dati Blitzortung.org e collaboratori
-        </span>
-
-        <a
-          href="https://map.blitzortung.org/"
-          target="_blank"
-          rel="noopener noreferrer">
-          Apri la mappa dei fulmini
-        </a>
-      </div>
-
-      <div class="cml-note">
-        La mappa mostra le scariche rilevate dalla rete,
-        non una previsione dei fulmini. Consulta sempre gli avvisi ufficiali.
-      </div>
-    </section>
-
-  </section>
-
-</section>
-
-/* ===================== RADAR DIRETTO IN HOME ===================== */
-
-.cml-home-radar {{
+.cml-home-hero {{
+  position: relative;
+  overflow: hidden;
   width: 100%;
+  min-height: 380px;
   margin: 0 0 32px;
-  padding: 26px;
-  border: 1px solid #cbdfe8;
+  padding: 90px 7vw;
+  border: 1px solid #07516c;
+  border-radius: 28px;
+  color: #ffffff;
+  background:
+    radial-gradient(circle at 85% 15%, rgba(255, 210, 92, 0.20), transparent 28%),
+    linear-gradient(135deg, #06324d 0%, #075b78 52%, #087f91 100%);
+  box-shadow: 0 14px 32px rgba(9, 61, 83, 0.22);
+}}
+
+.cml-home-hero::before {{
+  content: "";
+  position: absolute;
+  right: -85px;
+  bottom: -105px;
+  width: 310px;
+  height: 310px;
+  border: 36px solid rgba(255, 255, 255, 0.08);
+  border-radius: 50%;
+}}
+
+.cml-home-hero > * {{
+  position: relative;
+  z-index: 1;
+}}
+
+.cml-home-hero h1 {{
+  max-width: 1100px;
+  margin: 28px 0 20px;
+  color: #ffffff;
+  font-size: clamp(48px, 6vw, 92px);
+  font-weight: 850;
+  letter-spacing: -1.5px;
+  line-height: 1.08;
+}}
+
+.cml-home-hero p {{
+  max-width: 1050px;
+  margin: 0;
+  color: #e2f5f8;
+  font-size: clamp(18px, 2vw, 27px);
+  line-height: 1.7;
+}}
+
+.cml-home-actions {{
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+  width: 100%;
+  max-width: none;
+  margin: 0 0 32px;
+}}
+
+.cml-home-choice {{
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-height: 430px;
+  width: 100%;
+  padding: 46px;
+  border: 1px solid #d2e4e9;
   border-radius: 24px;
   background: #ffffff;
-  box-shadow: 0 10px 30px rgba(23, 67, 84, 0.12);
+  color: #102b3b;
+  cursor: pointer;
+  text-align: left;
+  box-shadow: 0 10px 28px rgba(23, 67, 84, 0.12);
+  transition: transform 0.18s ease, box-shadow 0.18s ease,
+              border-color 0.18s ease;
 }}
 
-.cml-home-radar-head {{
+.cml-home-choice:hover,
+.cml-home-choice:focus-visible {{
+  transform: translateY(-4px);
+  border-color: #087087;
+  outline: none;
+  box-shadow: 0 15px 32px rgba(8, 112, 135, 0.22);
+}}
+
+.cml-home-choice-icon {{
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-  margin-bottom: 20px;
-  flex-wrap: wrap;
+  justify-content: center;
+  width: 62px;
+  height: 62px;
+  margin-bottom: 18px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #d9f4f7, #a8e1e7);
+  font-size: 31px;
 }}
 
-.cml-home-radar-head h2 {{
-  margin: 6px 0 4px;
+.cml-home-choice.radar .cml-home-choice-icon {{
+  background: linear-gradient(135deg, #dce7ff, #adc5ec);
+}}
+
+.cml-home-choice.activities .cml-home-choice-icon {{
+  background: linear-gradient(135deg, #dce7ff, #adc5ec);
+}}
+
+.cml-home-choice h2 {{
+  margin: 0 0 8px;
   color: #102b3b;
-  font-size: 26px;
+  font-size: 24px;
 }}
 
-.cml-home-radar-head p {{
+.cml-home-choice p {{
   margin: 0;
   color: #607987;
-  font-size: 13px;
-}}
-
-#radar-map {{
-  width: 100%;
-  height: 620px;
-  border: 1px solid #d8e7eb;
-  border-radius: 16px;
-  background: #dcecf1;
-}}
-
-.cml-radar-home-note {{
-  margin-top: 16px;
-  padding: 12px 15px;
-  border: 1px solid #bfe1ea;
-  border-left: 4px solid #168db7;
-  border-radius: 11px;
-  background: #ecf9fc;
-  color: #3d6270;
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.6;
 }}
 
-@media (max-width: 700px) {{
-  .cml-home-radar {{
-    padding: 16px;
-    border-radius: 18px;
-  }}
-
-  #radar-map {{
-    height: 480px;
-  }}
+.cml-home-choice span {{
+  margin-top: auto;
+  padding-top: 20px;
+  color: #087087;
+  font-size: 13px;
+  font-weight: 850;
 }}
 
 /* ===================== NAV BAR ===================== */
@@ -3508,31 +3375,31 @@ body {{
 
 <body>
 
-<!-- HOME -->
-
+<!-- ===================== HOME ===================== -->
 <section id="cml-home" class="cml-view">
+
   <section class="cml-home-hero">
     <div class="cml-brand">
       <span class="cml-brand-mark"></span>
-      CALABRIA METEOROLOGIA LOCALE
+      CALABRIA · METEOROLOGIA LOCALE
     </div>
 
     <h1>Calabria Meteo Lab</h1>
 
     <p>
-      Previsioni meteorologiche locali e radar delle precipitazioni per la Calabria.
-      Scegli la sezione che vuoi consultare.
+      Previsioni meteorologiche locali e radar delle precipitazioni
+      per la Calabria. Scegli la sezione che vuoi consultare.
     </p>
   </section>
 
-
   <section class="cml-home-actions">
+
     <button
       class="cml-home-choice"
       type="button"
-      onclick="mostraVista('previsioni')">
-
-      <div class="cml-home-choice-icon">🌤️</div>
+      onclick="mostraVista('previsioni')"
+    >
+      <div class="cml-home-choice-icon">📅</div>
 
       <h2>Previsioni orarie</h2>
 
@@ -3541,14 +3408,31 @@ body {{
         tabelle ora per ora e grafici per i prossimi tre giorni.
       </p>
 
-      <span>Apri previsioni</span>
+      <span>Apri previsioni →</span>
+    </button>
+
+    <button
+      class="cml-home-choice radar"
+      type="button"
+      onclick="mostraVista('radar')"
+    >
+      <div class="cml-home-choice-icon">📡</div>
+
+      <h2>Radar precipitazioni, nuvolosità e fulminazioni</h2>
+
+      <p>
+        Visualizza la sequenza radar delle precipitazioni in tempo quasi
+        reale, centrata sulla località selezionata.
+      </p>
+
+      <span>Apri radar →</span>
     </button>
 
     <button
       class="cml-home-choice activities"
       type="button"
-      onclick="apriVistaAttivita()">
-
+      onclick="apriVistaAttivita()"
+    >
       <div class="cml-home-choice-icon">🏃</div>
 
       <h2>Attività</h2>
@@ -3558,9 +3442,11 @@ body {{
         previste nelle diverse zone della Calabria.
       </p>
 
-      <span>Apri attività</span>
+      <span>Apri attività →</span>
     </button>
+
   </section>
+
 </section>
 
 
@@ -3683,6 +3569,66 @@ body {{
   </div>
 
 </section>
+
+
+<!-- ===================== RADAR ===================== -->
+<section id="cml-radar" class="cml-view" hidden>
+
+  <div class="cml-nav-bar">
+    <button
+      class="cml-back-btn"
+      type="button"
+      onclick="mostraVista('home')"
+    >
+      ← Torna alla home
+    </button>
+
+    <span class="cml-nav-title">
+      📡 Radar precipitazioni, nuvolosità e fulminazioni · {html.escape(luogo)}
+    </span>
+  </div>
+
+  <section class="cml-radar-box">
+    <div class="cml-radar-head">
+      <div>
+        <h2>📡 Radar precipitazioni live</h2>
+
+        <p>
+          Sequenza radar RainViewer centrata sulla località selezionata:
+          {html.escape(luogo)}.
+        </p>
+      </div>
+
+      <button
+        class="cml-radar-btn"
+        id="btn-play"
+        type="button"
+        onclick="togglePlayRadar()"
+      >
+        ⏸ Pausa
+      </button>
+    </div>
+
+    <div id="radar-map"></div>
+
+    <div class="cml-radar-footer">
+      <span>
+        🛰️ Base cartografica OpenStreetMap · Overlay radar RainViewer
+      </span>
+
+      <span>
+        Frame:
+        <span id="radar-timestamp" class="cml-radar-time">
+          caricamento...
+        </span>
+      </span>
+    </div>
+  </section>
+
+  <div class="cml-note">
+    ℹ️ Il radar mostra le precipitazioni osservate dai frame disponibili.
+    Non costituisce un bollettino di allerta né una previsione ufficiale.
+  </div>
 
   <!-- ===================== SATELLITE NUVOLOSITÀ ===================== -->
   <section class="cml-radar-box">
@@ -4233,18 +4179,15 @@ function mostraGiorno(chiave, scheda, event) {{
   }}
 }}
 
-// ---------- MAPPA RADAR CALABRIA ----------
+/* ---------- MAPPA RADAR ---------- */
 
-radarMap = L.map(
-  "radar-map",
-  {{
-    center: [39.0, 16.5],
-    zoom: 8,
-    minZoom: 7,
-    maxZoom: 11,
-    zoomControl: true,
-  }}
-);
+radarMap = L.map("radar-map", {{
+  center: [{latitudine}, {longitudine}],
+  zoom: 8,
+  minZoom: 5,
+  maxZoom: 18,
+  zoomControl: true
+}});
 
 L.tileLayer(
   "https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png",

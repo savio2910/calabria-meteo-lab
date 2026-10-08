@@ -2253,6 +2253,70 @@ body {{
   font-weight: 850;
 }}
 
+/* ===================== RADAR DIRETTO IN HOME ===================== */
+
+.cml-home-radar {{
+  width: 100%;
+  margin: 0 0 32px;
+  padding: 26px;
+  border: 1px solid #cbdfe8;
+  border-radius: 24px;
+  background: #ffffff;
+  box-shadow: 0 10px 30px rgba(23, 67, 84, 0.12);
+}}
+
+.cml-home-radar-head {{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}}
+
+.cml-home-radar-head h2 {{
+  margin: 6px 0 4px;
+  color: #102b3b;
+  font-size: 26px;
+}}
+
+.cml-home-radar-head p {{
+  margin: 0;
+  color: #607987;
+  font-size: 13px;
+}}
+
+#radar-map {{
+  width: 100%;
+  height: 620px;
+  border: 1px solid #d8e7eb;
+  border-radius: 16px;
+  background: #dcecf1;
+}}
+
+.cml-radar-home-note {{
+  margin-top: 16px;
+  padding: 12px 15px;
+  border: 1px solid #bfe1ea;
+  border-left: 4px solid #168db7;
+  border-radius: 11px;
+  background: #ecf9fc;
+  color: #3d6270;
+  font-size: 12px;
+  line-height: 1.6;
+}}
+
+@media (max-width: 700px) {{
+  .cml-home-radar {{
+    padding: 16px;
+    border-radius: 18px;
+  }}
+
+  #radar-map {{
+    height: 480px;
+  }}
+}}
+
 /* ===================== NAV BAR ===================== */
 
 .cml-nav-bar {{
@@ -2695,99 +2759,6 @@ body {{
 .cml-marine-forecast-values small {{
   color: #768c95;
   font-size: 10px;
-}}
-
-/* ===================== RADAR CALABRIA COMPLETA ===================== */
-
-.cml-home-radar {{
-  width: 100%;
-  margin: 0 0 32px;
-  padding: 26px;
-  border: 1px solid #cbdfe8;
-  border-radius: 24px;
-  background: #ffffff;
-  box-shadow: 0 10px 30px rgba(23, 67, 84, 0.12);
-}}
-
-.cml-home-radar-head {{
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-  margin-bottom: 20px;
-  flex-wrap: wrap;
-}}
-
-.cml-home-radar-head h2 {{
-  margin: 6px 0 4px;
-  color: #102b3b;
-  font-size: 26px;
-}}
-
-.cml-home-radar-head p {{
-  margin: 0;
-  color: #607987;
-  font-size: 13px;
-}}
-
-.cml-radar-full-panel {{
-  overflow: hidden;
-  width: 100%;
-  border: 1px solid #d5e4e9;
-  border-radius: 17px;
-  background: #f7fbfc;
-  box-shadow: 0 6px 18px rgba(23, 67, 84, 0.08);
-}}
-
-.cml-radar-panel-title {{
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-height: 70px;
-  padding: 14px 16px;
-  border-bottom: 1px solid #dce9ed;
-  background: linear-gradient(135deg, #0b7f98, #075d74);
-  color: #ffffff;
-}}
-
-.cml-radar-panel-title strong {{
-  font-size: 16px;
-}}
-
-.cml-radar-panel-title span {{
-  color: #d9f4f7;
-  font-size: 12px;
-}}
-
-.cml-radar-frame {{
-  display: block;
-  width: 100%;
-  height: 620px;
-  border: 0;
-  background: #dcecf1;
-}}
-
-.cml-radar-home-note {{
-  margin-top: 16px;
-  padding: 12px 15px;
-  border: 1px solid #bfe1ea;
-  border-left: 4px solid #168db7;
-  border-radius: 11px;
-  background: #ecf9fc;
-  color: #3d6270;
-  font-size: 12px;
-  line-height: 1.6;
-}}
-
-@media (max-width: 700px) {{
-  .cml-home-radar {{
-    padding: 16px;
-    border-radius: 18px;
-  }}
-
-  .cml-radar-frame {{
-    height: 480px;
-  }}
 }}
 
 /* ===================== RADAR ===================== */
@@ -3468,22 +3439,23 @@ body {{
 
 <body>
 
-<!-- ===================== HOME ===================== -->
-<section id="cml-home" class="cml-view">
+<!-- HOME -->
 
+<section id="cml-home" class="cml-view">
   <section class="cml-home-hero">
     <div class="cml-brand">
       <span class="cml-brand-mark"></span>
-      CALABRIA · METEOROLOGIA LOCALE
+      CALABRIA METEOROLOGIA LOCALE
     </div>
 
     <h1>Calabria Meteo Lab</h1>
 
     <p>
-      Previsioni meteorologiche locali e radar delle precipitazioni
-      per la Calabria. Scegli la sezione che vuoi consultare.
+      Previsioni meteorologiche locali e radar delle precipitazioni per la Calabria.
+      Scegli la sezione che vuoi consultare.
     </p>
   </section>
+
   <section class="cml-home-radar">
     <div class="cml-home-radar-head">
       <div>
@@ -3492,48 +3464,34 @@ body {{
         <h2>📡 Radar Calabria</h2>
 
         <p>
-          Radar delle precipitazioni sull’intero territorio calabrese.
+          Sequenza radar RainViewer delle precipitazioni sull’intera Calabria.
         </p>
       </div>
 
       <button
         class="cml-radar-btn"
+        id="btn-play"
         type="button"
-        onclick="aggiornaRadarHome()">
-        ↻ Aggiorna radar
+        onclick="togglePlayRadar()">
+        Pausa
       </button>
     </div>
 
-    <article class="cml-radar-full-panel">
-      <div class="cml-radar-panel-title">
-        <strong>Radar meteorologico della Calabria</strong>
-
-        <span>
-          Vista completa regionale: Tirreno, area centrale e Ionio
-        </span>
-      </div>
-
-      <iframe
-        src="INCOLLA_QUI_L_URL_DEL_TUO_RADAR"
-        class="cml-radar-frame"
-        loading="lazy"
-        title="Radar meteorologico dell'intera Calabria">
-      </iframe>
-    </article>
+    <div id="radar-map"></div>
 
     <div class="cml-radar-home-note">
-      ℹ️ Radar mostrato direttamente nella pagina iniziale e centrato
-      sull’intera Calabria.
+      ℹ️ Il radar utilizza i dati RainViewer già presenti nell’app.
+      La mappa è centrata sull’intera Calabria.
     </div>
   </section>
-  
+
   <section class="cml-home-actions">
     <button
       class="cml-home-choice"
       type="button"
-      onclick="mostraVista('previsioni')"
-    >
-      <div class="cml-home-choice-icon">📅</div>
+      onclick="mostraVista('previsioni')">
+
+      <div class="cml-home-choice-icon">🌤️</div>
 
       <h2>Previsioni orarie</h2>
 
@@ -3542,15 +3500,14 @@ body {{
         tabelle ora per ora e grafici per i prossimi tre giorni.
       </p>
 
-      <span>Apri previsioni →</span>
+      <span>Apri previsioni</span>
     </button>
-
 
     <button
       class="cml-home-choice activities"
       type="button"
-      onclick="apriVistaAttivita()"
-    >
+      onclick="apriVistaAttivita()">
+
       <div class="cml-home-choice-icon">🏃</div>
 
       <h2>Attività</h2>
@@ -3560,11 +3517,9 @@ body {{
         previste nelle diverse zone della Calabria.
       </p>
 
-      <span>Apri attività →</span>
+      <span>Apri attività</span>
     </button>
-
   </section>
-
 </section>
 
 

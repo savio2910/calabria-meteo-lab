@@ -276,15 +276,16 @@ def direzione(gradi):
 def meteo(codice):
     try:
         if codice is None or pd.isna(codice):
-            return "❔", "Non disponibile"
+            return "", "Non disponibile"
 
-        return CODICI_METEO.get(
-            int(codice),
-            ("❔", "Non disponibile"),
-        )
-
+        codice = int(float(codice))
     except (TypeError, ValueError):
-        return "❔", "Non disponibile"
+        return "", "Non disponibile"
+
+    return CODICI_METEO.get(
+        codice,
+        ("", "Non disponibile"),
+    )
 
 
 def data_it(valore):
@@ -901,9 +902,16 @@ def calcola_dati_diurni(
 
     return 3, nuvolosita_media
 
-def calcola_codice_giornaliero(ore_giorno, codice_cielo, codice_daily=None,
-                               precipitazione_daily=None):
-    """Sintesi delle 24 ore: fenomeni significativi prima del cielo diurno."""
+def calcola_codice_giornaliero(
+    ore_giorno,
+    codice_cielo,
+    codice_daily=None,
+    precipitazione_daily=None,
+):
+    """
+    Sintesi delle 24 ore: i fenomeni significativi hanno priorità
+    rispetto al cielo medio diurno. Gestisce anche valori NaN.
+    """
     pioggia = {51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82}
     neve = {71, 73, 75, 77, 85, 86}
     temporali = {95, 96, 99}
@@ -911,66 +919,112 @@ def calcola_codice_giornaliero(ore_giorno, codice_cielo, codice_daily=None,
     def numero_valido(valore):
         try:
             valore = float(valore)
-            return valore if math.isfinite(valore) else None
         except (TypeError, ValueError):
             return None
+        if pd.isna(valore) or not math.isfinite(valore):
+            return None
+        return valore
 
-    daily = numero_valido(codice_daily)
-    daily = int(daily) if daily is not None else None
+    def codice_valido(valore):
+        valore = numero_valido(valore)
+        return int(valore) if valore is not None else None
+
+    daily = codice_valido(codice_daily)
     totale_daily = numero_valido(precipitazione_daily)
-    if ore_giorno.empty:
+    totale_daily = totale_daily if totale_daily is not None else 0.0
+
+    if ore_giorno is None or ore_giorno.empty:
         return daily if daily is not None else codice_cielo
 
-    codici = pd.to_numeric(
-        ore_giorno.get("weather_code", pd.Series(index=ore_giorno.index, dtype=float)),
-        errors="coerce",
-    )
-    precip = pd.to_numeric(
-        ore_giorno.get("precipitation", pd.Series(index=ore_giorno.index, dtype=float)),
-        errors="coerce",
-    ).clip(lower=0)
-    validi = codici.dropna().astype(int)
-    totale_orario = float(precip.sum()) if precip.notna().any() else 0.0
-    totale = max(totale_orario, totale_daily or 0.0)
+    if "weather_code" in ore_giorno.columns:
+        codici = pd.to_numeric(
+            ore_giorno["weather_code"],
+            errors="coerce",
+        )
+    else:
+        codici = pd.Series(
+            [pd.NA] * len(ore_giorno),
+            index=ore_giorno.index,
+        )
 
-    # Un temporale esplicito non deve sparire nella media della giornata.
+    if "precipitation" in ore_giorno.columns:
+        precip = pd.to_numeric(
+            ore_giorno["precipitation"],
+            errors="coerce",
+        ).clip(lower=0)
+    else:
+        precip = pd.Series(
+            0.0,
+            index=ore_giorno.index,
+        )
+
+    validi = codici.dropna().astype(int)
+    totale_orario = float(precip.fillna(0.0).sum())
+    totale = max(totale_orario, totale_daily)
+
     presenti_temporali = set(validi) & temporali
     if presenti_temporali:
         return max(presenti_temporali)
+
     if daily in temporali:
         return daily
 
-    ore_bagnate = int((precip >= 0.1).sum())
+    ore_bagnate = int((precip.fillna(0.0) >= 0.1).sum())
     ore_fenomeni = int(codici.isin(pioggia | neve).sum())
     significativo = (
-        totale >= 0.5 or ore_bagnate >= 2 or ore_fenomeni >= 2
+        totale >= 0.5
+        or ore_bagnate >= 2
+        or ore_fenomeni >= 2
     )
+
     if significativo:
         fenomeni = validi[validi.isin(pioggia | neve)]
+
         if not fenomeni.empty:
-            # Famiglia prevalente per durata; cumulo come spareggio.
             mask_neve = codici.isin(neve)
             mask_pioggia = codici.isin(pioggia)
-            peso_neve = (int(mask_neve.sum()), float(precip[mask_neve].sum()))
-            peso_pioggia = (int(mask_pioggia.sum()), float(precip[mask_pioggia].sum()))
+
+            peso_neve = (
+                int(mask_neve.sum()),
+                float(precip[mask_neve].fillna(0.0).sum()),
+            )
+            peso_pioggia = (
+                int(mask_pioggia.sum()),
+                float(precip[mask_pioggia].fillna(0.0).sum()),
+            )
+
             famiglia = neve if peso_neve > peso_pioggia else pioggia
             candidati = fenomeni[fenomeni.isin(famiglia)]
+
+            if candidati.empty:
+                candidati = fenomeni
+
             frequenze = candidati.value_counts()
-            # A parita di frequenza conserva il fenomeno piu intenso.
             pari = frequenze[frequenze == frequenze.max()].index
-            ordine = [51, 53, 55, 61, 63, 65, 80, 81, 82, 56, 57, 66, 67,
-                      77, 71, 73, 75, 85, 86]
-            return int(max(pari, key=lambda c: ordine.index(c)))
+
+            ordine = [
+                51, 53, 55, 61, 63, 65, 80, 81, 82,
+                56, 57, 66, 67, 77, 71, 73, 75, 85, 86,
+            ]
+
+            return int(
+                max(
+                    pari,
+                    key=lambda c: ordine.index(c)
+                    if c in ordine
+                    else -1,
+                )
+            )
+
         if daily in pioggia | neve:
             return daily
-        # Cumuli significativi anche con codici orari asciutti/incoerenti.
+
         return 61
 
-    # Fallback al codice giornaliero solo se gli orari sono mancanti.
     if validi.empty and daily is not None:
         return daily
-    return codice_cielo
 
+    return codice_cielo
 
 def prepara_dati_terrestri(dati):
     ore_raw = pd.DataFrame(dati["hourly"])
@@ -1827,6 +1881,14 @@ def genera_app_completa(
             "weather_code_prevalente",
             riga.get("weather_code"),
         )
+
+        try:
+            if codice_effettivo is None or pd.isna(codice_effettivo):
+                codice_effettivo = 3
+            else:
+                codice_effettivo = int(float(codice_effettivo))
+        except (TypeError, ValueError):
+            codice_effettivo = 3
 
         icona, descrizione = meteo(codice_effettivo)
         fase = html.escape(str(riga.get("Fase lunare", "🌙 Luna")))

@@ -173,6 +173,7 @@ VARIABILI_CORRENTI = [
     "apparent_temperature",
     "weather_code",
     "cloud_cover",
+    "precipitation",
     "pressure_msl",
     "wind_speed_10m",
     "wind_direction_10m",
@@ -2280,7 +2281,27 @@ def genera_app_completa(
         correzione_osservativa
     )
 
-    tabella_attivita_luogo = tabella_attivita_luogo_html(
+    if "precipitation" not in corrente or corrente.get("precipitation") is None:
+        try:
+            ora_corrente = pd.Timestamp(
+                corrente.get("time")
+            ).floor("h")
+    
+            pioggia_ora = ore.loc[
+                ore["time"] == ora_corrente,
+                "precipitation",
+            ]
+    
+            corrente["precipitation"] = (
+                float(pioggia_ora.iloc[0])
+                if not pioggia_ora.empty
+                and pd.notna(pioggia_ora.iloc[0])
+                else 0.0
+            )
+        except Exception:
+            corrente["precipitation"] = 0.0
+    
+    tabella_attivita_luogo_html(
         luogo,
         corrente,
         is_costiero,

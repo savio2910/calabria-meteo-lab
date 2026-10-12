@@ -2281,29 +2281,18 @@ def genera_app_completa(
         correzione_osservativa
     )
 
-    if "precipitation" not in corrente or corrente.get("precipitation") is None:
-        try:
-            ora_corrente = pd.Timestamp(
-                corrente.get("time")
-            ).floor("h")
-    
-            pioggia_ora = ore.loc[
-                ore["time"] == ora_corrente,
-                "precipitation",
-            ]
-    
-            corrente["precipitation"] = (
-                float(pioggia_ora.iloc[0])
-                if not pioggia_ora.empty
-                and pd.notna(pioggia_ora.iloc[0])
-                else 0.0
-            )
-        except Exception:
-            corrente["precipitation"] = 0.0
-    
-    tabella_attivita_luogo_html(
+    dati_attivita = dict(corrente)
+    if valore_finito(dati_attivita.get("precipitation"), None) is None:
+        ora_attivita = pd.to_datetime(corrente.get("time"), errors="coerce")
+        ore_complete = pd.DataFrame(dati_terrestri.get("hourly", {}))
+        if pd.notna(ora_attivita) and {"time", "precipitation"}.issubset(ore_complete.columns):
+            tempi = pd.to_datetime(ore_complete["time"], errors="coerce")
+            valori = ore_complete.loc[tempi == ora_attivita.floor("h"), "precipitation"]
+            if not valori.empty:
+                dati_attivita["precipitation"] = valore_finito(valori.iloc[0], None)
+    tabella_attivita_luogo = tabella_attivita_luogo_html(
         luogo,
-        corrente,
+        dati_attivita,
         is_costiero,
     )
 

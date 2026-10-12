@@ -248,6 +248,15 @@ VARIABILI_MARINE_GIORNALIERE = [
 # FORMATTAZIONE
 # =============================================================================
 
+def valore_finito(valore, default=0.0):
+    """Converte uno scalare senza propagare NaN o infinito."""
+    try:
+        risultato = float(valore)
+    except (TypeError, ValueError, OverflowError):
+        return default
+    return risultato if math.isfinite(risultato) else default
+
+
 def numero(valore, decimali=1, unita=""):
     try:
         if valore is None or pd.isna(valore):
@@ -509,13 +518,20 @@ def sintesi_oraria_html(ore):
         testo_pioggia = "Precipitazione oraria nulla o trascurabile nelle prossime 24 ore."
 
     # 3) Raffica massima e orario
-    idx_max_gust = int(ore_24["wind_gusts_10m"].idxmax())
-    max_gust = float(ore_24.loc[idx_max_gust, "wind_gusts_10m"])
-    ora_max_gust = pd.Timestamp(ore_24.loc[idx_max_gust, "time"]).strftime("%H:%M")
-
-    testo_vento = (
-        f"Raffica massima prevista: {max_gust:.0f} km/h intorno alle {ora_max_gust}."
-    )
+    raffiche_valide = pd.to_numeric(
+        ore_24["wind_gusts_10m"], errors="coerce"
+    ).replace([float("inf"), float("-inf")], float("nan")).dropna()
+    if raffiche_valide.empty:
+        testo_vento = "Raffica massima non disponibile: dati del vento mancanti."
+    else:
+        idx_max_gust = raffiche_valide.idxmax()
+        max_gust = float(raffiche_valide.loc[idx_max_gust])
+        ora_max_gust = pd.Timestamp(
+            ore_24.loc[idx_max_gust, "time"]
+        ).strftime("%H:%M")
+        testo_vento = (
+            f"Raffica massima prevista: {max_gust:.0f} km/h intorno alle {ora_max_gust}."
+        )
 
     return f"""
     <section class="cml-nowcast-box">
@@ -958,7 +974,7 @@ def calcola_codice_giornaliero(
             index=ore_giorno.index,
         )
 
-    validi = codici.dropna().astype(int)
+    validi = codici.replace([float("inf"), float("-inf")], float("nan")).dropna().astype(int)
     totale_orario = float(precip.fillna(0.0).sum())
     totale = max(totale_orario, totale_daily)
 
@@ -1221,7 +1237,7 @@ def valuta_rischio_locale(riga):
 
     # La nuvolosità media serve soltanto per l'icona della scheda giornaliera.
     # Per i rischi usa il codice giornaliero restituito da ICON-2I.
-    codice_meteo = int(riga.get("weather_code") or 0)
+    codice_meteo = int(valore_finito(riga.get("weather_code"), -1))
 
     if (
         precipitazione >= 100
@@ -1515,13 +1531,13 @@ def riquadro_correzione_html(correzione):
 
 
 def punteggio_attivita_luogo(dati, tipo):
-    temperatura = float(dati.get("temperature_2m") or 0)
-    percepita = float(dati.get("apparent_temperature") or temperatura)
-    pioggia = float(dati.get("precipitation") or 0)
-    vento = float(dati.get("wind_speed_10m") or 0)
-    raffica = float(dati.get("wind_gusts_10m") or 0)
-    nuvole = float(dati.get("cloud_cover") or 0)
-    codice = int(dati.get("weather_code") or 0)
+    temperatura = valore_finito(dati.get("temperature_2m"), 0.0)
+    percepita = valore_finito(dati.get("apparent_temperature"), temperatura)
+    pioggia = valore_finito(dati.get("precipitation"), 0.0)
+    vento = valore_finito(dati.get("wind_speed_10m"), 0.0)
+    raffica = valore_finito(dati.get("wind_gusts_10m"), 0.0)
+    nuvole = valore_finito(dati.get("cloud_cover"), 0.0)
+    codice = int(valore_finito(dati.get("weather_code"), -1))
     temporale = codice in (95, 96, 99)
     rovesci = codice in (80, 81, 82)
     pioggia_meteo = codice in (51, 53, 55, 56, 57, 61, 63, 65, 66, 67)
@@ -3695,8 +3711,9 @@ body {{
     </div>
 
     <div class="cml-note">
-      ℹ️ Le schede mostrano la condizione prevalente e la nuvolosità
-      media nelle ore diurne. Temperature, precipitazioni e vento
+      ℹ️ Le icone sintetizzano i fenomeni significativi sulle 24 ore;
+      in assenza di fenomeni mostrano il cielo medio diurno.
+      La nuvolosità riportata è la media diurna. Temperature, precipitazioni e vento
       rappresentano estremi o cumulati sulle 24 ore.
     </div>
   </section>

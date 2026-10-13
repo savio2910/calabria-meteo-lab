@@ -3747,6 +3747,199 @@ body {{
     align-items: flex-start;
     flex-direction: column;
   }}
+  /* Intestazione: pannello in alto, animazioni nella fascia inferiore */
+.cml-home-hero {{
+  padding: 28px 36px 270px;
+  min-height: 640px;
+}}
+
+.cml-home-hero .cml-hero-content {{
+  position: relative;
+  z-index: 3;
+  max-width: 950px;
+  margin: 0;
+  padding: 24px 28px;
+  border-radius: 24px;
+  background: rgba(2, 24, 37, 0.82);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}}
+
+.cml-home-hero h1 {{
+  margin: 18px 0 16px;
+  font-size: clamp(44px, 5.5vw, 76px);
+}}
+
+.cml-home-hero .cml-hero-lead {{
+  color: #ffffff;
+  font-weight: 700;
+  margin-bottom: 18px;
+}}
+
+.cml-home-hero .cml-hero-visual {{
+  position: absolute;
+  right: 30px;
+  bottom: 0;
+  width: min(420px, 44vw);
+  margin: 0;
+  z-index: 1;
+  opacity: 1;
+  pointer-events: none;
+}}
+
+@media (max-width: 900px) {{
+  .cml-home-hero {{
+    padding: 22px 22px 250px;
+    min-height: 0;
+  }}
+
+  .cml-home-hero .cml-hero-content {{
+    max-width: 100%;
+    padding: 22px;
+  }}
+
+  .cml-home-hero .cml-hero-visual {{
+    position: absolute;
+    right: 18px;
+    bottom: 0;
+    width: min(390px, 70vw);
+    margin: 0;
+  }}
+}}
+
+@media (max-width: 560px) {{
+  .cml-home-hero {{
+    padding: 16px 16px 220px;
+  }}
+
+  .cml-home-hero .cml-hero-content {{
+    padding: 18px;
+  }}
+
+  .cml-home-hero h1 {{
+    font-size: 44px;
+    letter-spacing: -1.5px;
+  }}
+
+  .cml-home-hero .cml-hero-lead {{
+    font-size: 17px;
+    line-height: 1.5;
+  }}
+
+  .cml-home-hero .cml-hero-visual {{
+    right: 12px;
+    width: min(340px, 88vw);
+  }}
+/* Radar decorativo nello sfondo dell'illustrazione */
+.cml-radar-sweep {{
+  transform-origin: 345px 155px;
+  animation: cmlRadarSweep 9s linear infinite;
+}}
+
+@keyframes cmlRadarSweep {{
+  from {{
+    transform: rotate(0deg);
+  }}
+
+  to {{
+    transform: rotate(360deg);
+  }}
+}}
+
+/* Particelle atmosferiche: movimento molto lento e delicato */
+.cml-hero-particles circle {{
+  opacity: 0.20;
+  animation: cmlParticleFloat 5.5s ease-in-out infinite alternate;
+}}
+
+.cml-hero-particles circle:nth-child(2) {{
+  animation-delay: -1.0s;
+  animation-duration: 6.8s;
+}}
+
+.cml-hero-particles circle:nth-child(3) {{
+  animation-delay: -2.4s;
+  animation-duration: 5.9s;
+}}
+
+.cml-hero-particles circle:nth-child(4) {{
+  animation-delay: -1.7s;
+  animation-duration: 7.2s;
+}}
+
+.cml-hero-particles circle:nth-child(5) {{
+  animation-delay: -3.1s;
+  animation-duration: 6.1s;
+}}
+
+.cml-hero-particles circle:nth-child(6) {{
+  animation-delay: -0.6s;
+  animation-duration: 7.5s;
+}}
+
+@keyframes cmlParticleFloat {{
+  from {{
+    transform: translate(0, 0);
+    opacity: 0.14;
+  }}
+
+  to {{
+    transform: translate(8px, -15px);
+    opacity: 0.62;
+  }}
+}}
+
+/* Flash di fulmine: raro, breve, non invasivo */
+.cml-hero-lightning {{
+  transform-origin: 255px 140px;
+  filter: drop-shadow(0 0 8px rgba(255, 239, 133, 0.95));
+  animation: cmlLightningFlash 11s ease-in-out infinite;
+}}
+
+@keyframes cmlLightningFlash {{
+  0%, 76%, 78%, 100% {{
+    opacity: 0;
+  }}
+
+  77% {{
+    opacity: 0.96;
+  }}
+
+  77.35% {{
+    opacity: 0.18;
+  }}
+
+  77.7% {{
+    opacity: 0.82;
+  }}
+}}
+
+/* Entrata morbida del riquadro testuale della home */
+.cml-home-hero .cml-hero-content {{
+  animation: cmlHeroContentEnter 760ms cubic-bezier(.18, .82, .28, 1) both;
+}}
+
+@keyframes cmlHeroContentEnter {{
+  from {{
+    opacity: 0;
+    transform: translateY(18px);
+  }}
+
+  to {{
+    opacity: 1;
+    transform: translateY(0);
+  }}
+}}
+
+/* Rispetto di chi preferisce meno animazioni */
+@media (prefers-reduced-motion: reduce) {{
+  .cml-home-hero *,
+  .cml-home-hero *::before,
+  .cml-home-hero *::after {{
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }}
 }}
 </style>
 </head>
@@ -3810,7 +4003,35 @@ body {{
         </defs>
 
         <rect width="420" height="260" fill="url(#cmlSky)"/>
-
+        <!-- Radar meteorologico in lontananza -->
+        <g class="cml-radar-sweep" opacity=".30">
+          <circle cx="345" cy="155" r="72" fill="none"
+                  stroke="#9ee8ed" stroke-width="1.4"/>
+          <circle cx="345" cy="155" r="48" fill="none"
+                  stroke="#9ee8ed" stroke-width="1.1"/>
+          <circle cx="345" cy="155" r="24" fill="none"
+                  stroke="#9ee8ed" stroke-width="1"/>
+          <line x1="345" y1="155" x2="409" y2="155"
+                stroke="#d7ffff" stroke-width="1.5"/>
+        </g>
+        
+        <!-- Particelle atmosferiche -->
+        <g class="cml-hero-particles" fill="#d8fbff">
+          <circle cx="44" cy="52" r="2"/>
+          <circle cx="68" cy="178" r="1.6"/>
+          <circle cx="244" cy="31" r="1.5"/>
+          <circle cx="386" cy="126" r="2"/>
+          <circle cx="256" cy="175" r="1.4"/>
+          <circle cx="29" cy="213" r="1.3"/>
+        </g>
+        
+        <!-- Fulmine discreto -->
+        <path
+          class="cml-hero-lightning"
+          d="M252 104 L234 142 L251 142 L239 172 L274 126 L256 126 Z"
+          fill="#fff1a3"
+          opacity="0"
+        />
         <g class="cml-hero-sun">
           <circle cx="318" cy="72" r="34" fill="url(#cmlSun)"/>
           <g class="cml-hero-rays" stroke="#ffd166" stroke-width="4" stroke-linecap="round">
@@ -5055,10 +5276,7 @@ with st.form("search_form", clear_on_submit=False):
         testo_localita = st.text_input(
             "Località",
             value="",
-            placeholder=(
-                "Scrivi es. Cosenza, Tropea, Scilla, "
-                "Camigliatello Silano, Serra San Bruno..."
-            ),
+            placeholder="",
             label_visibility="collapsed",
         )
 

@@ -2301,7 +2301,7 @@ def genera_app_completa(
         except Exception:
             corrente["precipitation"] = 0.0
     
-    tabella_attivita_luogo_html(
+    tabella_attivita_luogo = tabella_attivita_luogo_html(
         luogo,
         corrente,
         is_costiero,
@@ -3637,7 +3637,7 @@ body {{
     >
       <div class="cml-home-choice-icon">📡</div>
 
-      <h2>Radar precipitazioni live</h2>
+      <h2>Radar precipitazioni, nuvolosità e fulminazioni</h2>
 
       <p>
         Visualizza la sequenza radar delle precipitazioni in tempo quasi
@@ -3645,131 +3645,7 @@ body {{
       </p>
 
       <span>Apri radar →</span>
-     <section class="cml-radar-box">
-    <div class="cml-radar-head">
-      <div>
-        <h2>📡 Radar precipitazioni live</h2>
-
-        <p>
-          Sequenza radar RainViewer centrata sulla località selezionata:
-          {html.escape(luogo)}.
-        </p>
-      </div>
-
-      <button
-        class="cml-radar-btn"
-        id="btn-play"
-        type="button"
-        onclick="togglePlayRadar()"
-      >
-        ⏸ Pausa
-      </button>
-    </div>
-
-    <div id="radar-map"></div>
-
-    <div class="cml-radar-footer">
-      <span>
-        🛰️ Base cartografica OpenStreetMap · Overlay radar RainViewer
-      </span>
-
-      <span>
-        Frame:
-        <span id="radar-timestamp" class="cml-radar-time">
-          caricamento...
-        </span>
-      </span>
-    </div>
-  </section>
-
-  <div class="cml-note">
-    ℹ️ Il radar mostra le precipitazioni osservate dai frame disponibili.
-    Non costituisce un bollettino di allerta né una previsione ufficiale.
-  </div>
-
-  <!-- ===================== SATELLITE NUVOLOSITÀ ===================== -->
-  <section class="cml-radar-box">
-    <div class="cml-radar-head">
-      <div>
-        <h2>🛰️ Satellite · Nuvolosità</h2>
-        <p>
-          Immagini satellitari delle nubi, centrate sulla località
-          selezionata: {html.escape(luogo)}.
-          Controlla l’orario dell’immagine nella mappa.
-        </p>
-      </div>
-    </div>
-
-    <iframe
-      title="Satellite della nuvolosità"
-      loading="lazy"
-      src="https://embed.windy.com/embed2.html?lat={latitudine}&amp;lon={longitudine}&amp;zoom=7&amp;level=surface&amp;overlay=satellite&amp;product=satellite&amp;menu=&amp;message=&amp;marker=true&amp;calendar=now&amp;pressure=&amp;type=map&amp;location=coordinates&amp;detail=&amp;metricWind=km%2Fh&amp;metricTemp=%C2%B0C"
-      style="display:block;width:100%;height:520px;border:1px solid #d8e7eb;border-radius:16px;"
-      allowfullscreen
-    ></iframe>
-
-    <div class="cml-radar-footer">
-      <span>🛰️ Visualizzazione satellitare · Windy</span>
-      <a
-        href="https://www.windy.com/-Satellite-satellite?satellite,{latitudine},{longitudine},7"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        Apri il satellite su Windy ↗
-      </a>
-    </div>
-
-    <div class="cml-marine-note">
-      ℹ️ Le immagini satellitari mostrano le nubi:
-      non sono una misura diretta della pioggia al suolo.
-      Se il widget non mostra il satellite, usa il collegamento
-      oppure configura il riquadro dal generatore ufficiale Windy.
-    </div>
-  </section>
-
-  <!-- ===================== FULMINAZIONI ===================== -->
-  <section class="cml-radar-box">
-    <div class="cml-radar-head">
-      <div>
-        <h2>⚡ Fulminazioni osservate</h2>
-        <p>
-          Scariche rilevate dalla rete Blitzortung,
-          con mappa centrata su {html.escape(luogo)}.
-        </p>
-      </div>
-    </div>
-
-    <iframe
-      title="Mappa delle fulminazioni Blitzortung"
-      loading="lazy"
-      src="https://map.blitzortung.org/index.php?interactive=1&amp;NavigationControl=1&amp;FullScreenControl=1&amp;Cookies=0&amp;InfoDiv=1&amp;MenuButtonDiv=1&amp;ScaleControl=1#7/{latitudine}/{longitudine}"
-      style="display:block;width:100%;height:520px;border:1px solid #d8e7eb;border-radius:16px;"
-      allowfullscreen
-    ></iframe>
-
-    <div class="cml-radar-footer">
-      <span>⚡ Dati: Blitzortung.org e collaboratori</span>
-      <a
-        href="https://map.blitzortung.org/#7/{latitudine}/{longitudine}"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        Apri la mappa dei fulmini ↗
-      </a>
-    </div>
-
-    <div class="cml-marine-note">
-      ℹ️ La mappa mostra le scariche rilevate dalla rete,
-      non una previsione dei fulmini.
-      L’assenza di scariche visualizzate non garantisce
-      l’assenza di rischio temporalesco.
-      Consulta gli avvisi ufficiali.
-    </div>
-  </section>
-
-</section>
-
- </button>
+    </button>
 
     <button
       class="cml-home-choice activities"
@@ -3916,7 +3792,145 @@ body {{
 
 
 <!-- ===================== RADAR ===================== -->
+<section id="cml-radar" class="cml-view" hidden>
 
+  <div class="cml-nav-bar">
+    <button
+      class="cml-back-btn"
+      type="button"
+      onclick="mostraVista('home')"
+    >
+      ← Torna alla home
+    </button>
+
+    <span class="cml-nav-title">
+      📡 Radar precipitazioni, nuvolosità e fulminazioni · {html.escape(luogo)}
+    </span>
+  </div>
+
+  <section class="cml-radar-box">
+    <div class="cml-radar-head">
+      <div>
+        <h2>📡 Radar precipitazioni live</h2>
+
+        <p>
+          Sequenza radar RainViewer centrata sulla località selezionata:
+          {html.escape(luogo)}.
+        </p>
+      </div>
+
+      <button
+        class="cml-radar-btn"
+        id="btn-play"
+        type="button"
+        onclick="togglePlayRadar()"
+      >
+        ⏸ Pausa
+      </button>
+    </div>
+
+    <div id="radar-map"></div>
+
+    <div class="cml-radar-footer">
+      <span>
+        🛰️ Base cartografica OpenStreetMap · Overlay radar RainViewer
+      </span>
+
+      <span>
+        Frame:
+        <span id="radar-timestamp" class="cml-radar-time">
+          caricamento...
+        </span>
+      </span>
+    </div>
+  </section>
+
+  <div class="cml-note">
+    ℹ️ Il radar mostra le precipitazioni osservate dai frame disponibili.
+    Non costituisce un bollettino di allerta né una previsione ufficiale.
+  </div>
+
+  <!-- ===================== SATELLITE NUVOLOSITÀ ===================== -->
+  <section class="cml-radar-box">
+    <div class="cml-radar-head">
+      <div>
+        <h2>🛰️ Satellite · Nuvolosità</h2>
+        <p>
+          Immagini satellitari delle nubi, centrate sulla località
+          selezionata: {html.escape(luogo)}.
+          Controlla l’orario dell’immagine nella mappa.
+        </p>
+      </div>
+    </div>
+
+    <iframe
+      title="Satellite della nuvolosità"
+      loading="lazy"
+      src="https://embed.windy.com/embed2.html?lat={latitudine}&amp;lon={longitudine}&amp;zoom=7&amp;level=surface&amp;overlay=satellite&amp;product=satellite&amp;menu=&amp;message=&amp;marker=true&amp;calendar=now&amp;pressure=&amp;type=map&amp;location=coordinates&amp;detail=&amp;metricWind=km%2Fh&amp;metricTemp=%C2%B0C"
+      style="display:block;width:100%;height:520px;border:1px solid #d8e7eb;border-radius:16px;"
+      allowfullscreen
+    ></iframe>
+
+    <div class="cml-radar-footer">
+      <span>🛰️ Visualizzazione satellitare · Windy</span>
+      <a
+        href="https://www.windy.com/-Satellite-satellite?satellite,{latitudine},{longitudine},7"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        Apri il satellite su Windy ↗
+      </a>
+    </div>
+
+    <div class="cml-marine-note">
+      ℹ️ Le immagini satellitari mostrano le nubi:
+      non sono una misura diretta della pioggia al suolo.
+      Se il widget non mostra il satellite, usa il collegamento
+      oppure configura il riquadro dal generatore ufficiale Windy.
+    </div>
+  </section>
+
+  <!-- ===================== FULMINAZIONI ===================== -->
+  <section class="cml-radar-box">
+    <div class="cml-radar-head">
+      <div>
+        <h2>⚡ Fulminazioni osservate</h2>
+        <p>
+          Scariche rilevate dalla rete Blitzortung,
+          con mappa centrata su {html.escape(luogo)}.
+        </p>
+      </div>
+    </div>
+
+    <iframe
+      title="Mappa delle fulminazioni Blitzortung"
+      loading="lazy"
+      src="https://map.blitzortung.org/index.php?interactive=1&amp;NavigationControl=1&amp;FullScreenControl=1&amp;Cookies=0&amp;InfoDiv=1&amp;MenuButtonDiv=1&amp;ScaleControl=1#7/{latitudine}/{longitudine}"
+      style="display:block;width:100%;height:520px;border:1px solid #d8e7eb;border-radius:16px;"
+      allowfullscreen
+    ></iframe>
+
+    <div class="cml-radar-footer">
+      <span>⚡ Dati: Blitzortung.org e collaboratori</span>
+      <a
+        href="https://map.blitzortung.org/#7/{latitudine}/{longitudine}"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        Apri la mappa dei fulmini ↗
+      </a>
+    </div>
+
+    <div class="cml-marine-note">
+      ℹ️ La mappa mostra le scariche rilevate dalla rete,
+      non una previsione dei fulmini.
+      L’assenza di scariche visualizzate non garantisce
+      l’assenza di rischio temporalesco.
+      Consulta gli avvisi ufficiali.
+    </div>
+  </section>
+
+</section>
 
 
 <!-- ===================== ATTIVITÀ ===================== -->

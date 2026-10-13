@@ -5132,7 +5132,7 @@ except (FileNotFoundError, ValueError) as errore_costieri:
     st.error(str(errore_costieri))
     st.stop()
 
-st.markdown("## 🔎 Seleziona località calabrese")
+st.markdown("## 🔎 Cerca la tua località (Solo comuni calabresi)")
 
 with st.form("search_form", clear_on_submit=False):
     colonna_input, colonna_bottone = st.columns([4, 1])

@@ -412,19 +412,47 @@ def icona_meteo_html(codice, notte=False):
         '<path d="M31 59l-3 6M48 59l-3 6"/>'
         '</g>'
     )
+        fiocchi_neve = (
+        '<g fill="#f5fbff" stroke="#8bbdd8" stroke-width="1.4" '
+        'stroke-linecap="round">'
+        '<path d="M24 60v12M18 66h12M19.5 61.5l9 9M28.5 61.5l-9 9"/>'
+        '<path d="M39 60v12M33 66h12M34.5 61.5l9 9M43.5 61.5l-9 9"/>'
+        '<path d="M54 60v12M48 66h12M49.5 61.5l9 9M58.5 61.5l-9 9"/>'
+        '</g>'
+    )
+
+    fiocchi_neve_deboli = (
+        '<g fill="none" stroke="#b9d9ea" stroke-width="1.4" '
+        'stroke-linecap="round">'
+        '<path d="M31 60v10M26 65h10M27.5 61.5l7 7M34.5 61.5l-7 7"/>'
+        '<path d="M48 60v10M43 65h10M44.5 61.5l7 7M51.5 61.5l-7 7"/>'
+        '</g>'
+    )
 
     if codice == 0:
         elementi = luna
+
     elif codice == 1:
         elementi = luna + nube_piccola
+
     elif codice == 2:
         elementi = luna + nube_grande
+
     elif codice == 3:
         elementi = nube_grande
+
     elif codice in (51, 53, 80):
         elementi = luna + nube_grande + gocce_deboli
+
     elif codice in (55, 56, 57, 61, 63, 65, 66, 67, 81, 82):
         elementi = luna + nube_grande + gocce
+
+    elif codice in (71, 85):
+        elementi = luna + nube_grande + fiocchi_neve_deboli
+
+    elif codice in (73, 75, 77, 86):
+        elementi = luna + nube_grande + fiocchi_neve
+
     else:
         return html.escape(icona_fallback)
 

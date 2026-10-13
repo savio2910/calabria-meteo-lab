@@ -3748,92 +3748,6 @@ body {{
     flex-direction: column;
   }}
 }}
-
-/* Intestazione: pannello in alto, animazioni nella fascia inferiore */
-.cml-home-hero {{
-  padding: 28px 36px 270px;
-  min-height: 640px;
-}}
-
-.cml-home-hero .cml-hero-content {{
-  position: relative;
-  z-index: 3;
-  max-width: 950px;
-  margin: 0;
-  padding: 24px 28px;
-  border-radius: 24px;
-  background: rgba(2, 24, 37, 0.82);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-}}
-
-.cml-home-hero h1 {{
-  margin: 18px 0 16px;
-  font-size: clamp(44px, 5.5vw, 76px);
-}}
-
-.cml-home-hero .cml-hero-lead {{
-  color: #ffffff;
-  font-weight: 700;
-  margin-bottom: 18px;
-}}
-
-.cml-home-hero .cml-hero-visual {{
-  position: absolute;
-  right: 30px;
-  bottom: 0;
-  width: min(420px, 44vw);
-  margin: 0;
-  z-index: 1;
-  opacity: 1;
-  pointer-events: none;
-}}
-
-@media (max-width: 900px) {{
-  .cml-home-hero {{
-    padding: 22px 22px 250px;
-    min-height: 0;
-  }}
-
-  .cml-home-hero .cml-hero-content {{
-    max-width: 100%;
-    padding: 22px;
-  }}
-
-  .cml-home-hero .cml-hero-visual {{
-    position: absolute;
-    right: 18px;
-    bottom: 0;
-    width: min(390px, 70vw);
-    margin: 0;
-  }}
-}}
-
-@media (max-width: 560px) {{
-  .cml-home-hero {{
-    padding: 16px 16px 220px;
-  }}
-
-  .cml-home-hero .cml-hero-content {{
-    padding: 18px;
-  }}
-
-  .cml-home-hero h1 {{
-    font-size: 44px;
-    letter-spacing: -1.5px;
-  }}
-
-  .cml-home-hero .cml-hero-lead {{
-    font-size: 17px;
-    line-height: 1.5;
-  }}
-
-  .cml-home-hero .cml-hero-visual {{
-    right: 12px;
-    width: min(340px, 88vw);
-  }}
-}}
-
 </style>
 </head>
 
@@ -5132,7 +5046,7 @@ except (FileNotFoundError, ValueError) as errore_costieri:
     st.error(str(errore_costieri))
     st.stop()
 
-st.markdown("## 🔎 Cerca la tua località (Solo comuni calabresi)")
+st.markdown("## 🔎 Seleziona località calabrese")
 
 with st.form("search_form", clear_on_submit=False):
     colonna_input, colonna_bottone = st.columns([4, 1])
@@ -5141,7 +5055,10 @@ with st.form("search_form", clear_on_submit=False):
         testo_localita = st.text_input(
             "Località",
             value="",
-            placeholder="",
+            placeholder=(
+                "Scrivi es. Cosenza, Tropea, Scilla, "
+                "Camigliatello Silano, Serra San Bruno..."
+            ),
             label_visibility="collapsed",
         )
 

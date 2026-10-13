@@ -2301,7 +2301,7 @@ def genera_app_completa(
         except Exception:
             corrente["precipitation"] = 0.0
     
-    tabella_attivita_luogo = tabella_attivita_luogo_html(
+    tabella_attivita_luogo_html(
         luogo,
         corrente,
         is_costiero,
@@ -2350,50 +2350,201 @@ body {{
   position: relative;
   overflow: hidden;
   width: 100%;
-  min-height: 380px;
-  margin: 0 0 32px;
-  padding: 90px 7vw;
-  border: 1px solid #07516c;
-  border-radius: 28px;
+  min-height: 470px;
+  margin: 0 0 34px;
+  padding: 70px 7vw;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 30px;
   color: #ffffff;
   background:
-    radial-gradient(circle at 85% 15%, rgba(255, 210, 92, 0.20), transparent 28%),
-    linear-gradient(135deg, #06324d 0%, #075b78 52%, #087f91 100%);
-  box-shadow: 0 14px 32px rgba(9, 61, 83, 0.22);
+    radial-gradient(circle at 82% 12%, rgba(255, 210, 92, 0.22), transparent 30%),
+    linear-gradient(135deg, #04283c 0%, #07516c 48%, #0a7d8d 100%);
+  box-shadow: 0 18px 44px rgba(6, 45, 64, 0.28);
 }}
 
-.cml-home-hero::before {{
-  content: "";
+.cml-hero-backdrop {{
   position: absolute;
-  right: -85px;
-  bottom: -105px;
-  width: 310px;
-  height: 310px;
-  border: 36px solid rgba(255, 255, 255, 0.08);
-  border-radius: 50%;
+  inset: 0;
+  pointer-events: none;
 }}
 
-.cml-home-hero > * {{
+.cml-hero-glow {{
+  position: absolute;
+  width: 560px;
+  height: 560px;
+  right: -180px;
+  top: -220px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 205, 90, 0.35), transparent 65%);
+  filter: blur(10px);
+  animation: cmlHeroGlow 9s ease-in-out infinite alternate;
+}}
+
+.cml-hero-grid {{
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.055) 1px, transparent 1px);
+  background-size: 52px 52px;
+  mask-image: radial-gradient(circle at 70% 30%, black, transparent 72%);
+}}
+
+.cml-hero-content {{
   position: relative;
-  z-index: 1;
+  z-index: 2;
+  max-width: 760px;
+}}
+
+.cml-brand {{
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 999px;
+  background: rgba(0, 35, 55, 0.42);
+  color: #d7f7fa;
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: 2px;
+  backdrop-filter: blur(8px);
+}}
+
+.cml-brand-mark {{
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: #ffd45c;
+  box-shadow: 0 0 0 5px rgba(255, 212, 92, 0.18);
+  animation: cmlPulse 2.4s ease-in-out infinite;
 }}
 
 .cml-home-hero h1 {{
-  max-width: 1100px;
-  margin: 28px 0 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 24px 0 18px;
+  font-size: clamp(48px, 7vw, 98px);
+  font-weight: 900;
+  letter-spacing: -3px;
+  line-height: 0.98;
+}}
+
+.cml-hero-title-line {{
   color: #ffffff;
-  font-size: clamp(48px, 6vw, 92px);
-  font-weight: 850;
-  letter-spacing: -1.5px;
-  line-height: 1.08;
+}}
+
+.cml-hero-title-accent {{
+  background: linear-gradient(90deg, #ffd45c, #7ce8d3 55%, #9ed8ff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }}
 
 .cml-home-hero p {{
-  max-width: 1050px;
-  margin: 0;
+  max-width: 680px;
+  margin: 0 0 24px;
   color: #e2f5f8;
-  font-size: clamp(18px, 2vw, 27px);
-  line-height: 1.7;
+  font-size: clamp(17px, 2vw, 24px);
+  line-height: 1.65;
+}}
+
+.cml-hero-badges {{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}}
+
+.cml-hero-badge {{
+  display: inline-flex;
+  align-items: center;
+  padding: 9px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.20);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.09);
+  color: #f3fbfd;
+  font-size: 12px;
+  font-weight: 800;
+  backdrop-filter: blur(8px);
+  transition: transform .18s ease, background .18s ease, border-color .18s ease;
+}}
+
+.cml-hero-badge:hover {{
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.38);
+}}
+
+.cml-hero-visual {{
+  position: absolute;
+  right: 3vw;
+  bottom: -8px;
+  z-index: 1;
+  width: min(470px, 42vw);
+  opacity: .96;
+  pointer-events: none;
+}}
+
+.cml-hero-scene {{
+  width: 100%;
+  height: auto;
+  filter: drop-shadow(0 18px 36px rgba(0, 25, 38, 0.35));
+}}
+
+.cml-hero-sun {{
+  transform-origin: 318px 72px;
+  animation: cmlSunSpin 22s linear infinite;
+}}
+
+.cml-hero-cloud {{
+  animation: cmlCloudFloat 8s ease-in-out infinite alternate;
+}}
+
+.cml-hero-rain line {{
+  animation: cmlRainFall 1.15s linear infinite;
+}}
+
+.cml-hero-rain line:nth-child(2) {{ animation-delay: .18s; }}
+.cml-hero-rain line:nth-child(3) {{ animation-delay: .36s; }}
+.cml-hero-rain line:nth-child(4) {{ animation-delay: .54s; }}
+
+.cml-hero-waves path {{
+  animation: cmlWaveMove 3.2s ease-in-out infinite alternate;
+}}
+
+.cml-hero-waves path:nth-child(2) {{ animation-delay: .25s; }}
+.cml-hero-waves path:nth-child(3) {{ animation-delay: .50s; }}
+.cml-hero-waves path:nth-child(4) {{ animation-delay: .75s; }}
+
+@keyframes cmlHeroGlow {{
+  from {{ transform: scale(.94); opacity: .72; }}
+  to {{ transform: scale(1.08); opacity: 1; }}
+}}
+
+@keyframes cmlPulse {{
+  0%, 100% {{ box-shadow: 0 0 0 5px rgba(255, 212, 92, 0.18); }}
+  50% {{ box-shadow: 0 0 0 10px rgba(255, 212, 92, 0.08); }}
+}}
+
+@keyframes cmlSunSpin {{
+  to {{ transform: rotate(360deg); }}
+}}
+
+@keyframes cmlCloudFloat {{
+  from {{ transform: translateX(-7px); }}
+  to {{ transform: translateX(12px); }}
+}}
+
+@keyframes cmlRainFall {{
+  0% {{ transform: translateY(-8px); opacity: 0; }}
+  25% {{ opacity: 1; }}
+  100% {{ transform: translateY(20px); opacity: 0; }}
+}}
+
+@keyframes cmlWaveMove {{
+  from {{ transform: translateX(-9px); }}
+  to {{ transform: translateX(9px); }}
 }}
 
 .cml-home-actions {{
@@ -3598,17 +3749,96 @@ body {{
 <section id="cml-home" class="cml-view">
 
   <section class="cml-home-hero">
-    <div class="cml-brand">
-      <span class="cml-brand-mark"></span>
-      CALABRIA · METEOROLOGIA LOCALE
+    <div class="cml-hero-backdrop" aria-hidden="true">
+      <div class="cml-hero-glow"></div>
+      <div class="cml-hero-grid"></div>
     </div>
 
-    <h1>Calabria Meteo Lab</h1>
+    <div class="cml-hero-content">
+      <div class="cml-brand">
+        <span class="cml-brand-mark"></span>
+        CALABRIA · METEOROLOGIA LOCALE
+      </div>
 
-    <p>
-      Previsioni meteorologiche locali e radar delle precipitazioni
-      per la Calabria. Scegli la sezione che vuoi consultare.
-    </p>
+      <h1>
+        <span class="cml-hero-title-line">Calabria</span>
+        <span class="cml-hero-title-accent">Meteo Lab</span>
+      </h1>
+
+      <p>
+        Previsioni locali, radar delle precipitazioni, satellite e fulminazioni
+        per scegliere la località e leggere il tempo in Calabria.
+      </p>
+
+      <div class="cml-hero-badges">
+        <span class="cml-hero-badge">🌦️ ICON-2I</span>
+        <span class="cml-hero-badge">📡 Radar live</span>
+        <span class="cml-hero-badge">🛰️ Satellite</span>
+        <span class="cml-hero-badge">⚡ Fulmini</span>
+      </div>
+    </div>
+
+    <div class="cml-hero-visual" aria-hidden="true">
+      <svg class="cml-hero-scene" viewBox="0 0 420 260" role="img" aria-label="Illustrazione meteorologica della Calabria">
+        <defs>
+          <linearGradient id="cmlSky" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#0b3f5c"/>
+            <stop offset="55%" stop-color="#12708c"/>
+            <stop offset="100%" stop-color="#22a3ad"/>
+          </linearGradient>
+          <linearGradient id="cmlSea" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#0d6d86"/>
+            <stop offset="100%" stop-color="#063a4d"/>
+          </linearGradient>
+          <linearGradient id="cmlLand" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#2f7a5b"/>
+            <stop offset="100%" stop-color="#14453a"/>
+          </linearGradient>
+          <radialGradient id="cmlSun" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#ffe89a"/>
+            <stop offset="70%" stop-color="#ffc247"/>
+            <stop offset="100%" stop-color="#ff9d2e"/>
+          </radialGradient>
+        </defs>
+
+        <rect width="420" height="260" fill="url(#cmlSky)"/>
+
+        <g class="cml-hero-sun">
+          <circle cx="318" cy="72" r="34" fill="url(#cmlSun)"/>
+          <g class="cml-hero-rays" stroke="#ffd166" stroke-width="4" stroke-linecap="round">
+            <line x1="318" y1="16" x2="318" y2="28"/>
+            <line x1="318" y1="116" x2="318" y2="128"/>
+            <line x1="262" y1="72" x2="274" y2="72"/>
+            <line x1="362" y1="72" x2="374" y2="72"/>
+            <line x1="279" y1="33" x2="288" y2="42"/>
+            <line x1="348" y1="102" x2="357" y2="111"/>
+            <line x1="357" y1="33" x2="348" y2="42"/>
+            <line x1="288" y1="102" x2="279" y2="111"/>
+          </g>
+        </g>
+
+        <g class="cml-hero-cloud">
+          <path d="M116 96c0-16 13-29 29-29 8 0 15 3 20 9 5-12 17-20 31-20 19 0 34 15 34 34 0 2 0 4-1 6h-113z" fill="#eaf4f8" opacity=".94"/>
+          <path d="M70 122c0-12 10-22 22-22 6 0 11 2 15 7 4-9 13-15 24-15 14 0 26 12 26 26 0 2 0 3-1 4H70z" fill="#dcebf1" opacity=".82"/>
+        </g>
+
+        <g class="cml-hero-rain" stroke="#8ed8f2" stroke-width="4" stroke-linecap="round">
+          <line x1="112" y1="140" x2="104" y2="162"/>
+          <line x1="140" y1="140" x2="132" y2="162"/>
+          <line x1="168" y1="140" x2="160" y2="162"/>
+          <line x1="196" y1="140" x2="188" y2="162"/>
+        </g>
+
+        <path d="M0 197c48-38 92-58 141-52 40 5 69 24 110 18 49-7 89-33 169-24v121H0z" fill="url(#cmlLand)"/>
+        <path d="M0 226c58-25 111-34 168-22 55 12 96 7 138-11 43-18 78-20 114-10v87H0z" fill="url(#cmlSea)"/>
+        <g class="cml-hero-waves" stroke="#9be3ef" stroke-width="3" stroke-linecap="round" opacity=".7">
+          <path d="M35 236c14-7 28-7 42 0"/>
+          <path d="M112 247c14-7 28-7 42 0"/>
+          <path d="M208 238c14-7 28-7 42 0"/>
+          <path d="M292 250c14-7 28-7 42 0"/>
+        </g>
+      </svg>
+    </div>
   </section>
 
   <section class="cml-home-actions">

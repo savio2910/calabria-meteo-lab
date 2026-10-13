@@ -412,7 +412,7 @@ def icona_meteo_html(codice, notte=False):
         '<path d="M31 59l-3 6M48 59l-3 6"/>'
         '</g>'
     )
-        fiocchi_neve = (
+    fiocchi_neve = (
         '<g fill="#f5fbff" stroke="#8bbdd8" stroke-width="1.4" '
         'stroke-linecap="round">'
         '<path d="M24 60v12M18 66h12M19.5 61.5l9 9M28.5 61.5l-9 9"/>'

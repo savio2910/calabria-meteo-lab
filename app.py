@@ -3860,8 +3860,8 @@ body {{
       </h1>
 
       <p class="cml-hero-lead">
-        Previsioni locali, radar delle precipitazioni, satellite e fulminazioni
-        per scegliere la località e leggere il tempo in Calabria.
+        Radar delle precipitazioni, satellite nuvolosità, fulminazioni, previsioni orarie e
+        tabella consigli per lo svolgimento di attività all'aperto.
       </p>
 
       <div class="cml-hero-badges">

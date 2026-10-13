@@ -3606,37 +3606,46 @@ body {{
     <h1>Calabria Meteo Lab</h1>
 
     <p>
-      Seleziona una località calabrese per consultare previsioni, radar,
-      satellite e fulminazioni. La località scelta viene applicata a tutte
-      le sezioni dell’applicazione.
+      Previsioni meteorologiche locali e radar delle precipitazioni
+      per la Calabria. Scegli la sezione che vuoi consultare.
     </p>
   </section>
 
-st.markdown("## 🔎 Seleziona località calabrese")
+  <section class="cml-home-actions">
 
-with st.form("search_form", clear_on_submit=False):
-    colonna_input, colonna_bottone = st.columns([4, 1])
+    <button
+      class="cml-home-choice"
+      type="button"
+      onclick="mostraVista('previsioni')"
+    >
+      <div class="cml-home-choice-icon">📅</div>
 
-    with colonna_input:
-        testo_localita = st.text_input(
-            "Località",
-            value="",
-            placeholder=(
-                "Scrivi es. Cosenza, Tropea, Scilla, "
-                "Camigliatello Silano, Serra San Bruno..."
-            ),
-            label_visibility="collapsed",
-        )
+      <h2>Previsioni orarie</h2>
 
-    with colonna_bottone:
-        cerca_localita = st.form_submit_button(
-            "Aggiorna previsione",
-            use_container_width=True,
-            type="primary",
-        )
+      <p>
+        Consulta condizioni attuali, temperatura, vento, precipitazioni,
+        tabelle ora per ora e grafici per i prossimi tre giorni.
+      </p>
 
+      <span>Apri previsioni →</span>
+    </button>
 
-  <section class="cml-radar-box">
+    <button
+      class="cml-home-choice radar"
+      type="button"
+      onclick="mostraVista('radar')"
+    >
+      <div class="cml-home-choice-icon">📡</div>
+
+      <h2>Radar precipitazioni live</h2>
+
+      <p>
+        Visualizza la sequenza radar delle precipitazioni in tempo quasi
+        reale, centrata sulla località selezionata.
+      </p>
+
+      <span>Apri radar →</span>
+     <section class="cml-radar-box">
     <div class="cml-radar-head">
       <div>
         <h2>📡 Radar precipitazioni live</h2>
@@ -3759,6 +3768,27 @@ with st.form("search_form", clear_on_submit=False):
   </section>
 
 </section>
+
+ </button>
+
+    <button
+      class="cml-home-choice activities"
+      type="button"
+      onclick="apriVistaAttivita()"
+    >
+      <div class="cml-home-choice-icon">🏃</div>
+
+      <h2>Attività</h2>
+
+      <p>
+        Scopri quali attività sono più adatte alle condizioni meteorologiche
+        previste nelle diverse zone della Calabria.
+      </p>
+
+      <span>Apri attività →</span>
+    </button>
+
+  </section>
 
 </section>
 
@@ -4776,6 +4806,28 @@ except (FileNotFoundError, ValueError) as errore_costieri:
     st.error(str(errore_costieri))
     st.stop()
 
+st.markdown("## 🔎 Seleziona località calabrese")
+
+with st.form("search_form", clear_on_submit=False):
+    colonna_input, colonna_bottone = st.columns([4, 1])
+
+    with colonna_input:
+        testo_localita = st.text_input(
+            "Località",
+            value="",
+            placeholder=(
+                "Scrivi es. Cosenza, Tropea, Scilla, "
+                "Camigliatello Silano, Serra San Bruno..."
+            ),
+            label_visibility="collapsed",
+        )
+
+    with colonna_bottone:
+        cerca_localita = st.form_submit_button(
+            "Aggiorna previsione",
+            use_container_width=True,
+            type="primary",
+        )
 
 
 # =============================================================================

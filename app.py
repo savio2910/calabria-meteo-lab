@@ -3747,7 +3747,9 @@ body {{
     align-items: flex-start;
     flex-direction: column;
   }}
-  /* Intestazione: pannello in alto, animazioni nella fascia inferiore */
+  }}
+
+/* Intestazione: pannello in alto, animazioni nella fascia inferiore */
 .cml-home-hero {{
   padding: 28px 36px 270px;
   min-height: 640px;
@@ -3830,6 +3832,8 @@ body {{
     right: 12px;
     width: min(340px, 88vw);
   }}
+}}
+
 /* Radar decorativo nello sfondo dell'illustrazione */
 .cml-radar-sweep {{
   transform-origin: 345px 155px;
@@ -3940,6 +3944,8 @@ body {{
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }}
+}}
+
 /* Correzione finale: testo sopra, animazioni sotto, senza sovrapposizione */
 #cml-home .cml-home-hero {{
   display: flex !important;

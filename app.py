@@ -2335,7 +2335,58 @@ def genera_app_completa(
         is_costiero,
     )
 
-    documento_html = f"""
+    codice_sfondo = int(
+        valore_finito(
+            corrente.get("weather_code"),
+            -1,
+        )
+    )
+
+    ora_sfondo = pd.to_datetime(
+        corrente.get("time"),
+        errors="coerce",
+    )
+
+    notte_sfondo = False
+
+    if pd.notna(ora_sfondo) and not giorni.empty:
+        giorno_sfondo = giorni.loc[
+            giorni["time"].dt.date == ora_sfondo.date()
+        ]
+
+        if not giorno_sfondo.empty:
+            notte_sfondo = e_notte(
+                ora_sfondo,
+                giorno_sfondo.iloc[0].get("sunrise"),
+                giorno_sfondo.iloc[0].get("sunset"),
+            )
+
+    if codice_sfondo in (95, 96, 99):
+        classe_sfondo_meteo = "cml-bg-thunder"
+
+    elif codice_sfondo in (71, 73, 75, 77, 85, 86):
+        classe_sfondo_meteo = "cml-bg-snow"
+
+    elif codice_sfondo in (
+        51, 53, 55, 56, 57,
+        61, 63, 65, 66, 67,
+        80, 81, 82,
+    ):
+        classe_sfondo_meteo = "cml-bg-rain"
+
+    elif codice_sfondo in (45, 48):
+        classe_sfondo_meteo = "cml-bg-fog"
+
+    elif codice_sfondo in (2, 3):
+        classe_sfondo_meteo = "cml-bg-cloud"
+
+    elif notte_sfondo:
+        classe_sfondo_meteo = "cml-bg-night"
+
+    else:
+        classe_sfondo_meteo = "cml-bg-clear"
+        
+documento_html = f"""
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -2354,6 +2405,289 @@ def genera_app_completa(
   --page: #eef5f8;
 }}
 
+/* Sfondo della pagina Previsioni: derivato dal weather_code corrente */
+#cml-previsioni {{
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  padding: 10px;
+  border-radius: 28px;
+  transition: background .7s ease, box-shadow .7s ease;
+}}
+
+#cml-previsioni::before,
+#cml-previsioni::after {{
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+  content: "";
+}}
+
+#cml-previsioni::before {{
+  inset: 0;
+  border-radius: inherit;
+  opacity: .94;
+}}
+
+#cml-previsioni::after {{
+  inset: 0;
+  border-radius: inherit;
+  opacity: .34;
+  background-image:
+    linear-gradient(rgba(255,255,255,.16) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.16) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: linear-gradient(to bottom, black, transparent 75%);
+}}
+
+/* Sereno / quasi sereno */
+#cml-previsioni.cml-bg-clear {{
+  background: linear-gradient(
+    150deg,
+    #90d8f6 0%,
+    #dff5ff 52%,
+    #eef9fd 100%
+  );
+  box-shadow: 0 14px 34px rgba(19, 132, 181, .20);
+}}
+
+#cml-previsioni.cml-bg-clear::before {{
+  background:
+    radial-gradient(
+      circle at 84% 11%,
+      rgba(255, 213, 86, .98) 0 6%,
+      rgba(255, 213, 86, .28) 7% 17%,
+      transparent 18%
+    ),
+    radial-gradient(
+      circle at 82% 14%,
+      rgba(255,255,255,.75),
+      transparent 27%
+    );
+}}
+
+/* Nuvoloso / coperto */
+#cml-previsioni.cml-bg-cloud {{
+  background: linear-gradient(
+    150deg,
+    #8daab9 0%,
+    #c9dce4 52%,
+    #eef5f7 100%
+  );
+  box-shadow: 0 14px 34px rgba(51, 83, 101, .22);
+}}
+
+#cml-previsioni.cml-bg-cloud::before {{
+  background:
+    radial-gradient(
+      ellipse at 16% 12%,
+      rgba(255,255,255,.54) 0 14%,
+      transparent 15%
+    ),
+    radial-gradient(
+      ellipse at 46% 10%,
+      rgba(255,255,255,.45) 0 18%,
+      transparent 19%
+    ),
+    radial-gradient(
+      ellipse at 79% 18%,
+      rgba(255,255,255,.40) 0 16%,
+      transparent 17%
+    );
+}}
+
+/* Pioggia / rovesci */
+#cml-previsioni.cml-bg-rain {{
+  background: linear-gradient(
+    150deg,
+    #315b73 0%,
+    #5f91ab 52%,
+    #d5e8ef 100%
+  );
+  box-shadow: 0 14px 34px rgba(18, 62, 85, .28);
+}}
+
+#cml-previsioni.cml-bg-rain::before {{
+  background: repeating-linear-gradient(
+    112deg,
+    transparent 0 19px,
+    rgba(211,244,255,.36) 20px 22px,
+    transparent 23px 42px
+  );
+  animation: cmlRainBackground 1.25s linear infinite;
+}}
+
+/* Neve */
+#cml-previsioni.cml-bg-snow {{
+  background: linear-gradient(
+    150deg,
+    #a6c8dc 0%,
+    #dceef6 52%,
+    #f8fcff 100%
+  );
+  box-shadow: 0 14px 34px rgba(74, 125, 153, .20);
+}}
+
+#cml-previsioni.cml-bg-snow::before {{
+  background:
+    radial-gradient(
+      circle at 12% 22%,
+      rgba(255,255,255,.95) 0 2px,
+      transparent 3px
+    ),
+    radial-gradient(
+      circle at 35% 10%,
+      rgba(255,255,255,.88) 0 3px,
+      transparent 4px
+    ),
+    radial-gradient(
+      circle at 58% 27%,
+      rgba(255,255,255,.92) 0 2px,
+      transparent 3px
+    ),
+    radial-gradient(
+      circle at 77% 15%,
+      rgba(255,255,255,.86) 0 3px,
+      transparent 4px
+    ),
+    radial-gradient(
+      circle at 92% 34%,
+      rgba(255,255,255,.92) 0 2px,
+      transparent 3px
+    );
+  background-size: 150px 130px;
+  animation: cmlSnowBackground 6s linear infinite;
+}}
+
+/* Temporale */
+#cml-previsioni.cml-bg-thunder {{
+  background: linear-gradient(
+    150deg,
+    #17283e 0%,
+    #40536f 54%,
+    #b9cad8 100%
+  );
+  box-shadow: 0 14px 34px rgba(10, 20, 38, .36);
+}}
+
+#cml-previsioni.cml-bg-thunder::before {{
+  background:
+    linear-gradient(
+      112deg,
+      transparent 48%,
+      rgba(255,237,150,.85) 49%,
+      transparent 50%
+    ),
+    radial-gradient(
+      circle at 76% 16%,
+      rgba(240,245,255,.38),
+      transparent 22%
+    );
+  animation: cmlThunderBackground 7s ease-in-out infinite;
+}}
+
+/* Nebbia */
+#cml-previsioni.cml-bg-fog {{
+  background: linear-gradient(
+    150deg,
+    #93a8ac 0%,
+    #c8d2d2 55%,
+    #eff4f3 100%
+  );
+  box-shadow: 0 14px 34px rgba(71, 89, 92, .18);
+}}
+
+#cml-previsioni.cml-bg-fog::before {{
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0 38px,
+    rgba(255,255,255,.42) 39px 60px,
+    transparent 61px 92px
+  );
+  animation: cmlFogBackground 9s ease-in-out infinite alternate;
+}}
+
+/* Cielo notturno */
+#cml-previsioni.cml-bg-night {{
+  background: linear-gradient(
+    150deg,
+    #07182e 0%,
+    #17375c 54%,
+    #456a89 100%
+  );
+  box-shadow: 0 14px 34px rgba(4, 18, 38, .34);
+}}
+
+#cml-previsioni.cml-bg-night::before {{
+  background:
+    radial-gradient(
+      circle at 83% 12%,
+      rgba(255,244,184,.95) 0 3%,
+      rgba(255,244,184,.20) 4% 12%,
+      transparent 13%
+    ),
+    radial-gradient(
+      circle at 13% 19%,
+      rgba(255,255,255,.9) 0 1px,
+      transparent 2px
+    ),
+    radial-gradient(
+      circle at 36% 8%,
+      rgba(255,255,255,.85) 0 1px,
+      transparent 2px
+    ),
+    radial-gradient(
+      circle at 61% 25%,
+      rgba(255,255,255,.8) 0 1px,
+      transparent 2px
+    );
+}}
+
+@keyframes cmlRainBackground {{
+  from {{
+    background-position: 0 0;
+  }}
+
+  to {{
+    background-position: -30px 74px;
+  }}
+}}
+
+@keyframes cmlSnowBackground {{
+  from {{
+    background-position: 0 0;
+  }}
+
+  to {{
+    background-position: 42px 126px;
+  }}
+}}
+
+@keyframes cmlThunderBackground {{
+  0%, 84%, 100% {{
+    opacity: .30;
+  }}
+
+  85%, 87% {{
+    opacity: .92;
+  }}
+
+  86% {{
+    opacity: .18;
+  }}
+}}
+
+@keyframes cmlFogBackground {{
+  from {{
+    transform: translateX(-18px);
+    opacity: .42;
+  }}
+
+  to {{
+    transform: translateX(18px);
+    opacity: .72;
+  }}
+}}
 * {{
   box-sizing: border-box;
 }}
@@ -4400,7 +4734,11 @@ body {{
 
 
 <!-- ===================== PREVISIONI ===================== -->
-<section id="cml-previsioni" class="cml-view" hidden>
+<section
+  id="cml-previsioni"
+  class="cml-view {classe_sfondo_meteo}"
+  hidden
+>
 
   <div class="cml-nav-bar">
     <button

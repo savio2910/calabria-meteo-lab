@@ -3940,6 +3940,117 @@ body {{
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }}
+/* Correzione finale: testo sopra, animazioni sotto, senza sovrapposizione */
+#cml-home .cml-home-hero {{
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 22px !important;
+
+  padding: 24px !important;
+  min-height: 0 !important;
+  height: auto !important;
+  overflow: hidden !important;
+}}
+
+/* Il pannello resta nella parte alta */
+#cml-home .cml-home-hero .cml-hero-content {{
+  position: relative !important;
+  inset: auto !important;
+  transform: none !important;
+
+  flex: 0 0 auto !important;
+  width: 100% !important;
+  max-width: none !important;
+  box-sizing: border-box !important;
+
+  margin: 0 !important;
+  padding: 24px 28px !important;
+  z-index: 2 !important;
+
+  background: #062b3b !important;
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  border-radius: 24px !important;
+
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  filter: none !important;
+}}
+
+/* Titolo più compatto: lascia spazio alla scena */
+#cml-home .cml-home-hero h1 {{
+  margin: 18px 0 16px !important;
+  font-size: clamp(42px, 5vw, 68px) !important;
+  line-height: 1.02 !important;
+  letter-spacing: -2px !important;
+}}
+
+#cml-home .cml-home-hero .cml-hero-content p {{
+  color: #ffffff !important;
+  font-size: clamp(17px, 1.7vw, 22px) !important;
+  font-weight: 700 !important;
+  line-height: 1.5 !important;
+  margin: 0 0 20px !important;
+}}
+
+/* L'illustrazione NON è più assoluta dietro al pannello */
+#cml-home .cml-home-hero .cml-hero-visual {{
+  position: relative !important;
+  inset: auto !important;
+  top: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  left: auto !important;
+
+  flex: 0 0 auto !important;
+  align-self: flex-end !important;
+
+  width: min(100%, 460px) !important;
+  max-width: 460px !important;
+  height: auto !important;
+  margin: 0 !important;
+
+  transform: none !important;
+  opacity: 1 !important;
+  z-index: 1 !important;
+
+  filter: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+
+  border-radius: 20px !important;
+  overflow: hidden !important;
+}}
+
+/* Sole, nuvole, pioggia e onde rimangono animati */
+#cml-home .cml-home-hero .cml-hero-scene {{
+  display: block !important;
+  width: 100% !important;
+  height: auto !important;
+  margin: 0 !important;
+  filter: none !important;
+}}
+
+@media (max-width: 560px) {{
+  #cml-home .cml-home-hero {{
+    padding: 14px !important;
+    gap: 16px !important;
+  }}
+
+  #cml-home .cml-home-hero .cml-hero-content {{
+    padding: 20px !important;
+  }}
+
+  #cml-home .cml-home-hero h1 {{
+    font-size: 44px !important;
+    letter-spacing: -1.5px !important;
+  }}
+
+  #cml-home .cml-home-hero .cml-hero-visual {{
+    align-self: center !important;
+    width: 100% !important;
+    max-width: 380px !important;
+  }}
 }}
 </style>
 </head>

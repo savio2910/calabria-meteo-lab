@@ -4695,23 +4695,6 @@ body {{
     </button>
 
     <button
-      class="cml-home-choice radar"
-      type="button"
-      onclick="mostraVista('radar')"
-    >
-      <div class="cml-home-choice-icon">📡</div>
-
-      <h2>Radar precipitazioni, nuvolosità e fulminazioni</h2>
-
-      <p>
-        Visualizza la sequenza radar delle precipitazioni in tempo quasi
-        reale, centrata sulla località selezionata.
-      </p>
-
-      <span>Apri radar →</span>
-    </button>
-
-    <button
       class="cml-home-choice activities"
       type="button"
       onclick="apriVistaAttivita()"

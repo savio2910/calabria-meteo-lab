@@ -2386,7 +2386,7 @@ def genera_app_completa(
     else:
         classe_sfondo_meteo = "cml-bg-clear"
         
-documento_html = f"""
+    documento_html = f"""
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -5736,7 +5736,7 @@ document.addEventListener("DOMContentLoaded", function() {{
 </html>
 """
 
-return documento_html
+    return documento_html
 
 
 # =============================================================================

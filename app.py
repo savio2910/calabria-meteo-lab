@@ -2301,7 +2301,7 @@ def genera_app_completa(
         except Exception:
             corrente["precipitation"] = 0.0
     
-    tabella_attivita_luogo = tabella_attivita_luogo_html(
+    tabella_attivita_luogo_html(
         luogo,
         corrente,
         is_costiero,
@@ -2350,209 +2350,50 @@ body {{
   position: relative;
   overflow: hidden;
   width: 100%;
-  min-height: 470px;
-  margin: 0 0 34px;
-  padding: 70px 7vw;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 30px;
+  min-height: 380px;
+  margin: 0 0 32px;
+  padding: 90px 7vw;
+  border: 1px solid #07516c;
+  border-radius: 28px;
   color: #ffffff;
   background:
-    radial-gradient(circle at 82% 12%, rgba(255, 210, 92, 0.22), transparent 30%),
-    linear-gradient(135deg, #04283c 0%, #07516c 48%, #0a7d8d 100%);
-  box-shadow: 0 18px 44px rgba(6, 45, 64, 0.28);
+    radial-gradient(circle at 85% 15%, rgba(255, 210, 92, 0.20), transparent 28%),
+    linear-gradient(135deg, #06324d 0%, #075b78 52%, #087f91 100%);
+  box-shadow: 0 14px 32px rgba(9, 61, 83, 0.22);
 }}
 
-.cml-hero-backdrop {{
+.cml-home-hero::before {{
+  content: "";
   position: absolute;
-  inset: 0;
-  pointer-events: none;
-}}
-
-.cml-hero-glow {{
-  position: absolute;
-  width: 560px;
-  height: 560px;
-  right: -180px;
-  top: -220px;
+  right: -85px;
+  bottom: -105px;
+  width: 310px;
+  height: 310px;
+  border: 36px solid rgba(255, 255, 255, 0.08);
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 205, 90, 0.35), transparent 65%);
-  filter: blur(10px);
-  animation: cmlHeroGlow 9s ease-in-out infinite alternate;
 }}
 
-.cml-hero-grid {{
-  position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.055) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.055) 1px, transparent 1px);
-  background-size: 52px 52px;
-  mask-image: radial-gradient(circle at 70% 30%, black, transparent 72%);
-}}
-
-.cml-hero-content {{
+.cml-home-hero > * {{
   position: relative;
-  z-index: 3;
-  max-width: 760px;
-  padding: 28px;
-  border-radius: 26px;
-  background: linear-gradient(100deg, rgba(2, 24, 37, 0.78), rgba(2, 24, 37, 0.45) 72%, transparent);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  backdrop-filter: blur(10px);
-}}
-
-.cml-brand {{
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  padding: 9px 16px;
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  border-radius: 999px;
-  background: rgba(0, 35, 55, 0.55);
-  color: #ffffff;
-  font-size: 11px;
-  font-weight: 850;
-  letter-spacing: 2px;
-  backdrop-filter: blur(8px);
-}}
-
-.cml-brand-mark {{
-  width: 11px;
-  height: 11px;
-  border-radius: 50%;
-  background: #ffd45c;
-  box-shadow: 0 0 0 5px rgba(255, 212, 92, 0.18);
-  animation: cmlPulse 2.4s ease-in-out infinite;
+  z-index: 1;
 }}
 
 .cml-home-hero h1 {{
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin: 24px 0 18px;
-  font-size: clamp(48px, 7vw, 98px);
-  font-weight: 900;
-  letter-spacing: -3px;
-  line-height: 0.98;
-  text-shadow: 0 4px 24px rgba(0, 20, 32, 0.55);
-}}
-
-.cml-hero-title-line {{
+  max-width: 1100px;
+  margin: 28px 0 20px;
   color: #ffffff;
-}}
-
-.cml-hero-title-accent {{
-  background: linear-gradient(90deg, #ffe27a, #8ff0d8 55%, #b6e4ff);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}}
-
-.cml-hero-lead {{
-  max-width: 680px;
-  margin: 0 0 24px;
-  color: #ffffff;
-  font-size: clamp(18px, 2vw, 25px);
-  font-weight: 700;
-  line-height: 1.55;
-  text-shadow: 0 2px 14px rgba(0, 20, 32, 0.75);
-}}
-
-.cml-hero-badges {{
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}}
-
-.cml-hero-badge {{
-  display: inline-flex;
-  align-items: center;
-  padding: 10px 15px;
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  border-radius: 999px;
-  background: rgba(2, 24, 37, 0.62);
-  color: #ffffff;
-  font-size: 12px;
+  font-size: clamp(48px, 6vw, 92px);
   font-weight: 850;
-  backdrop-filter: blur(8px);
-  transition: transform .18s ease, background .18s ease, border-color .18s ease;
+  letter-spacing: -1.5px;
+  line-height: 1.08;
 }}
 
-.cml-hero-badge:hover {{
-  transform: translateY(-2px);
-  background: rgba(255, 255, 255, 0.18);
-  border-color: rgba(255, 255, 255, 0.55);
-}}
-
-.cml-hero-visual {{
-  position: absolute;
-  right: 3vw;
-  bottom: -8px;
-  z-index: 1;
-  width: min(470px, 42vw);
-  opacity: .96;
-  pointer-events: none;
-}}
-
-.cml-hero-scene {{
-  width: 100%;
-  height: auto;
-  filter: drop-shadow(0 18px 36px rgba(0, 25, 38, 0.35));
-}}
-
-.cml-hero-sun {{
-  transform-origin: 318px 72px;
-  animation: cmlSunSpin 22s linear infinite;
-}}
-
-.cml-hero-cloud {{
-  animation: cmlCloudFloat 8s ease-in-out infinite alternate;
-}}
-
-.cml-hero-rain line {{
-  animation: cmlRainFall 1.15s linear infinite;
-}}
-
-.cml-hero-rain line:nth-child(2) {{ animation-delay: .18s; }}
-.cml-hero-rain line:nth-child(3) {{ animation-delay: .36s; }}
-.cml-hero-rain line:nth-child(4) {{ animation-delay: .54s; }}
-
-.cml-hero-waves path {{
-  animation: cmlWaveMove 3.2s ease-in-out infinite alternate;
-}}
-
-.cml-hero-waves path:nth-child(2) {{ animation-delay: .25s; }}
-.cml-hero-waves path:nth-child(3) {{ animation-delay: .50s; }}
-.cml-hero-waves path:nth-child(4) {{ animation-delay: .75s; }}
-
-@keyframes cmlHeroGlow {{
-  from {{ transform: scale(.94); opacity: .72; }}
-  to {{ transform: scale(1.08); opacity: 1; }}
-}}
-
-@keyframes cmlPulse {{
-  0%, 100% {{ box-shadow: 0 0 0 5px rgba(255, 212, 92, 0.18); }}
-  50% {{ box-shadow: 0 0 0 10px rgba(255, 212, 92, 0.08); }}
-}}
-
-@keyframes cmlSunSpin {{
-  to {{ transform: rotate(360deg); }}
-}}
-
-@keyframes cmlCloudFloat {{
-  from {{ transform: translateX(-7px); }}
-  to {{ transform: translateX(12px); }}
-}}
-
-@keyframes cmlRainFall {{
-  0% {{ transform: translateY(-8px); opacity: 0; }}
-  25% {{ opacity: 1; }}
-  100% {{ transform: translateY(20px); opacity: 0; }}
-}}
-
-@keyframes cmlWaveMove {{
-  from {{ transform: translateX(-9px); }}
-  to {{ transform: translateX(9px); }}
+.cml-home-hero p {{
+  max-width: 1050px;
+  margin: 0;
+  color: #e2f5f8;
+  font-size: clamp(18px, 2vw, 27px);
+  line-height: 1.7;
 }}
 
 .cml-home-actions {{
@@ -3748,203 +3589,6 @@ body {{
     flex-direction: column;
   }}
 }}
-
-/* Intestazione: pannello in alto, animazioni nella fascia inferiore */
-.cml-home-hero {{
-  padding: 28px 36px 270px;
-  min-height: 640px;
-}}
-
-.cml-home-hero .cml-hero-content {{
-  position: relative;
-  z-index: 3;
-  max-width: 950px;
-  margin: 0;
-  padding: 24px 28px;
-  border-radius: 24px;
-  background: rgba(2, 24, 37, 0.82);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-}}
-
-.cml-home-hero h1 {{
-  margin: 18px 0 16px;
-  font-size: clamp(44px, 5.5vw, 76px);
-}}
-
-.cml-home-hero .cml-hero-lead {{
-  color: #ffffff;
-  font-weight: 700;
-  margin-bottom: 18px;
-}}
-
-.cml-home-hero .cml-hero-visual {{
-  position: absolute;
-  right: 30px;
-  bottom: 0;
-  width: min(420px, 44vw);
-  margin: 0;
-  z-index: 1;
-  opacity: 1;
-  pointer-events: none;
-}}
-
-@media (max-width: 900px) {{
-  .cml-home-hero {{
-    padding: 22px 22px 250px;
-    min-height: 0;
-  }}
-
-  .cml-home-hero .cml-hero-content {{
-    max-width: 100%;
-    padding: 22px;
-  }}
-
-  .cml-home-hero .cml-hero-visual {{
-    position: absolute;
-    right: 18px;
-    bottom: 0;
-    width: min(390px, 70vw);
-    margin: 0;
-  }}
-}}
-
-@media (max-width: 560px) {{
-  .cml-home-hero {{
-    padding: 16px 16px 220px;
-  }}
-
-  .cml-home-hero .cml-hero-content {{
-    padding: 18px;
-  }}
-
-  .cml-home-hero h1 {{
-    font-size: 44px;
-    letter-spacing: -1.5px;
-  }}
-
-  .cml-home-hero .cml-hero-lead {{
-    font-size: 17px;
-    line-height: 1.5;
-  }}
-
-  .cml-home-hero .cml-hero-visual {{
-    right: 12px;
-    width: min(340px, 88vw);
-  }}
-
-  /* Radar decorativo nello sfondo dell'illustrazione */
-.cml-radar-sweep {{
-  transform-origin: 345px 155px;
-  animation: cmlRadarSweep 9s linear infinite;
-}}
-
-@keyframes cmlRadarSweep {{
-  from {{
-    transform: rotate(0deg);
-  }}
-
-  to {{
-    transform: rotate(360deg);
-  }}
-}}
-
-/* Particelle atmosferiche: movimento molto lento e delicato */
-.cml-hero-particles circle {{
-  opacity: 0.20;
-  animation: cmlParticleFloat 5.5s ease-in-out infinite alternate;
-}}
-
-.cml-hero-particles circle:nth-child(2) {{
-  animation-delay: -1.0s;
-  animation-duration: 6.8s;
-}}
-
-.cml-hero-particles circle:nth-child(3) {{
-  animation-delay: -2.4s;
-  animation-duration: 5.9s;
-}}
-
-.cml-hero-particles circle:nth-child(4) {{
-  animation-delay: -1.7s;
-  animation-duration: 7.2s;
-}}
-
-.cml-hero-particles circle:nth-child(5) {{
-  animation-delay: -3.1s;
-  animation-duration: 6.1s;
-}}
-
-.cml-hero-particles circle:nth-child(6) {{
-  animation-delay: -0.6s;
-  animation-duration: 7.5s;
-}}
-
-@keyframes cmlParticleFloat {{
-  from {{
-    transform: translate(0, 0);
-    opacity: 0.14;
-  }}
-
-  to {{
-    transform: translate(8px, -15px);
-    opacity: 0.62;
-  }}
-}}
-
-/* Flash di fulmine: raro, breve, non invasivo */
-.cml-hero-lightning {{
-  transform-origin: 255px 140px;
-  filter: drop-shadow(0 0 8px rgba(255, 239, 133, 0.95));
-  animation: cmlLightningFlash 11s ease-in-out infinite;
-}}
-
-@keyframes cmlLightningFlash {{
-  0%, 76%, 78%, 100% {{
-    opacity: 0;
-  }}
-
-  77% {{
-    opacity: 0.96;
-  }}
-
-  77.35% {{
-    opacity: 0.18;
-  }}
-
-  77.7% {{
-    opacity: 0.82;
-  }}
-}}
-
-/* Entrata morbida del riquadro testuale della home */
-.cml-home-hero .cml-hero-content {{
-  animation: cmlHeroContentEnter 760ms cubic-bezier(.18, .82, .28, 1) both;
-}}
-
-@keyframes cmlHeroContentEnter {{
-  from {{
-    opacity: 0;
-    transform: translateY(18px);
-  }}
-
-  to {{
-    opacity: 1;
-    transform: translateY(0);
-  }}
-}}
-
-/* Rispetto di chi preferisce meno animazioni */
-@media (prefers-reduced-motion: reduce) {{
-  .cml-home-hero *,
-  .cml-home-hero *::before,
-  .cml-home-hero *::after {{
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }}
-}}
-
 </style>
 </head>
 
@@ -3954,253 +3598,18 @@ body {{
 <section id="cml-home" class="cml-view">
 
   <section class="cml-home-hero">
-    <div class="cml-hero-backdrop" aria-hidden="true">
-      <div class="cml-hero-glow"></div>
-      <div class="cml-hero-grid"></div>
+    <div class="cml-brand">
+      <span class="cml-brand-mark"></span>
+      CALABRIA · METEOROLOGIA LOCALE
     </div>
 
-    <div class="cml-hero-content">
-      <div class="cml-brand">
-        <span class="cml-brand-mark"></span>
-        CALABRIA · METEOROLOGIA LOCALE
-      </div>
+    <h1>Calabria Meteo Lab</h1>
 
-      <h1>
-        <span class="cml-hero-title-line">Calabria</span>
-        <span class="cml-hero-title-accent">Meteo Lab</span>
-      </h1>
-
-      <p class="cml-hero-lead">
-        Radar delle precipitazioni, satellite nuvolosità, fulminazioni, previsioni orarie e
-        tabella consigli per lo svolgimento di attività all'aperto.
-      </p>
-
-      <div class="cml-hero-badges">
-        <span class="cml-hero-badge">🌦️ ICON-2I</span>
-        <span class="cml-hero-badge">📡 Radar live</span>
-        <span class="cml-hero-badge">🛰️ Satellite</span>
-        <span class="cml-hero-badge">⚡ Fulmini</span>
-      </div>
-    </div>
-
-    <div class="cml-hero-visual" aria-hidden="true">
-      <svg class="cml-hero-scene" viewBox="0 0 420 260" role="img" aria-label="Illustrazione meteorologica della Calabria">
-        <defs>
-          <linearGradient id="cmlSky" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#0b3f5c"/>
-            <stop offset="55%" stop-color="#12708c"/>
-            <stop offset="100%" stop-color="#22a3ad"/>
-          </linearGradient>
-          <linearGradient id="cmlSea" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#0d6d86"/>
-            <stop offset="100%" stop-color="#063a4d"/>
-          </linearGradient>
-          <linearGradient id="cmlLand" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#2f7a5b"/>
-            <stop offset="100%" stop-color="#14453a"/>
-          </linearGradient>
-          <radialGradient id="cmlSun" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stop-color="#ffe89a"/>
-            <stop offset="70%" stop-color="#ffc247"/>
-            <stop offset="100%" stop-color="#ff9d2e"/>
-          </radialGradient>
-        </defs>
-
-        <rect width="420" height="260" fill="url(#cmlSky)"/>
-
-        <!-- Radar meteorologico in lontananza -->
-        <g class="cml-radar-sweep" opacity=".30">
-          <circle cx="345" cy="155" r="72" fill="none"
-                  stroke="#9ee8ed" stroke-width="1.4"/>
-          <circle cx="345" cy="155" r="48" fill="none"
-                  stroke="#9ee8ed" stroke-width="1.1"/>
-          <circle cx="345" cy="155" r="24" fill="none"
-                  stroke="#9ee8ed" stroke-width="1"/>
-          <line x1="345" y1="155" x2="409" y2="155"
-                stroke="#d7ffff" stroke-width="1.5"/>
-        </g>
-        
-        <!-- Particelle atmosferiche -->
-        <g class="cml-hero-particles" fill="#d8fbff">
-          <circle cx="44" cy="52" r="2"/>
-          <circle cx="68" cy="178" r="1.6"/>
-          <circle cx="244" cy="31" r="1.5"/>
-          <circle cx="386" cy="126" r="2"/>
-          <circle cx="256" cy="175" r="1.4"/>
-          <circle cx="29" cy="213" r="1.3"/>
-        </g>
-        
-        <!-- Fulmine discreto -->
-        <path
-          class="cml-hero-lightning"
-          d="M252 104 L234 142 L251 142 L239 172 L274 126 L256 126 Z"
-          fill="#fff1a3"
-          opacity="0"
-        />
-
-        <g class="cml-hero-sun">
-          <circle cx="318" cy="72" r="34" fill="url(#cmlSun)"/>
-          <g class="cml-hero-rays" stroke="#ffd166" stroke-width="4" stroke-linecap="round">
-            <line x1="318" y1="16" x2="318" y2="28"/>
-            <line x1="318" y1="116" x2="318" y2="128"/>
-            <line x1="262" y1="72" x2="274" y2="72"/>
-            <line x1="362" y1="72" x2="374" y2="72"/>
-            <line x1="279" y1="33" x2="288" y2="42"/>
-            <line x1="348" y1="102" x2="357" y2="111"/>
-            <line x1="357" y1="33" x2="348" y2="42"/>
-            <line x1="288" y1="102" x2="279" y2="111"/>
-          </g>
-        </g>
-
-        <g class="cml-hero-cloud">
-          <path d="M116 96c0-16 13-29 29-29 8 0 15 3 20 9 5-12 17-20 31-20 19 0 34 15 34 34 0 2 0 4-1 6h-113z" fill="#eaf4f8" opacity=".94"/>
-          <path d="M70 122c0-12 10-22 22-22 6 0 11 2 15 7 4-9 13-15 24-15 14 0 26 12 26 26 0 2 0 3-1 4H70z" fill="#dcebf1" opacity=".82"/>
-        </g>
-
-        <g class="cml-hero-rain" stroke="#8ed8f2" stroke-width="4" stroke-linecap="round">
-          <line x1="112" y1="140" x2="104" y2="162"/>
-          <line x1="140" y1="140" x2="132" y2="162"/>
-          <line x1="168" y1="140" x2="160" y2="162"/>
-          <line x1="196" y1="140" x2="188" y2="162"/>
-        </g>
-
-        <path d="M0 197c48-38 92-58 141-52 40 5 69 24 110 18 49-7 89-33 169-24v121H0z" fill="url(#cmlLand)"/>
-        <path d="M0 226c58-25 111-34 168-22 55 12 96 7 138-11 43-18 78-20 114-10v87H0z" fill="url(#cmlSea)"/>
-        <g class="cml-hero-waves" stroke="#9be3ef" stroke-width="3" stroke-linecap="round" opacity=".7">
-          <path d="M35 236c14-7 28-7 42 0"/>
-          <path d="M112 247c14-7 28-7 42 0"/>
-          <path d="M208 238c14-7 28-7 42 0"/>
-          <path d="M292 250c14-7 28-7 42 0"/>
-        </g>
-      </svg>
-    </div>
+    <p>
+      Previsioni meteorologiche locali e radar delle precipitazioni
+      per la Calabria. Scegli la sezione che vuoi consultare.
+    </p>
   </section>
-
-  <section class="cml-radar-box">
-    <div class="cml-radar-head">
-      <div>
-        <h2>📡 Radar precipitazioni live</h2>
-
-        <p>
-          Sequenza radar RainViewer centrata sulla località selezionata:
-          {html.escape(luogo)}.
-        </p>
-      </div>
-
-      <button
-        class="cml-radar-btn"
-        id="btn-play"
-        type="button"
-        onclick="togglePlayRadar()"
-      >
-        ⏸ Pausa
-      </button>
-    </div>
-
-    <div id="radar-map"></div>
-
-    <div class="cml-radar-footer">
-      <span>
-        🛰️ Base cartografica OpenStreetMap · Overlay radar RainViewer
-      </span>
-
-      <span>
-        Frame:
-        <span id="radar-timestamp" class="cml-radar-time">
-          caricamento...
-        </span>
-      </span>
-    </div>
-  </section>
-
-  <div class="cml-note">
-    ℹ️ Il radar mostra le precipitazioni osservate dai frame disponibili.
-    Non costituisce un bollettino di allerta né una previsione ufficiale.
-  </div>
-
-  <!-- ===================== SATELLITE NUVOLOSITÀ ===================== -->
-  <section class="cml-radar-box">
-    <div class="cml-radar-head">
-      <div>
-        <h2>🛰️ Satellite · Nuvolosità</h2>
-        <p>
-          Immagini satellitari delle nubi, centrate sulla località
-          selezionata: {html.escape(luogo)}.
-          Controlla l’orario dell’immagine nella mappa.
-        </p>
-      </div>
-    </div>
-
-    <iframe
-      title="Satellite della nuvolosità"
-      loading="lazy"
-      src="https://embed.windy.com/embed2.html?lat={latitudine}&amp;lon={longitudine}&amp;zoom=7&amp;level=surface&amp;overlay=satellite&amp;product=satellite&amp;menu=&amp;message=&amp;marker=true&amp;calendar=now&amp;pressure=&amp;type=map&amp;location=coordinates&amp;detail=&amp;metricWind=km%2Fh&amp;metricTemp=%C2%B0C"
-      style="display:block;width:100%;height:520px;border:1px solid #d8e7eb;border-radius:16px;"
-      allowfullscreen
-    ></iframe>
-
-    <div class="cml-radar-footer">
-      <span>🛰️ Visualizzazione satellitare · Windy</span>
-      <a
-        href="https://www.windy.com/-Satellite-satellite?satellite,{latitudine},{longitudine},7"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        Apri il satellite su Windy ↗
-      </a>
-    </div>
-
-    <div class="cml-marine-note">
-      ℹ️ Le immagini satellitari mostrano le nubi:
-      non sono una misura diretta della pioggia al suolo.
-      Se il widget non mostra il satellite, usa il collegamento
-      oppure configura il riquadro dal generatore ufficiale Windy.
-    </div>
-  </section>
-
-  <!-- ===================== FULMINAZIONI ===================== -->
-  <section class="cml-radar-box">
-    <div class="cml-radar-head">
-      <div>
-        <h2>⚡ Fulminazioni osservate</h2>
-        <p>
-          Scariche rilevate dalla rete Blitzortung,
-          con mappa centrata su {html.escape(luogo)}.
-        </p>
-      </div>
-    </div>
-
-    <iframe
-      title="Mappa delle fulminazioni Blitzortung"
-      loading="lazy"
-      src="https://map.blitzortung.org/index.php?interactive=1&amp;NavigationControl=1&amp;FullScreenControl=1&amp;Cookies=0&amp;InfoDiv=1&amp;MenuButtonDiv=1&amp;ScaleControl=1#7/{latitudine}/{longitudine}"
-      style="display:block;width:100%;height:520px;border:1px solid #d8e7eb;border-radius:16px;"
-      allowfullscreen
-    ></iframe>
-
-    <div class="cml-radar-footer">
-      <span>⚡ Dati: Blitzortung.org e collaboratori</span>
-      <a
-        href="https://map.blitzortung.org/#7/{latitudine}/{longitudine}"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        Apri la mappa dei fulmini ↗
-      </a>
-    </div>
-
-    <div class="cml-marine-note">
-      ℹ️ La mappa mostra le scariche rilevate dalla rete,
-      non una previsione dei fulmini.
-      L’assenza di scariche visualizzate non garantisce
-      l’assenza di rischio temporalesco.
-      Consulta gli avvisi ufficiali.
-    </div>
-  </section>
-
-</section>
-
-
 
   <section class="cml-home-actions">
 
@@ -4221,22 +3630,6 @@ body {{
       <span>Apri previsioni →</span>
     </button>
 
-    <button
-      class="cml-home-choice radar"
-      type="button"
-      onclick="mostraVista('radar')"
-    >
-      <div class="cml-home-choice-icon">📡</div>
-
-      <h2>Radar precipitazioni, nuvolosità e fulminazioni</h2>
-
-      <p>
-        Visualizza la sequenza radar delle precipitazioni in tempo quasi
-        reale, centrata sulla località selezionata.
-      </p>
-
-      <span>Apri radar →</span>
-    </button>
 
     <button
       class="cml-home-choice activities"
@@ -4383,7 +3776,145 @@ body {{
 
 
 <!-- ===================== RADAR ===================== -->
+<section id="cml-radar" class="cml-view" hidden>
 
+  <div class="cml-nav-bar">
+    <button
+      class="cml-back-btn"
+      type="button"
+      onclick="mostraVista('home')"
+    >
+      ← Torna alla home
+    </button>
+
+    <span class="cml-nav-title">
+      📡 Radar precipitazioni, nuvolosità e fulminazioni · {html.escape(luogo)}
+    </span>
+  </div>
+
+  <section class="cml-radar-box">
+    <div class="cml-radar-head">
+      <div>
+        <h2>📡 Radar precipitazioni live</h2>
+
+        <p>
+          Sequenza radar RainViewer centrata sulla località selezionata:
+          {html.escape(luogo)}.
+        </p>
+      </div>
+
+      <button
+        class="cml-radar-btn"
+        id="btn-play"
+        type="button"
+        onclick="togglePlayRadar()"
+      >
+        ⏸ Pausa
+      </button>
+    </div>
+
+    <div id="radar-map"></div>
+
+    <div class="cml-radar-footer">
+      <span>
+        🛰️ Base cartografica OpenStreetMap · Overlay radar RainViewer
+      </span>
+
+      <span>
+        Frame:
+        <span id="radar-timestamp" class="cml-radar-time">
+          caricamento...
+        </span>
+      </span>
+    </div>
+  </section>
+
+  <div class="cml-note">
+    ℹ️ Il radar mostra le precipitazioni osservate dai frame disponibili.
+    Non costituisce un bollettino di allerta né una previsione ufficiale.
+  </div>
+
+  <!-- ===================== SATELLITE NUVOLOSITÀ ===================== -->
+  <section class="cml-radar-box">
+    <div class="cml-radar-head">
+      <div>
+        <h2>🛰️ Satellite · Nuvolosità</h2>
+        <p>
+          Immagini satellitari delle nubi, centrate sulla località
+          selezionata: {html.escape(luogo)}.
+          Controlla l’orario dell’immagine nella mappa.
+        </p>
+      </div>
+    </div>
+
+    <iframe
+      title="Satellite della nuvolosità"
+      loading="lazy"
+      src="https://embed.windy.com/embed2.html?lat={latitudine}&amp;lon={longitudine}&amp;zoom=7&amp;level=surface&amp;overlay=satellite&amp;product=satellite&amp;menu=&amp;message=&amp;marker=true&amp;calendar=now&amp;pressure=&amp;type=map&amp;location=coordinates&amp;detail=&amp;metricWind=km%2Fh&amp;metricTemp=%C2%B0C"
+      style="display:block;width:100%;height:520px;border:1px solid #d8e7eb;border-radius:16px;"
+      allowfullscreen
+    ></iframe>
+
+    <div class="cml-radar-footer">
+      <span>🛰️ Visualizzazione satellitare · Windy</span>
+      <a
+        href="https://www.windy.com/-Satellite-satellite?satellite,{latitudine},{longitudine},7"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        Apri il satellite su Windy ↗
+      </a>
+    </div>
+
+    <div class="cml-marine-note">
+      ℹ️ Le immagini satellitari mostrano le nubi:
+      non sono una misura diretta della pioggia al suolo.
+      Se il widget non mostra il satellite, usa il collegamento
+      oppure configura il riquadro dal generatore ufficiale Windy.
+    </div>
+  </section>
+
+  <!-- ===================== FULMINAZIONI ===================== -->
+  <section class="cml-radar-box">
+    <div class="cml-radar-head">
+      <div>
+        <h2>⚡ Fulminazioni osservate</h2>
+        <p>
+          Scariche rilevate dalla rete Blitzortung,
+          con mappa centrata su {html.escape(luogo)}.
+        </p>
+      </div>
+    </div>
+
+    <iframe
+      title="Mappa delle fulminazioni Blitzortung"
+      loading="lazy"
+      src="https://map.blitzortung.org/index.php?interactive=1&amp;NavigationControl=1&amp;FullScreenControl=1&amp;Cookies=0&amp;InfoDiv=1&amp;MenuButtonDiv=1&amp;ScaleControl=1#7/{latitudine}/{longitudine}"
+      style="display:block;width:100%;height:520px;border:1px solid #d8e7eb;border-radius:16px;"
+      allowfullscreen
+    ></iframe>
+
+    <div class="cml-radar-footer">
+      <span>⚡ Dati: Blitzortung.org e collaboratori</span>
+      <a
+        href="https://map.blitzortung.org/#7/{latitudine}/{longitudine}"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        Apri la mappa dei fulmini ↗
+      </a>
+    </div>
+
+    <div class="cml-marine-note">
+      ℹ️ La mappa mostra le scariche rilevate dalla rete,
+      non una previsione dei fulmini.
+      L’assenza di scariche visualizzate non garantisce
+      l’assenza di rischio temporalesco.
+      Consulta gli avvisi ufficiali.
+    </div>
+  </section>
+
+</section>
 
 
 <!-- ===================== ATTIVITÀ ===================== -->
@@ -5273,7 +4804,7 @@ except (FileNotFoundError, ValueError) as errore_costieri:
     st.error(str(errore_costieri))
     st.stop()
 
-st.markdown("## 🔎 Cerca la tua località (Solo comuni calabresi)")
+st.markdown("## 🔎 Seleziona località calabrese")
 
 with st.form("search_form", clear_on_submit=False):
     colonna_input, colonna_bottone = st.columns([4, 1])
@@ -5282,7 +4813,10 @@ with st.form("search_form", clear_on_submit=False):
         testo_localita = st.text_input(
             "Località",
             value="",
-            placeholder="",
+            placeholder=(
+                "Scrivi es. Cosenza, Tropea, Scilla, "
+                "Camigliatello Silano, Serra San Bruno..."
+            ),
             label_visibility="collapsed",
         )
 

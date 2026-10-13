@@ -2281,18 +2281,29 @@ def genera_app_completa(
         correzione_osservativa
     )
 
-    dati_attivita = dict(corrente)
-    if valore_finito(dati_attivita.get("precipitation"), None) is None:
-        ora_attivita = pd.to_datetime(corrente.get("time"), errors="coerce")
-        ore_complete = pd.DataFrame(dati_terrestri.get("hourly", {}))
-        if pd.notna(ora_attivita) and {"time", "precipitation"}.issubset(ore_complete.columns):
-            tempi = pd.to_datetime(ore_complete["time"], errors="coerce")
-            valori = ore_complete.loc[tempi == ora_attivita.floor("h"), "precipitation"]
-            if not valori.empty:
-                dati_attivita["precipitation"] = valore_finito(valori.iloc[0], None)
-    tabella_attivita_luogo = tabella_attivita_luogo_html(
+    if "precipitation" not in corrente or corrente.get("precipitation") is None:
+        try:
+            ora_corrente = pd.Timestamp(
+                corrente.get("time")
+            ).floor("h")
+    
+            pioggia_ora = ore.loc[
+                ore["time"] == ora_corrente,
+                "precipitation",
+            ]
+    
+            corrente["precipitation"] = (
+                float(pioggia_ora.iloc[0])
+                if not pioggia_ora.empty
+                and pd.notna(pioggia_ora.iloc[0])
+                else 0.0
+            )
+        except Exception:
+            corrente["precipitation"] = 0.0
+    
+    tabella_attivita_luogo_html(
         luogo,
-        dati_attivita,
+        corrente,
         is_costiero,
     )
 
@@ -3595,65 +3606,159 @@ body {{
     <h1>Calabria Meteo Lab</h1>
 
     <p>
-      Previsioni meteorologiche locali e radar delle precipitazioni
-      per la Calabria. Scegli la sezione che vuoi consultare.
+      Seleziona una località calabrese per consultare previsioni, radar,
+      satellite e fulminazioni. La località scelta viene applicata a tutte
+      le sezioni dell’applicazione.
     </p>
   </section>
 
-  <section class="cml-home-actions">
+st.markdown("## 🔎 Seleziona località calabrese")
 
-    <button
-      class="cml-home-choice"
-      type="button"
-      onclick="mostraVista('previsioni')"
-    >
-      <div class="cml-home-choice-icon">📅</div>
+with st.form("search_form", clear_on_submit=False):
+    colonna_input, colonna_bottone = st.columns([4, 1])
 
-      <h2>Previsioni orarie</h2>
+    with colonna_input:
+        testo_localita = st.text_input(
+            "Località",
+            value="",
+            placeholder=(
+                "Scrivi es. Cosenza, Tropea, Scilla, "
+                "Camigliatello Silano, Serra San Bruno..."
+            ),
+            label_visibility="collapsed",
+        )
 
-      <p>
-        Consulta condizioni attuali, temperatura, vento, precipitazioni,
-        tabelle ora per ora e grafici per i prossimi tre giorni.
-      </p>
+    with colonna_bottone:
+        cerca_localita = st.form_submit_button(
+            "Aggiorna previsione",
+            use_container_width=True,
+            type="primary",
+        )
 
-      <span>Apri previsioni →</span>
-    </button>
 
-    <button
-      class="cml-home-choice radar"
-      type="button"
-      onclick="mostraVista('radar')"
-    >
-      <div class="cml-home-choice-icon">📡</div>
+  <section class="cml-radar-box">
+    <div class="cml-radar-head">
+      <div>
+        <h2>📡 Radar precipitazioni live</h2>
 
-      <h2>Radar precipitazioni, nuvolosità e fulminazioni</h2>
+        <p>
+          Sequenza radar RainViewer centrata sulla località selezionata:
+          {html.escape(luogo)}.
+        </p>
+      </div>
 
-      <p>
-        Visualizza la sequenza radar delle precipitazioni in tempo quasi
-        reale, centrata sulla località selezionata.
-      </p>
+      <button
+        class="cml-radar-btn"
+        id="btn-play"
+        type="button"
+        onclick="togglePlayRadar()"
+      >
+        ⏸ Pausa
+      </button>
+    </div>
 
-      <span>Apri radar →</span>
-    </button>
+    <div id="radar-map"></div>
 
-    <button
-      class="cml-home-choice activities"
-      type="button"
-      onclick="apriVistaAttivita()"
-    >
-      <div class="cml-home-choice-icon">🏃</div>
+    <div class="cml-radar-footer">
+      <span>
+        🛰️ Base cartografica OpenStreetMap · Overlay radar RainViewer
+      </span>
 
-      <h2>Attività</h2>
-
-      <p>
-        Scopri quali attività sono più adatte alle condizioni meteorologiche
-        previste nelle diverse zone della Calabria.
-      </p>
-
-      <span>Apri attività →</span>
-    </button>
-
+      <span>
+        Frame:
+        <span id="radar-timestamp" class="cml-radar-time">
+          caricamento...
+        </span>
+      </span>
+    </div>
   </section>
+
+  <div class="cml-note">
+    ℹ️ Il radar mostra le precipitazioni osservate dai frame disponibili.
+    Non costituisce un bollettino di allerta né una previsione ufficiale.
+  </div>
+
+  <!-- ===================== SATELLITE NUVOLOSITÀ ===================== -->
+  <section class="cml-radar-box">
+    <div class="cml-radar-head">
+      <div>
+        <h2>🛰️ Satellite · Nuvolosità</h2>
+        <p>
+          Immagini satellitari delle nubi, centrate sulla località
+          selezionata: {html.escape(luogo)}.
+          Controlla l’orario dell’immagine nella mappa.
+        </p>
+      </div>
+    </div>
+
+    <iframe
+      title="Satellite della nuvolosità"
+      loading="lazy"
+      src="https://embed.windy.com/embed2.html?lat={latitudine}&amp;lon={longitudine}&amp;zoom=7&amp;level=surface&amp;overlay=satellite&amp;product=satellite&amp;menu=&amp;message=&amp;marker=true&amp;calendar=now&amp;pressure=&amp;type=map&amp;location=coordinates&amp;detail=&amp;metricWind=km%2Fh&amp;metricTemp=%C2%B0C"
+      style="display:block;width:100%;height:520px;border:1px solid #d8e7eb;border-radius:16px;"
+      allowfullscreen
+    ></iframe>
+
+    <div class="cml-radar-footer">
+      <span>🛰️ Visualizzazione satellitare · Windy</span>
+      <a
+        href="https://www.windy.com/-Satellite-satellite?satellite,{latitudine},{longitudine},7"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        Apri il satellite su Windy ↗
+      </a>
+    </div>
+
+    <div class="cml-marine-note">
+      ℹ️ Le immagini satellitari mostrano le nubi:
+      non sono una misura diretta della pioggia al suolo.
+      Se il widget non mostra il satellite, usa il collegamento
+      oppure configura il riquadro dal generatore ufficiale Windy.
+    </div>
+  </section>
+
+  <!-- ===================== FULMINAZIONI ===================== -->
+  <section class="cml-radar-box">
+    <div class="cml-radar-head">
+      <div>
+        <h2>⚡ Fulminazioni osservate</h2>
+        <p>
+          Scariche rilevate dalla rete Blitzortung,
+          con mappa centrata su {html.escape(luogo)}.
+        </p>
+      </div>
+    </div>
+
+    <iframe
+      title="Mappa delle fulminazioni Blitzortung"
+      loading="lazy"
+      src="https://map.blitzortung.org/index.php?interactive=1&amp;NavigationControl=1&amp;FullScreenControl=1&amp;Cookies=0&amp;InfoDiv=1&amp;MenuButtonDiv=1&amp;ScaleControl=1#7/{latitudine}/{longitudine}"
+      style="display:block;width:100%;height:520px;border:1px solid #d8e7eb;border-radius:16px;"
+      allowfullscreen
+    ></iframe>
+
+    <div class="cml-radar-footer">
+      <span>⚡ Dati: Blitzortung.org e collaboratori</span>
+      <a
+        href="https://map.blitzortung.org/#7/{latitudine}/{longitudine}"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        Apri la mappa dei fulmini ↗
+      </a>
+    </div>
+
+    <div class="cml-marine-note">
+      ℹ️ La mappa mostra le scariche rilevate dalla rete,
+      non una previsione dei fulmini.
+      L’assenza di scariche visualizzate non garantisce
+      l’assenza di rischio temporalesco.
+      Consulta gli avvisi ufficiali.
+    </div>
+  </section>
+
+</section>
 
 </section>
 
@@ -3781,145 +3886,7 @@ body {{
 
 
 <!-- ===================== RADAR ===================== -->
-<section id="cml-radar" class="cml-view" hidden>
 
-  <div class="cml-nav-bar">
-    <button
-      class="cml-back-btn"
-      type="button"
-      onclick="mostraVista('home')"
-    >
-      ← Torna alla home
-    </button>
-
-    <span class="cml-nav-title">
-      📡 Radar precipitazioni, nuvolosità e fulminazioni · {html.escape(luogo)}
-    </span>
-  </div>
-
-  <section class="cml-radar-box">
-    <div class="cml-radar-head">
-      <div>
-        <h2>📡 Radar precipitazioni live</h2>
-
-        <p>
-          Sequenza radar RainViewer centrata sulla località selezionata:
-          {html.escape(luogo)}.
-        </p>
-      </div>
-
-      <button
-        class="cml-radar-btn"
-        id="btn-play"
-        type="button"
-        onclick="togglePlayRadar()"
-      >
-        ⏸ Pausa
-      </button>
-    </div>
-
-    <div id="radar-map"></div>
-
-    <div class="cml-radar-footer">
-      <span>
-        🛰️ Base cartografica OpenStreetMap · Overlay radar RainViewer
-      </span>
-
-      <span>
-        Frame:
-        <span id="radar-timestamp" class="cml-radar-time">
-          caricamento...
-        </span>
-      </span>
-    </div>
-  </section>
-
-  <div class="cml-note">
-    ℹ️ Il radar mostra le precipitazioni osservate dai frame disponibili.
-    Non costituisce un bollettino di allerta né una previsione ufficiale.
-  </div>
-
-  <!-- ===================== SATELLITE NUVOLOSITÀ ===================== -->
-  <section class="cml-radar-box">
-    <div class="cml-radar-head">
-      <div>
-        <h2>🛰️ Satellite · Nuvolosità</h2>
-        <p>
-          Immagini satellitari delle nubi, centrate sulla località
-          selezionata: {html.escape(luogo)}.
-          Controlla l’orario dell’immagine nella mappa.
-        </p>
-      </div>
-    </div>
-
-    <iframe
-      title="Satellite della nuvolosità"
-      loading="lazy"
-      src="https://embed.windy.com/embed2.html?lat={latitudine}&amp;lon={longitudine}&amp;zoom=7&amp;level=surface&amp;overlay=satellite&amp;product=satellite&amp;menu=&amp;message=&amp;marker=true&amp;calendar=now&amp;pressure=&amp;type=map&amp;location=coordinates&amp;detail=&amp;metricWind=km%2Fh&amp;metricTemp=%C2%B0C"
-      style="display:block;width:100%;height:520px;border:1px solid #d8e7eb;border-radius:16px;"
-      allowfullscreen
-    ></iframe>
-
-    <div class="cml-radar-footer">
-      <span>🛰️ Visualizzazione satellitare · Windy</span>
-      <a
-        href="https://www.windy.com/-Satellite-satellite?satellite,{latitudine},{longitudine},7"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        Apri il satellite su Windy ↗
-      </a>
-    </div>
-
-    <div class="cml-marine-note">
-      ℹ️ Le immagini satellitari mostrano le nubi:
-      non sono una misura diretta della pioggia al suolo.
-      Se il widget non mostra il satellite, usa il collegamento
-      oppure configura il riquadro dal generatore ufficiale Windy.
-    </div>
-  </section>
-
-  <!-- ===================== FULMINAZIONI ===================== -->
-  <section class="cml-radar-box">
-    <div class="cml-radar-head">
-      <div>
-        <h2>⚡ Fulminazioni osservate</h2>
-        <p>
-          Scariche rilevate dalla rete Blitzortung,
-          con mappa centrata su {html.escape(luogo)}.
-        </p>
-      </div>
-    </div>
-
-    <iframe
-      title="Mappa delle fulminazioni Blitzortung"
-      loading="lazy"
-      src="https://map.blitzortung.org/index.php?interactive=1&amp;NavigationControl=1&amp;FullScreenControl=1&amp;Cookies=0&amp;InfoDiv=1&amp;MenuButtonDiv=1&amp;ScaleControl=1#7/{latitudine}/{longitudine}"
-      style="display:block;width:100%;height:520px;border:1px solid #d8e7eb;border-radius:16px;"
-      allowfullscreen
-    ></iframe>
-
-    <div class="cml-radar-footer">
-      <span>⚡ Dati: Blitzortung.org e collaboratori</span>
-      <a
-        href="https://map.blitzortung.org/#7/{latitudine}/{longitudine}"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        Apri la mappa dei fulmini ↗
-      </a>
-    </div>
-
-    <div class="cml-marine-note">
-      ℹ️ La mappa mostra le scariche rilevate dalla rete,
-      non una previsione dei fulmini.
-      L’assenza di scariche visualizzate non garantisce
-      l’assenza di rischio temporalesco.
-      Consulta gli avvisi ufficiali.
-    </div>
-  </section>
-
-</section>
 
 
 <!-- ===================== ATTIVITÀ ===================== -->
@@ -4809,28 +4776,6 @@ except (FileNotFoundError, ValueError) as errore_costieri:
     st.error(str(errore_costieri))
     st.stop()
 
-st.markdown("## 🔎 Seleziona località calabrese")
-
-with st.form("search_form", clear_on_submit=False):
-    colonna_input, colonna_bottone = st.columns([4, 1])
-
-    with colonna_input:
-        testo_localita = st.text_input(
-            "Località",
-            value="",
-            placeholder=(
-                "Scrivi es. Cosenza, Tropea, Scilla, "
-                "Camigliatello Silano, Serra San Bruno..."
-            ),
-            label_visibility="collapsed",
-        )
-
-    with colonna_bottone:
-        cerca_localita = st.form_submit_button(
-            "Aggiorna previsione",
-            use_container_width=True,
-            type="primary",
-        )
 
 
 # =============================================================================

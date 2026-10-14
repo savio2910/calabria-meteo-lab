@@ -16,6 +16,7 @@ from zoneinfo import ZoneInfo
 
 import pandas as pd
 import requests
+from home_viva import aggiungi_home_viva
 
 try:
     from meteostat import Stations, Hourly

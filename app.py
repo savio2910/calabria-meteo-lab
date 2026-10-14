@@ -5779,7 +5779,13 @@ function init(){
  <label>Variabile del grafico <select id="ex-var"><option value="temperature_2m">Temperatura · °C</option><option value="precipitation">Precipitazione · mm</option><option value="wind_speed_10m">Vento medio · km/h</option><option value="wind_gusts_10m">Raffiche · km/h</option><option value="cloud_cover">Nuvolosità · %</option><option value="relative_humidity_2m">Umidità · %</option></select></label>
  <div class="ex-chart"><canvas id="ex-chart" aria-label="Andamento orario della variabile selezionata" role="img"></canvas></div>
  <p class="ex-caption" id="ex-note">Clicca su un punto del grafico per selezionare l’ora. Orari Europe/Rome. Dati della previsione caricata, non osservazioni in tempo reale. L’animazione scorre le scadenze disponibili: non interpola i dati.</p>`;
- target.prepend(panel);
+ const pannelloAttuale = target.querySelector('.cml-current');
+
+if (pannelloAttuale) {
+    pannelloAttuale.insertAdjacentElement('afterend', panel);
+} else {
+    target.prepend(panel);
+}
  const $=id=>panel.querySelector('#ex-'+id);
  $('place').textContent=__EX_PLACE__;
  let dayRows=[],index=0,timer=null,chart=null;

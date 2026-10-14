@@ -5966,7 +5966,13 @@ try:
         dati_mare,
         distanza_mare_km,
     )
-
+    documento = aggiungi_home_viva(documento)
+    
+    components.html(
+        documento,
+        height=4300,
+        scrolling=True,
+    )
     components.html(
         documento,
         height=4300,

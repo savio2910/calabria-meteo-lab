@@ -46,23 +46,23 @@ st.markdown(
       header {visibility: hidden;}
       footer {visibility: hidden;}
 
-      .block-container {{
+      .block-container {
       max-width: none !important;
       width: 100% !important;
       padding: 0.5rem 1rem 2rem 1rem !important;
-      }}
+      }
 
-      [data-testid="stAppViewContainer"] {{
+      [data-testid="stAppViewContainer"] {
         background: #eef5f8;
-      }}
+      }
 
-      [data-testid="stHeader"] {{
+      [data-testid="stHeader"] {
         background: transparent;
-      }}
+      }
 
-      iframe {{
+      iframe {
         background: #eef5f8 !important;
-      }}
+      }
     </style>
     """,
     unsafe_allow_html=True,
@@ -5719,7 +5719,115 @@ document.addEventListener("DOMContentLoaded", function() {{
 </html>
 """
 
-    return documento_html
+    return aggiungi_dashboard_interattiva(documento_html, ore, luogo)
+
+
+
+def aggiungi_dashboard_interattiva(documento_html, ore, luogo):
+    campi = ["time", "temperature_2m", "apparent_temperature", "precipitation",
+             "wind_speed_10m", "wind_gusts_10m", "cloud_cover", "relative_humidity_2m", "Scenario", "Notte"]
+    tabella = ore.reindex(columns=campi).copy()
+    tabella["time"] = pd.to_datetime(tabella["time"]).dt.strftime("%Y-%m-%dT%H:%M")
+    dati_json = tabella.to_json(orient="records", force_ascii=False).replace("<", "\\u003c")
+    interfaccia = r"""
+<style>
+#cml-explorer {--ex-bg:#ffffff;--ex-ink:#163449;--ex-muted:#566f81;--ex-line:#dbe7ef;--ex-card:#f2f7fb;color:var(--ex-ink);background:var(--ex-bg);border:1px solid var(--ex-line);border-radius:26px;padding:clamp(16px,3vw,32px);margin:12px 0 28px;box-shadow:0 16px 44px #102b3b16;transition:background .25s,color .25s}
+#cml-explorer.ex-dark {--ex-bg:#102336;--ex-ink:#eef7ff;--ex-muted:#aac2d6;--ex-line:#30475c;--ex-card:#1b344a}
+#cml-explorer * {box-sizing:border-box}
+#cml-explorer .ex-head,#cml-explorer .ex-controls {display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+#cml-explorer h2 {margin:3px 0 8px;font-size:clamp(24px,3vw,38px);letter-spacing:-1px;color:var(--ex-ink)}
+#cml-explorer p,#cml-explorer small {color:var(--ex-muted)}
+#cml-explorer button,#cml-explorer select {font:inherit;color:var(--ex-ink);background:var(--ex-card);border:1px solid var(--ex-line);border-radius:12px;padding:10px 14px;cursor:pointer}
+#cml-explorer button:hover {border-color:#168bcc;transform:translateY(-1px)}
+#cml-explorer button:focus-visible,#cml-explorer input:focus-visible,#cml-explorer select:focus-visible {outline:3px solid #00a6dd;outline-offset:3px}
+#cml-explorer .ex-controls {justify-content:flex-start;margin:18px 0}
+#cml-explorer .ex-time {font-size:clamp(23px,4vw,38px);font-weight:800;font-variant-numeric:tabular-nums;margin:20px 0 2px}
+#cml-explorer .ex-grid {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:22px 0}
+#cml-explorer .ex-card {background:var(--ex-card);border:1px solid var(--ex-line);padding:18px;border-radius:18px}
+#cml-explorer .ex-card span {display:block;font-size:12px;color:var(--ex-muted)}
+#cml-explorer .ex-card strong {display:block;font-size:clamp(22px,3vw,34px);margin:8px 0;color:var(--ex-ink)}
+#cml-explorer input[type=range] {width:100%;accent-color:#058fd0;cursor:ew-resize;margin:16px 0}
+#cml-explorer .ex-chart {height:280px;position:relative;margin-top:18px}
+#cml-explorer .ex-caption {font-size:12px;line-height:1.6}
+#cml-explorer.ex-compact .ex-card {padding:10px}
+#cml-explorer.ex-compact .ex-chart {height:190px}
+@media(max-width:680px){#cml-explorer .ex-grid {grid-template-columns:repeat(2,minmax(0,1fr))}#cml-explorer button,#cml-explorer select {padding:10px}}
+@media(prefers-reduced-motion:reduce){#cml-explorer *{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
+</style>
+<script>
+(function(){
+'use strict';
+const rows=__EX_DATA__;
+function init(){
+ const target=document.getElementById('cml-previsioni');
+ if(!target || !rows.length)return;
+ const panel=document.createElement('section');panel.id='cml-explorer';
+ panel.setAttribute('aria-label','Esploratore interattivo della previsione');
+ panel.innerHTML=`
+ <div class="ex-head"><div><small>CALABRIA METEO LAB / ESPLORA LA PREVISIONE</small><h2>Il meteo, ora per ora</h2><p id="ex-place"></p></div>
+ <div><button type="button" id="ex-theme" aria-pressed="false">◐ Tema scuro</button> <button type="button" id="ex-compact" aria-pressed="false">↕ Compatta</button></div></div>
+ <div class="ex-controls"><label>Giorno <select id="ex-day" aria-label="Seleziona il giorno"></select></label>
+ <button type="button" id="ex-prev" aria-label="Ora precedente">←</button><button type="button" id="ex-play" aria-pressed="false">▶ Riproduci</button><button type="button" id="ex-next" aria-label="Ora successiva">→</button>
+ <label>Velocità <select id="ex-speed"><option value="1200">Lenta</option><option value="700" selected>Normale</option><option value="350">Rapida</option></select></label>
+ <button type="button" id="ex-csv">↓ CSV del giorno</button></div>
+ <div class="ex-time" id="ex-time"></div><p id="ex-scenario"></p>
+ <label for="ex-slider">Trascina per cambiare l’ora prevista</label><input type="range" id="ex-slider" min="0" value="0" step="1">
+ <div class="ex-grid"><div class="ex-card"><span>🌡 Temperatura</span><strong id="ex-temp"></strong><small id="ex-feel"></small></div>
+ <div class="ex-card"><span>🌧 Precipitazione oraria</span><strong id="ex-rain"></strong><small>mm nell’intervallo orario</small></div>
+ <div class="ex-card"><span>💨 Vento medio</span><strong id="ex-wind"></strong><small id="ex-gust"></small></div>
+ <div class="ex-card"><span>☁ Nuvolosità</span><strong id="ex-cloud"></strong><small id="ex-rh"></small></div></div>
+ <label>Variabile del grafico <select id="ex-var"><option value="temperature_2m">Temperatura · °C</option><option value="precipitation">Precipitazione · mm</option><option value="wind_speed_10m">Vento medio · km/h</option><option value="wind_gusts_10m">Raffiche · km/h</option><option value="cloud_cover">Nuvolosità · %</option><option value="relative_humidity_2m">Umidità · %</option></select></label>
+ <div class="ex-chart"><canvas id="ex-chart" aria-label="Andamento orario della variabile selezionata" role="img"></canvas></div>
+ <p class="ex-caption" id="ex-note">Clicca su un punto del grafico per selezionare l’ora. Orari Europe/Rome. Dati della previsione caricata, non osservazioni in tempo reale. L’animazione scorre le scadenze disponibili: non interpola i dati.</p>`;
+ target.prepend(panel);
+ const $=id=>panel.querySelector('#ex-'+id);
+ $('place').textContent=__EX_PLACE__;
+ let dayRows=[],index=0,timer=null,chart=null;
+ const days=[...new Set(rows.map(r=>r.time.slice(0,10)))];
+ days.forEach(d=>{const o=document.createElement('option');o.value=d;o.textContent=new Date(d+'T12:00').toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long'});$('day').append(o)});
+ const fmt=(v,u,dec=1)=>typeof v==='number'&&Number.isFinite(v)?v.toLocaleString('it-IT',{minimumFractionDigits:dec,maximumFractionDigits:dec})+' '+u:'N/D';
+ function stop(){if(timer)clearInterval(timer);timer=null;$('play').textContent='▶ Riproduci';$('play').setAttribute('aria-pressed','false')}
+ function render(){
+ const r=dayRows[index];if(!r)return;
+ $('slider').value=index;$('slider').setAttribute('aria-valuetext',r.time.slice(11,16));
+ $('time').textContent=r.time.slice(11,16)+' · '+$('day').selectedOptions[0].textContent;
+ $('scenario').textContent=(r.Notte?'🌙 ':'☀️ ')+(r.Scenario||'Scenario non disponibile');
+ $('temp').textContent=fmt(r.temperature_2m,'°C');$('feel').textContent='Percepita '+fmt(r.apparent_temperature,'°C');
+ $('rain').textContent=fmt(r.precipitation,'mm');$('wind').textContent=fmt(r.wind_speed_10m,'km/h',0);
+ $('gust').textContent='Raffiche '+fmt(r.wind_gusts_10m,'km/h',0);$('cloud').textContent=fmt(r.cloud_cover,'%',0);$('rh').textContent='Umidità '+fmt(r.relative_humidity_2m,'%',0);
+ if(chart){chart.data.datasets[0].pointRadius=dayRows.map((_,i)=>i===index?7:2);chart.update('none')}
+ }
+ function draw(){
+ if(chart){chart.destroy();chart=null}
+ if(typeof Chart==='undefined'){$('note').textContent='Grafico non disponibile: Chart.js non caricato. Slider, metriche e CSV restano utilizzabili.';return}
+ const key=$('var').value, dark=panel.classList.contains('ex-dark'),color=dark?'#b8d3e8':'#566f81';
+ chart=new Chart($('chart'),{type:key==='precipitation'?'bar':'line',data:{labels:dayRows.map(r=>r.time.slice(11,16)),datasets:[{label:$('var').selectedOptions[0].textContent,data:dayRows.map(r=>r[key]),borderColor:'#0299d4',backgroundColor:'rgba(0,159,214,.22)',fill:true,tension:.25,pointRadius:dayRows.map((_,i)=>i===index?7:2),spanGaps:false}]},options:{responsive:true,maintainAspectRatio:false,animation:false,interaction:{mode:'index',intersect:false},plugins:{legend:{labels:{color}}},scales:{x:{ticks:{color,maxTicksLimit:10},grid:{color:dark?'#30475c':'#edf2f6'}},y:{beginAtZero:key!=='temperature_2m',ticks:{color},grid:{color:dark?'#30475c':'#edf2f6'}}},onClick:(e,els)=>{if(els.length){stop();index=els[0].index;render()}}}});
+ }
+ function load(){stop();dayRows=rows.filter(r=>r.time.startsWith($('day').value));index=0;$('slider').max=Math.max(0,dayRows.length-1);draw();render()}
+ $('day').onchange=load;$('var').onchange=()=>{draw();render()};
+ $('slider').oninput=()=>{stop();index=Number($('slider').value);render()};
+ $('prev').onclick=()=>{stop();index=Math.max(0,index-1);render()};$('next').onclick=()=>{stop();index=Math.min(dayRows.length-1,index+1);render()};
+ function play(){if(index===dayRows.length-1)index=0;render();$('play').textContent='⏸ Pausa';$('play').setAttribute('aria-pressed','true');timer=setInterval(()=>{if(index>=dayRows.length-1){stop();return}index++;render()},Number($('speed').value))}
+ $('play').onclick=()=>timer?stop():play();$('speed').onchange=()=>{if(timer){stop();play()}};
+ $('theme').onclick=()=>{const dark=panel.classList.toggle('ex-dark');$('theme').textContent=dark?'◐ Tema chiaro':'◐ Tema scuro';$('theme').setAttribute('aria-pressed',String(dark));draw();render()};
+ $('compact').onclick=()=>{const compact=panel.classList.toggle('ex-compact');$('compact').setAttribute('aria-pressed',String(compact));if(chart)chart.resize()};
+ $('csv').onclick=()=>{
+ const keys=['time','temperature_2m','apparent_temperature','precipitation','wind_speed_10m','wind_gusts_10m','cloud_cover','relative_humidity_2m'];
+ const csv='\ufeff'+[keys.join(';'),...dayRows.map(r=>keys.map(k=>r[k]??'').join(';'))].join('\r\n');
+ const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'})),a=document.createElement('a');a.href=url;a.download='previsione-'+$('day').value+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)
+ };
+ document.addEventListener('visibilitychange',()=>{if(document.hidden)stop()});
+ new MutationObserver(()=>{if(target.hidden)stop()}).observe(target,{attributes:true,attributeFilter:['hidden']});
+ load();
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
+})();
+</script>
+"""
+    interfaccia = interfaccia.replace("__EX_DATA__", dati_json).replace(
+        "__EX_PLACE__", json.dumps(str(luogo), ensure_ascii=False).replace("<", "\\u003c")
+    )
+    return documento_html.replace("</body>", interfaccia + "\n</body>")
 
 
 # =============================================================================

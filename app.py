@@ -17,6 +17,7 @@ from zoneinfo import ZoneInfo
 import pandas as pd
 import requests
 from home_viva import aggiungi_home_viva
+from sfondo_meteo import aggiungi_sfondo_meteo
 
 try:
     from meteostat import Stations, Hourly
@@ -5967,6 +5968,21 @@ try:
         distanza_mare_km,
     )
     documento = aggiungi_home_viva(documento)
+
+    documento = aggiungi_sfondo_meteo(
+        documento,
+        luogo,
+        dati_terrestri,
+        dati_orari,
+        dati_giornalieri,
+        is_costiero=is_costiero,
+    )
+    
+    components.html(
+        documento,
+        height=4300,
+        scrolling=True,
+    )
     
     components.html(
         documento,

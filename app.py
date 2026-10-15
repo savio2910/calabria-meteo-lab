@@ -5984,16 +5984,6 @@ try:
         scrolling=True,
     )
     
-    components.html(
-        documento,
-        height=4300,
-        scrolling=True,
-    )
-    components.html(
-        documento,
-        height=4300,
-        scrolling=True,
-    )
 
 except Exception as errore:
     st.error(str(errore))

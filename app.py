@@ -654,6 +654,30 @@ def normalizza_comune(nome):
 
     return alias.get(testo, testo)
 
+def geocodifica_open_meteo(nome):
+    risposta = HTTP.get(
+        API_GEOCODING_URL,
+        params={
+            "name": nome,
+            "count": 20,
+            "language": "it",
+            "countryCode": "IT",
+            "format": "json",
+        },
+        timeout=15,
+    )
+    risposta.raise_for_status()
+
+    for risultato in risposta.json().get("results", []) or []:
+        if str(risultato.get("admin1", "")).casefold() == "calabria":
+            return (
+                risultato["name"],
+                float(risultato["latitude"]),
+                float(risultato["longitude"]),
+                risultato.get("admin3") or risultato["name"],
+            )
+    return None
+
 
 @st.cache_data(ttl=60 * 60 * 24, show_spinner=False)
 def carica_comuni_costieri():
@@ -6049,6 +6073,9 @@ try:
 
         dati_mare = None
         distanza_mare_km = None
+
+        correzione_osservativa,
+        is_costiero,
 
         is_costiero = comune_e_costiero(
             comune_amministrativo,

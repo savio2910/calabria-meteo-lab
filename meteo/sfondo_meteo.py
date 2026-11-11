@@ -1,9 +1,10 @@
 # Calabria Meteo Lab - sfondo artistico guidato dai dati modellistici
 import json
 import pandas as pd
-from pathlib import Path
 
-_FRAGMENT = (Path(__file__).resolve().parent / "static" / "sfondo_meteo.html").read_text(encoding="utf-8")
+from meteo.config import CARTELLA_STATIC
+
+_FRAGMENT = (CARTELLA_STATIC / "sfondo_meteo.html").read_text(encoding="utf-8")
 
 def aggiungi_sfondo_meteo(documento, luogo, dati_terrestri, dati_orari,
                          dati_giornalieri, is_costiero=False):

@@ -471,7 +471,7 @@ const pinIcon = L.divIcon({
 
 L.marker([__CML_LAT__, __CML_LON__], {
   icon: pinIcon,
-  title: "__CML_LUOGO_HTML__"
+  title: __CML_LUOGO_JSON__
 }).addTo(radarMap);
 
 let radarTimes = [];

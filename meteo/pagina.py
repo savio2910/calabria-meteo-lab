@@ -783,7 +783,11 @@ def genera_app_completa(
         .replace("__CML_DATI_GRAFICI__", dati_grafici_json)
         .replace("__CML_LAT__", str(latitudine))
         .replace("__CML_LON__", str(longitudine))
-        .replace("__CML_LUOGO_HTML__", html.escape(luogo))
+        .replace(
+            "__CML_LUOGO_JSON__",
+            # Stringa JavaScript sicura (apostrofi, virgolette, "</script>")
+            json.dumps(str(luogo), ensure_ascii=False).replace("<", "\\u003c"),
+        )
     )
 
     documento_html = f"""

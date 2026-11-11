@@ -1502,7 +1502,8 @@ def calcola_correzione_osservativa(dati_terrestri, osservazioni, stazione, ultim
         ore_modello["time"] = pd.to_datetime(ore_modello["time"])
         ore_modello = ore_modello.set_index("time")
 
-        ultime_3 = osservazioni.last("3h")
+        limite = osservazioni.index.max() - pd.Timedelta(hours=3)
+        ultime_3 = osservazioni.loc[osservazioni.index > limite]
         if ultime_3.empty:
             return None
 

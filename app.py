@@ -6037,7 +6037,14 @@ try:
                 distanza_mare_km = None
 
     st.session_state.previsione_caricata = True
-
+    ore_riserva = dati_terrestri.get("_ore_riserva") or []
+    if dati_terrestri.get("_fonte", "ICON-2I") != "ICON-2I":
+        st.warning(f"⚠️ Fonte dei dati: {dati_terrestri['_fonte']}.")
+    elif ore_riserva:
+        st.info(
+            f"ℹ️ {len(ore_riserva)} ore non coperte da ICON-2I sono state completate "
+            f"con ICON-EU (a partire dalle {pd.Timestamp(ore_riserva[0]).strftime('%d/%m %H:%M')})."
+        )
     documento = genera_app_completa(
         luogo,
         latitudine,

@@ -4956,6 +4956,11 @@ body {{
     <div class="cml-days-grid">
       {''.join(carte_html)}
     </div>
+    <div class="cml-note">
+      ℹ️ L'«indice meteo» è una stima automatica di questa app, <b>non un'allerta ufficiale</b>.
+      Per le allerte consulta il
+      <a href="https://www.cfd.calabria.it/" target="_blank" rel="noopener">Centro Funzionale Multirischi – ARPACAL</a>.
+    </div>
 
     <div class="cml-note">
       ℹ️ Le icone sintetizzano i fenomeni significativi sulle 24 ore;

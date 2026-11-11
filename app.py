@@ -1468,8 +1468,17 @@ def scarica_osservazioni_meteostat(latitudine, longitudine):
                 if dati.empty:
                     continue
 
+                # Meteostat usa l'ora UTC, ICON-2I l'ora locale (Europe/Rome)
+                dati.index = (
+                    pd.to_datetime(dati.index)
+                    .tz_localize("UTC")
+                    .tz_convert(FUSO_ORARIO)
+                    .tz_localize(None)
+                )
+
                 ultima = dati.index.max()
-                if pd.Timestamp.utcnow().tz_localize(None) - ultima > pd.Timedelta(hours=3):
+                adesso_locale = pd.Timestamp(datetime.now(FUSO_ORARIO).replace(tzinfo=None))
+                if adesso_locale - ultima > pd.Timedelta(hours=3):
                     continue
 
                 return dati, stazione, ultima

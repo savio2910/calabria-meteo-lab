@@ -1,8 +1,9 @@
 # Calabria Meteo Lab - estensione visiva della home
 # Scena artistica interattiva, non simulazione meteorologica.
-from pathlib import Path
 
-HOME_VIVA = (Path(__file__).resolve().parent / "static" / "home_viva.html").read_text(encoding="utf-8")
+from meteo.config import CARTELLA_STATIC
+
+HOME_VIVA = (CARTELLA_STATIC / "home_viva.html").read_text(encoding="utf-8")
 
 def aggiungi_home_viva(documento):
     if '</body>' not in documento:

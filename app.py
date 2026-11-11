@@ -85,6 +85,11 @@ FUSO_ORARIO = ZoneInfo("Europe/Rome")
 GIORNI_PREVISIONE = 3
 
 MODELLO_RISERVA = "icon_eu"
+
+# Limiti per usare una stazione nella correzione osservativa
+MAX_DISTANZA_STAZIONE_KM = 30
+MAX_DISLIVELLO_STAZIONE_M = 200
+MAX_CORREZIONE_TEMP_C = 4.0
 API_GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1/search"
 
 
@@ -843,7 +848,6 @@ def risolvi_localita(testo):
 # DOWNLOAD PREVISIONI
 # =============================================================================
 
-@st.cache_data(ttl=600, show_spinner=False)
 def _scarica_modello(parametri, modello):
     risposta = HTTP.get(
         API_METEO_URL,
@@ -1453,14 +1457,14 @@ def badge_rischio_html(livello, rischio):
 # =============================================================================
 
 @st.cache_data(ttl=900, show_spinner=False)
-def scarica_osservazioni_meteostat(latitudine, longitudine):
+def scarica_osservazioni_meteostat(latitudine, longitudine, quota_localita=None):
     """Scarica le osservazioni delle ultime 6 ore dalla stazione Meteostat più vicina."""
     if not METEOSTAT_DISPONIBILE:
         return None, None, None
 
     try:
         stazioni = Stations().nearby(latitudine, longitudine)
-        elenco = stazioni.fetch(5)
+        elenco = stazioni.fetch(10)
 
         if elenco.empty:
             return None, None, None
@@ -1469,11 +1473,27 @@ def scarica_osservazioni_meteostat(latitudine, longitudine):
         inizio = fine - pd.Timedelta(hours=6)
 
         for _, stazione in elenco.iterrows():
+            # Scarta stazioni lontane o a quota molto diversa (es. Monte Scuro
+            # a 1700 m per una località di valle): microclima non rappresentativo.
+            distanza_km = float(stazione.get("distance", 0) or 0) / 1000
+            if distanza_km > MAX_DISTANZA_STAZIONE_KM:
+                continue
+
+            quota_stazione = stazione.get("elevation")
+            if (
+                quota_localita is not None
+                and quota_stazione is not None
+                and pd.notna(quota_stazione)
+                and abs(float(quota_stazione) - float(quota_localita)) > MAX_DISLIVELLO_STAZIONE_M
+            ):
+                continue
+
             try:
                 dati = Hourly(
                     stazione.name,
                     start=inizio.to_pydatetime(),
                     end=fine.to_pydatetime(),
+                    model=False,  # solo misure reali, niente dati di modello
                 ).fetch()
 
                 if dati.empty:
@@ -1554,6 +1574,10 @@ def calcola_correzione_osservativa(dati_terrestri, osservazioni, stazione, ultim
         bias_umidita = float(pd.Series(bias_umidita).mean()) if bias_umidita else 0.0
         rapporto_vento = float(pd.Series(rapporto_vento).mean()) if rapporto_vento else 1.0
         rapporto_vento = max(0.5, min(2.0, rapporto_vento))
+
+        # Una differenza così grande indica una stazione non rappresentativa
+        if abs(bias_temp) > MAX_CORREZIONE_TEMP_C:
+            return None
 
         ore = pd.DataFrame(dati_terrestri["hourly"])
         ore["time"] = pd.to_datetime(ore["time"])
@@ -2528,6 +2552,7 @@ def genera_app_completa(
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <style>
 :root {{
@@ -6051,6 +6076,7 @@ try:
             scarica_osservazioni_meteostat(
                 latitudine,
                 longitudine,
+                dati_terrestri.get("elevation"),
             )
         )
 
@@ -6070,9 +6096,6 @@ try:
 
         dati_mare = None
         distanza_mare_km = None
-
-        correzione_osservativa,
-        is_costiero,
 
         is_costiero = comune_e_costiero(
             comune_amministrativo,
@@ -6111,6 +6134,8 @@ try:
         dati_giornalieri,
         dati_mare,
         distanza_mare_km,
+        correzione_osservativa,
+        is_costiero,
     )
     documento = aggiungi_home_viva(documento)
 

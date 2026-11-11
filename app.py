@@ -1542,7 +1542,7 @@ def calcola_correzione_osservativa(dati_terrestri, osservazioni, stazione, ultim
         ore = pd.DataFrame(dati_terrestri["hourly"])
         ore["time"] = pd.to_datetime(ore["time"])
 
-        adesso = pd.Timestamp.utcnow().tz_localize(None).floor("h")
+        adesso = pd.Timestamp(datetime.now(FUSO_ORARIO).replace(tzinfo=None)).floor("h")
         prossime = ore.loc[
             (ore["time"] >= adesso)
             & (ore["time"] < adesso + pd.Timedelta(hours=6))

@@ -1567,6 +1567,27 @@ def calcola_correzione_osservativa(dati_terrestri, osservazioni, stazione, ultim
 
         dati_terrestri["hourly"] = ore.to_dict("list")
 
+        corrente = dati_terrestri.get("current") or {}
+        if corrente.get("temperature_2m") is not None:
+            corrente["temperature_2m"] += bias_temp
+        if corrente.get("relative_humidity_2m") is not None:
+            corrente["relative_humidity_2m"] = max(
+                0.0, min(100.0, corrente["relative_humidity_2m"] + bias_umidita)
+            )
+        for chiave in ("wind_speed_10m", "wind_gusts_10m"):
+            if corrente.get(chiave) is not None:
+                corrente[chiave] *= rapporto_vento
+
+        giornaliero = dati_terrestri.get("daily") or {}
+        oggi = adesso.strftime("%Y-%m-%d")
+        if oggi in giornaliero.get("time", []):
+            i_oggi = giornaliero["time"].index(oggi)
+            temp_oggi = ore.loc[
+                ore["time"].dt.strftime("%Y-%m-%d") == oggi, "temperature_2m"
+            ].dropna()
+            if not temp_oggi.empty:
+                giornaliero["temperature_2m_max"][i_oggi] = float(temp_oggi.max())
+                giornaliero["temperature_2m_min"][i_oggi] = float(temp_oggi.min())
         return {
             "stazione": str(stazione.get("name", "Stazione senza nome")),
             "distanza_km": float(stazione.get("distance", 0)) / 1000
@@ -1824,6 +1845,8 @@ def genera_app_completa(
     giorni,
     dati_mare=None,
     distanza_mare_km=None,
+    correzione_osservativa=None,
+    is_costiero=False,
 ):
     corrente = dati_terrestri["current"]
 

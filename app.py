@@ -16,6 +16,8 @@ from zoneinfo import ZoneInfo
 
 import pandas as pd
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from home_viva import aggiungi_home_viva
 from sfondo_meteo import aggiungi_sfondo_meteo
 

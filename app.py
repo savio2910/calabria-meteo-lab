@@ -812,11 +812,50 @@ def risolvi_localita(testo):
 # =============================================================================
 
 @st.cache_data(ttl=600, show_spinner=False)
+def _scarica_modello(parametri, modello):
+    risposta = HTTP.get(
+        API_METEO_URL,
+        params={**parametri, "models": modello},
+        timeout=25,
+    )
+    risposta.raise_for_status()
+    return risposta.json()
+
+
+def _completa_con_riserva(principale, riserva):
+    """Riempie i valori mancanti di ICON-2I con ICON-EU. Restituisce gli orari sostituiti."""
+    orari_sostituiti = set()
+
+    for blocco in ("hourly", "daily"):
+        dati_p = principale.get(blocco) or {}
+        dati_r = riserva.get(blocco) or {}
+        indice_r = {t: i for i, t in enumerate(dati_r.get("time", []))}
+
+        for i, istante in enumerate(dati_p.get("time", [])):
+            j = indice_r.get(istante)
+            if j is None:
+                continue
+            for variabile, valori in dati_p.items():
+                if variabile == "time" or variabile not in dati_r:
+                    continue
+                if valori[i] is None and dati_r[variabile][j] is not None:
+                    valori[i] = dati_r[variabile][j]
+                    if blocco == "hourly":
+                        orari_sostituiti.add(istante)
+
+    corrente_p = principale.get("current") or {}
+    for variabile, valore in (riserva.get("current") or {}).items():
+        if corrente_p.get(variabile) is None and valore is not None:
+            corrente_p[variabile] = valore
+
+    return sorted(orari_sostituiti)
+
+
+@st.cache_data(ttl=1800, show_spinner=False)
 def scarica_previsione_terrestre(latitudine, longitudine):
     parametri = {
         "latitude": latitudine,
         "longitude": longitudine,
-        "models": MODELLO_TERRESTRE,
         "timezone": "Europe/Rome",
         "forecast_days": GIORNI_PREVISIONE,
         "temperature_unit": "celsius",
@@ -828,20 +867,40 @@ def scarica_previsione_terrestre(latitudine, longitudine):
     }
 
     try:
-        risposta = HTTP.get(
-            API_METEO_URL,
-            params=parametri,
-            timeout=25,
-        )
+        dati = _scarica_modello(parametri, MODELLO_TERRESTRE)
+        dati["_fonte"] = "ICON-2I"
+    except requests.RequestException:
+        dati = None
 
-        risposta.raise_for_status()
+    mancano_valori = dati is None or any(
+        valore is None
+        for variabile, valori in (dati.get("hourly") or {}).items()
+        if variabile != "time"
+        for valore in valori
+    )
 
-        return risposta.json()
+    if not mancano_valori:
+        dati["_ore_riserva"] = []
+        return dati
 
+    try:
+        riserva = _scarica_modello(parametri, MODELLO_RISERVA)
     except requests.RequestException as exc:
+        if dati is not None:
+            dati["_ore_riserva"] = []
+            return dati  # meglio ICON-2I incompleto che nessun dato
         raise RuntimeError(
-            f"Errore nella ricezione dei dati ICON-2I: {exc}"
+            "Previsioni non disponibili al momento: ICON-2I e ICON-EU non rispondono. "
+            "Riprova tra qualche minuto."
         ) from exc
+
+    if dati is None:
+        riserva["_fonte"] = "ICON-EU (riserva: ICON-2I non disponibile)"
+        riserva["_ore_riserva"] = list((riserva.get("hourly") or {}).get("time", []))
+        return riserva
+
+    dati["_ore_riserva"] = _completa_con_riserva(dati, riserva)
+    return dati
 
 
 def distanza_haversine_km(lat1, lon1, lat2, lon2):

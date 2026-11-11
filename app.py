@@ -1428,26 +1428,10 @@ def valuta_rischio_locale(riga):
 
 def badge_rischio_html(livello, rischio):
     palette = {
-        "verde": (
-            "#12855c",
-            "✅",
-            "Nessuna criticità stimata",
-        ),
-        "giallo": (
-            "#b77906",
-            "⚠️",
-            "Attenzione meteorologica",
-        ),
-        "arancione": (
-            "#d85d05",
-            "🟠",
-            "Rischio meteorologico elevato",
-        ),
-        "rosso": (
-            "#be2635",
-            "🔴",
-            "Rischio meteorologico molto elevato",
-        ),
+        "verde": ("#4f6d7a", "○", "Indice meteo: nessun segnale"),
+        "giallo": ("#2f6db3", "◔", "Indice meteo: attenzione"),
+        "arancione": ("#6a3fb5", "◑", "Indice meteo: attenzione alta"),
+        "rosso": ("#3b1f73", "●", "Indice meteo: attenzione molto alta"),
     }
 
     colore, icona, testo = palette.get(

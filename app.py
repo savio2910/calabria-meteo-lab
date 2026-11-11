@@ -723,6 +723,14 @@ def comune_e_costiero(comune_amministrativo, elenco_costieri):
 @st.cache_data(ttl=60 * 60 * 24, show_spinner=False)
 def geocodifica_calabria(nome):
     try:
+        trovato = geocodifica_open_meteo(nome)
+    except requests.RequestException:
+        trovato = None
+
+    if trovato:
+        return trovato
+    
+    try:
         geocoder = Nominatim(
             user_agent="calabria_meteo_lab_v23",
             timeout=30,

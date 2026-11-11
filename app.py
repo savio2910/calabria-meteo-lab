@@ -84,6 +84,27 @@ MODELLO_TERRESTRE = "italia_meteo_arpae_icon_2i"
 FUSO_ORARIO = ZoneInfo("Europe/Rome")
 GIORNI_PREVISIONE = 3
 
+MODELLO_RISERVA = "icon_eu"
+API_GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1/search"
+
+
+def crea_sessione_http():
+    """Sessione HTTP che riprova da sola su errori temporanei (429, 5xx)."""
+    sessione = requests.Session()
+    tentativi = Retry(
+        total=3,
+        backoff_factor=1.5,
+        status_forcelist=(429, 500, 502, 503, 504),
+        allowed_methods=("GET",),
+        respect_retry_after_header=True,
+    )
+    sessione.mount("https://", HTTPAdapter(max_retries=tentativi))
+    sessione.headers["User-Agent"] = "CalabriaMeteoLab/1.0"
+    return sessione
+
+
+HTTP = crea_sessione_http()
+
 FILE_COMUNI_COSTIERI = Path("comuni_costieri_calabria.csv")
 
 COMUNI_RAPIDI = {

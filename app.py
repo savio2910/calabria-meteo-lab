@@ -828,7 +828,7 @@ def scarica_previsione_terrestre(latitudine, longitudine):
     }
 
     try:
-        risposta = requests.get(
+        risposta = HTTP.get(
             API_METEO_URL,
             params=parametri,
             timeout=25,
@@ -882,7 +882,7 @@ def scarica_previsione_mare(latitudine, longitudine):
     }
 
     try:
-        risposta = requests.get(
+        risposta = HTTP.get(
             API_MARE_URL,
             params=parametri,
             timeout=25,

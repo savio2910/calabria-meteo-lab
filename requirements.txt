@@ -1,5 +1,6 @@
-streamlit
-pandas
-requests
-geopy
-meteostat
+streamlit>=1.40,<2
+pandas>=2.2,<3
+requests>=2.31,<3
+urllib3>=2,<3
+geopy>=2.4,<3
+meteostat>=1.6,<2

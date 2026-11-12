@@ -1,0 +1,88 @@
+/* Calabria Meteo Lab - pagina del viaggio */
+body { background: transparent; }
+
+.v-testa h2 { margin: 6px 0 4px; color: var(--ink); font-size: clamp(22px, 4vw, 30px); }
+.v-testa > p { margin: 0 0 14px; color: var(--muted); font-size: 14px; }
+.v-titolo { margin: 0 0 6px; color: var(--ink); font-size: 19px; }
+.v-nota { margin: 0 0 12px; color: var(--muted); font-size: 13px; }
+
+.v-avviso {
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: #fff3e0;
+  color: #7a4a00;
+  font-size: 14px;
+}
+
+.v-consiglio {
+  display: grid;
+  gap: 4px;
+  padding: 16px 20px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #0b5f7a, #0b7f98);
+  color: #ffffff;
+}
+.v-consiglio-nd { background: #607987; }
+.v-etichetta { font-size: 13px; font-weight: 800; letter-spacing: 1.4px; opacity: .9; }
+.v-consiglio strong { font-size: clamp(40px, 9vw, 56px); line-height: 1; letter-spacing: -1px; }
+.v-consiglio span { font-size: 16px; }
+.v-consiglio small { font-size: 14px; opacity: .92; }
+
+.v-evitare { margin: 12px 0 0; padding: 0; list-style: none; color: #93212d; font-size: 14px; font-weight: 600; }
+.v-evitare li + li { margin-top: 4px; }
+
+/* Barra delle partenze */
+.v-partenze {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(58px, 1fr));
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.v-partenza {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 800;
+}
+.v-partenza.cml-liv-0 { background: #22a35a; color: #fff; }
+.v-partenza.cml-liv-1 { background: #e3c11d; color: #3d3100; }
+.v-partenza.cml-liv-2 { background: #f08a2c; color: #fff; }
+.v-partenza.cml-liv-3 { background: #d63a47; color: #fff; }
+.v-partenza.cml-liv-nd { background: #dfe7ec; color: #546b78; }
+.v-scelta { border-color: #102b3b; box-shadow: 0 0 0 2px #ffffff inset; }
+.v-consigliata::after {
+  content: "★";
+  position: absolute;
+  top: -8px;
+  right: -6px;
+  color: #102b3b;
+  font-size: 15px;
+  text-shadow: 0 0 3px #ffffff;
+}
+
+/* Tabella passo passo */
+.cml-table.v-tabella { min-width: 760px; }
+.v-tabella td small { display: block; color: var(--muted); font-size: 12px; font-weight: 500; }
+.v-tabella .v-giudizio { text-align: left; white-space: normal; }
+.v-tabella .v-dove { text-align: left; }
+
+#v-mappa {
+  height: 420px;
+  border: 1px solid #d8e7eb;
+  border-radius: 16px;
+}
+
+@media (max-width: 680px) {
+  .cml-table.v-tabella { min-width: 0 !important; }
+  .v-tabella .v-giudizio,
+  .cml-table.v-tabella .v-dove { flex: 1 1 100%; white-space: normal; }
+  .v-tabella td small { display: inline; font-size: 13px; }
+  #v-mappa { height: 320px; }
+}

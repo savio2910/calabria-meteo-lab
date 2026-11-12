@@ -16,6 +16,7 @@ from meteo.allerta import allerta_per_comune
 from meteo.api import scarica_previsione_mare, scarica_previsione_terrestre
 from meteo.combinato import combina, scarica_modelli_aggiuntivi
 from meteo.meteohub import scarica_modelli_meteohub
+from meteo.taratura import applica_taratura, pesi_appresi
 from meteo.config import FUSO_ORARIO
 from meteo.correzione import calcola_correzione_osservativa, scarica_osservazioni_meteostat
 from meteo.dati import prepara_dati_terrestri
@@ -156,6 +157,11 @@ SERVIZI_METEO = """
 - **🏃 Attività**: le ore migliori per escursioni, bici, corsa, foto, stelle, spiaggia, surf,
   kite, pesca e neve.
 
+- **🧠 Taratura con le stazioni**: ogni giorno le previsioni passate vengono confrontate con le
+  misure di circa 160 stazioni della Protezione Civile e delle stazioni sinottiche; l'app impara
+  gli errori sistematici di ogni modello (temperatura per ora e scadenza, pioggia, vento, raffiche)
+  e i pesi migliori dei modelli, e corregge la previsione con le stazioni vicine e a quota simile.
+
 - **🌍 Situazione generale**: pressione, aria e correnti a circa 1.500 m e zero termico, spiegati a parole.
 
 La previsione è **combinata da otto modelli**. Cinque sono ad alta risoluzione, adatti alle montagne,
@@ -265,16 +271,20 @@ def mostra_meteo():
             dati_terrestri = scarica_previsione_terrestre(latitudine, longitudine)
 
             # Modello combinato: ICON-2I + MOLOCH + WRF + BOLAM + ECMWF IFS + ICON-EU + AIFS
-            # (quelli che rispondono)
+            # (quelli che rispondono), ognuno prima tarato con le stazioni vicine
+            adesso = datetime.now(FUSO_ORARIO).replace(tzinfo=None)
+            modelli = {
+                **scarica_modelli_aggiuntivi(latitudine, longitudine),
+                **scarica_modelli_meteohub(latitudine, longitudine),
+            }
+            taratura = None
             try:
-                combina(
-                    dati_terrestri,
-                    {
-                        **scarica_modelli_aggiuntivi(latitudine, longitudine),
-                        **scarica_modelli_meteohub(latitudine, longitudine),
-                    },
-                    datetime.now(FUSO_ORARIO).replace(tzinfo=None),
-                )
+                modelli, taratura = applica_taratura(dati_terrestri, modelli, latitudine, longitudine, adesso)
+            except Exception:
+                taratura = None  # previsione senza taratura
+            dati_terrestri["_taratura"] = taratura
+            try:
+                combina(dati_terrestri, modelli, adesso, pesi_appresi())
             except Exception:
                 pass  # resta la previsione ICON-2I
 

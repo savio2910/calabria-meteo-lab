@@ -72,15 +72,38 @@ def fattore_raffica(tabella):
     return np.where(np.isnan(rapporto) | (vento < f["vento_minimo_kmh"]), f["predefinito"], rapporto)
 
 
-def pesi_alla_scadenza(ore):
-    """Pesi (non ancora riproporzionati) dopo 'ore' ore di scadenza."""
+# Gruppi di variabili con pesi appresi dalle stazioni (gli altri usano i pesi di partenza)
+GRUPPO_VARIABILE = {
+    "temperature_2m": "temperatura", "apparent_temperature": "temperatura", "relative_humidity_2m": "temperatura",
+    "precipitation": "pioggia", "wind_speed_10m": "vento", "wind_gusts_10m": "vento",
+}
+
+
+def pesi_alla_scadenza(ore, gruppo=None, appresi=None):
+    """Pesi (non ancora riproporzionati) dopo 'ore' ore di scadenza.
+
+    Con i pesi appresi dalle stazioni ('appresi', da meteo.taratura.pesi_appresi): la quota
+    complessiva dei modelli confrontati con le stazioni resta quella di partenza, ma viene
+    ridistribuita tra loro secondo i loro errori reali, in proporzione alla fiducia (quanti dati).
+    """
     punti = sorted(PESI)
     ore = min(max(ore, punti[0]), punti[-1])
+    pesi = dict(PESI[punti[-1]])
     for a, b in zip(punti, punti[1:]):
         if a <= ore <= b:
             f = (ore - a) / (b - a) if b > a else 0.0
-            return {m: PESI[a][m] + (PESI[b][m] - PESI[a][m]) * f for m in ORDINE}
-    return dict(PESI[punti[-1]])
+            pesi = {m: PESI[a][m] + (PESI[b][m] - PESI[a][m]) * f for m in ORDINE}
+            break
+    voce = ((appresi or {}).get(gruppo) or {}).get(min(int(ore // 24), 2))
+    if voce:
+        confrontati = [m for m in voce["pesi"] if m in pesi]
+        quota = sum(pesi[m] for m in confrontati)
+        somma_appresi = sum(voce["pesi"][m] for m in confrontati)
+        if quota > 0 and somma_appresi > 0:
+            fiducia = voce["fiducia"]
+            for m in confrontati:
+                pesi[m] = (1 - fiducia) * pesi[m] + fiducia * quota * voce["pesi"][m] / somma_appresi
+    return pesi
 
 
 # -----------------------------------------------------------------------------
@@ -156,7 +179,7 @@ def _codice_combinato(pioggia, temperatura, nuvole, codici, pesi):
 GRAVITA = {95: 6, 96: 6, 99: 6, 75: 5, 73: 5, 71: 5, 65: 4, 63: 4, 61: 4, 51: 3, 45: 2, 3: 1, 2: 1, 1: 0, 0: 0}
 
 
-def combina(dati_terrestri, modelli, adesso):
+def combina(dati_terrestri, modelli, adesso, pesi_appresi=None):
     """Sostituisce nei dati ICON-2I le serie orarie, i valori giornalieri e quelli attuali con la media pesata.
 
     Restituisce i pesi effettivi della prima ora (per mostrarli), o None se non c'è nulla da combinare.
@@ -175,14 +198,17 @@ def combina(dati_terrestri, modelli, adesso):
             tabelle[m] = t.assign(wind_gusts_10m=t["wind_speed_10m"].to_numpy(dtype=float) * fattore)
     scadenze = ((tempi - pd.Timestamp(adesso).floor("h")) / pd.Timedelta(hours=1)).to_numpy()
     pesi_ora = [pesi_alla_scadenza(max(0.0, s)) for s in scadenze]
+    pesi_gruppo = {gruppo: [pesi_alla_scadenza(max(0.0, s), gruppo, pesi_appresi) for s in scadenze]
+                   for gruppo in set(GRUPPO_VARIABILE.values())}
 
     def media(variabile):
+        pesi_variabile = pesi_gruppo.get(GRUPPO_VARIABILE.get(variabile), pesi_ora)
         valori = np.full((len(tempi), len(disponibili)), np.nan)
         pesi = np.zeros_like(valori)
         for j, m in enumerate(disponibili):
             if variabile in tabelle[m] and m not in ESCLUSI.get(variabile, set()):
                 valori[:, j] = tabelle[m][variabile].to_numpy(dtype=float)
-                pesi[:, j] = [p[m] for p in pesi_ora]
+                pesi[:, j] = [p[m] for p in pesi_variabile]
         pesi = np.where(np.isnan(valori), 0.0, pesi)
         somma = pesi.sum(axis=1)
         with np.errstate(invalid="ignore", divide="ignore"):
@@ -200,7 +226,7 @@ def combina(dati_terrestri, modelli, adesso):
         if "wind_direction_10m" in t and "wind_speed_10m" in t:
             gradi = np.radians(t["wind_direction_10m"].to_numpy(dtype=float))
             forza = t["wind_speed_10m"].to_numpy(dtype=float)
-            peso = np.array([p[m] for p in pesi_ora])
+            peso = np.array([p[m] for p in pesi_gruppo["vento"]])
             valido = ~(np.isnan(gradi) | np.isnan(forza))
             u += np.where(valido, -forza * np.sin(gradi) * peso, 0)
             v += np.where(valido, -forza * np.cos(gradi) * peso, 0)
@@ -233,6 +259,7 @@ def combina(dati_terrestri, modelli, adesso):
     _aggiorna_giornaliero(dati_terrestri, tempi, combinati, direzione, codici)
     _aggiorna_corrente(dati_terrestri, tempi, combinati, icon_prima, direzione, codici)
 
+    pesi_ora = pesi_gruppo["temperatura"]       # quelli mostrati nella pagina
     totale = sum(pesi_ora[0][m] for m in disponibili) if len(tempi) else 1
     indice_adesso = int(np.argmin(np.abs(scadenze))) if len(scadenze) else 0
     pesi_adesso = {m: pesi_ora[indice_adesso][m] / totale for m in disponibili}

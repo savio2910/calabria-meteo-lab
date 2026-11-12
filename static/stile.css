@@ -2533,3 +2533,79 @@ body {
 .cml-giorno-prob .cml-affidabilita-0 { color: #11663a; font-weight: 700; }
 .cml-giorno-prob .cml-affidabilita-1 { color: #725c00; font-weight: 700; }
 .cml-giorno-prob .cml-affidabilita-2 { color: #8a4108; font-weight: 700; }
+
+/* =============================================================================
+   ORA PER ORA: grafico unico sui 3 giorni
+   ============================================================================= */
+
+.oo-testa { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; }
+.oo-testa h2 { margin: 4px 0 0; color: var(--ink); font-size: 26px; }
+
+.oo-viste {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  overflow-x: auto;
+  border-radius: 999px;
+  background: #eef5f8;
+  scrollbar-width: none;
+}
+.oo-vista, .oo-giorno {
+  flex: 0 0 auto;
+  min-height: 40px;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #284d5a;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.oo-vista[aria-selected="true"] { background: #ffffff; color: var(--ink); box-shadow: 0 2px 8px rgba(16, 43, 59, 0.12); }
+.oo-vista:focus-visible, .oo-giorno:focus-visible, .oo-scorri:focus-visible { outline: 3px solid #00a6dd; outline-offset: 2px; }
+
+.oo-giorni { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 8px; }
+.oo-giorno { border: 1px solid #d5e4e9; background: #ffffff; }
+.oo-giorno[aria-pressed="true"] { border-color: #0b7f98; background: #e6f4f7; color: #075d74; }
+
+.oo-scorri { overflow-x: auto; border-radius: 12px; }
+.oo-tela { position: relative; height: 300px; }
+
+.oo-dettaglio {
+  margin-top: 12px;
+  padding: 14px 16px;
+  border: 1px solid #d5e4e9;
+  border-radius: 16px;
+  background: #f7fbfc;
+}
+.oo-d-testa { display: flex; align-items: center; gap: 12px; }
+.oo-d-icona { font-size: 34px; line-height: 1; }
+.oo-d-testa strong { display: block; color: var(--ink); font-size: 16px; }
+.oo-d-testa span { color: var(--muted); font-size: 14px; }
+.oo-d-temp { margin-left: auto; color: var(--ink); font-size: 30px; }
+.oo-dettaglio ul {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 6px 16px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  color: #284d5a;
+  font-size: 14px;
+}
+.oo-piede { margin: 10px 2px 0; color: var(--muted); font-size: 13px; }
+.oo-piede a { color: #0b7f98; font-weight: 700; }
+
+/* Schede dei giorni: ora sono riassunti che portano al grafico */
+.cml-day-card { cursor: pointer; }
+.cml-day-vai { display: block; margin-top: 12px; color: #0b7f98; font-size: 14px; font-weight: 800; }
+
+@media (max-width: 680px) {
+  .oo-testa h2 { font-size: 22px; }
+  .oo-vista, .oo-giorno { min-height: 44px; }
+  .oo-viste { display: grid; grid-template-columns: 1fr 1fr; width: 100%; border-radius: 18px; }
+  .oo-vista { text-align: center; }
+  .oo-tela { height: 260px; }
+}

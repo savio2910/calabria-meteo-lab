@@ -14,7 +14,8 @@ from meteo.adesso import menu_rapido_html, riga_fonti_html, riquadro_adesso_html
 from meteo.attivita import sezione_attivita_html
 from meteo.config import FUSO_ORARIO, GIORNI_PREVISIONE, leggi_static
 from meteo.dati import stato_mare_da_onda, valuta_rischio_locale
-from meteo.formato import data_it, direzione, icona_meteo_html, meteo, numero, ora_it
+from meteo.formato import data_it, direzione, meteo, numero, ora_it
+from meteo.oraperora import sezione_ora_per_ora_html
 from meteo.probabilita import testo_affidabilita
 
 
@@ -297,11 +298,10 @@ def genera_app_completa(
         carte_html.append(
             f"""
             <article class="cml-day-card" id="scheda-{riga['time'].date()}"
-              role="button" tabindex="0" aria-expanded="false"
-              aria-controls="dettaglio-{riga['time'].date()}"
-              aria-label="Mostra la previsione oraria per {html.escape(data_it(riga['time']), quote=True)}"
-              onclick="mostraGiorno('{riga['time'].date()}', this, event)"
-              onkeydown="if (event.target === this && (event.key === 'Enter' || event.key === ' ')) {{ event.preventDefault(); mostraGiorno('{riga['time'].date()}', this, event); }}">
+              role="button" tabindex="0"
+              aria-label="Mostra {html.escape(data_it(riga['time']), quote=True)} nel grafico ora per ora"
+              onclick="window.vaiAlGiorno && vaiAlGiorno('{riga['time'].date()}')"
+              onkeydown="if (event.key === 'Enter' || event.key === ' ') {{ event.preventDefault(); window.vaiAlGiorno && vaiAlGiorno('{riga['time'].date()}'); }}">
               <div class="cml-day-head">
                 <span class="cml-day-tag">{tag}</span>
 
@@ -398,207 +398,17 @@ def genera_app_completa(
                   <b>{ora_it(riga.get("moonset"))}</b>
                 </div>
               </div>
-              <!--DETTAGLIO-{riga['time'].date()}-->
+              <span class="cml-day-vai">Vedi ora per ora →</span>
             </article>
             """
         )
 
-    # ---------------------------------------------------------
-    # DETTAGLI ORARI (TABELLA PRIMA, GRAFICO DOPO)
-    # ---------------------------------------------------------
-
-    date_disponibili = sorted(ore["time"].dt.date.unique())
-
-    if not date_disponibili:
+    if ore.empty:
         raise RuntimeError(
             "Non sono disponibili dati orari futuri per la località selezionata."
         )
 
-    dati_grafici = {}
-    tabelle_html = []
-
-    for indice, data_giorno in enumerate(date_disponibili):
-        chiave = str(data_giorno)
-
-        ore_giorno = ore.loc[
-            ore["time"].dt.date == data_giorno
-        ].copy()
-
-        dati_grafici[chiave] = {
-            "ore": ore_giorno["time"].dt.strftime("%H:%M").tolist(),
-
-            "temperatura": [
-                round(float(valore), 1)
-                if pd.notna(valore)
-                else None
-                for valore in ore_giorno["temperature_2m"].tolist()
-            ],
-
-            "nuvolosita": [
-                round(float(valore), 0)
-                if pd.notna(valore)
-                else None
-                for valore in ore_giorno["cloud_cover"].tolist()
-            ],
-
-            "precipitazione": [
-                round(float(valore), 1)
-                if pd.notna(valore)
-                else None
-                for valore in ore_giorno["precipitation"].tolist()
-            ],
-
-            "vento": [
-                round(float(valore), 1)
-                if pd.notna(valore)
-                else None
-                for valore in ore_giorno["wind_speed_10m"].tolist()
-            ],
-
-            "raffiche": [
-                round(float(valore), 1)
-                if pd.notna(valore)
-                else None
-                for valore in ore_giorno["wind_gusts_10m"].tolist()
-            ],
-        }
-
-        righe_tabella = []
-
-        for _, riga in ore_giorno.iterrows():
-            classe_notte = (
-                "cml-night-row"
-                if bool(riga.get("Notte", False))
-                else ""
-            )
-            icona_ora_html = icona_meteo_html(
-                riga.get("weather_code"),
-                bool(riga.get("Notte", False)),
-            )
-
-            righe_tabella.append(
-                f"""
-                <tr class="{classe_notte}">
-                  <td class="c-ora">{riga["time"].strftime("%H:%M")}</td>
-
-                  <td class="cml-scenario-cell c-scenario">
-                    <span class="cml-table-icon">
-                      {icona_ora_html}
-                    </span>
-
-                    <span>
-                      {html.escape(str(riga["Scenario"]))}
-                    </span>
-                  </td>
-
-                  <td class="c-temp" data-unita="°">{numero(riga["temperature_2m"], 1)}</td>
-                  <td class="c-dato" data-etichetta="Percepita" data-unita="°">{numero(riga["apparent_temperature"], 1)}</td>
-                  <td class="c-dato" data-etichetta="Pioggia" data-unita=" mm">{numero(riga["precipitation"], 1)}</td>
-                  <td class="c-dato" data-etichetta="Vento" data-unita=" km/h">{numero(riga["wind_speed_10m"], 0)}</td>
-                  <td class="c-dato" data-etichetta="Da">{html.escape(str(riga["Da"]))}</td>
-                  <td class="c-dato" data-etichetta="Raffica" data-unita=" km/h">{numero(riga["wind_gusts_10m"], 0)}</td>
-                  <td class="c-dato" data-etichetta="Nubi" data-unita="%">{numero(riga["cloud_cover"], 0)}</td>
-                  <td class="c-dato" data-etichetta="Umidità" data-unita="%">{numero(riga["relative_humidity_2m"], 0)}</td>
-                </tr>
-                """
-            )
-
-        tabelle_html.append(
-            f"""
-            <div id="dettaglio-{chiave}" class="cml-day-inline-detail" hidden
-                 onclick="event.stopPropagation()">
-
-              <h3>
-                🕒 Previsione oraria ·
-                {html.escape(data_it(data_giorno).title())}
-              </h3>
-
-              <div class="cml-table-wrap">
-                <table class="cml-table cml-tabella-oraria">
-                  <thead>
-                    <tr>
-                      <th>Ora</th>
-                      <th>Scenario</th>
-                      <th>Temp. °C</th>
-                      <th>Percepita °C</th>
-                      <th>Pioggia mm</th>
-                      <th>Vento km/h</th>
-                      <th>Da</th>
-                      <th>Raffica km/h</th>
-                      <th>Nubi %</th>
-                      <th>Umidità %</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {''.join(righe_tabella)}
-                  </tbody>
-                </table>
-              </div>
-
-              <div class="cml-chart-box">
-              <div class="cml-chart-title">
-                🌡️ Andamento della temperatura
-              </div>
-
-              <div class="cml-chart-subtitle">
-                Temperatura prevista nelle diverse ore della giornata.
-              </div>
-
-              <div class="cml-chart-canvas-wrap">
-                <canvas id="temperaturaChart-{chiave}"></canvas>
-              </div>
-            </div>
-
-            <div class="cml-chart-box">
-              <div class="cml-chart-title">
-                ☁️ Nuvolosità e precipitazioni
-              </div>
-
-              <div class="cml-chart-subtitle">
-                Nuvolosità prevista e precipitazione oraria.
-              </div>
-
-              <div class="cml-chart-canvas-wrap">
-                <canvas id="nuvolositaPrecipitazioniChart-{chiave}"></canvas>
-              </div>
-            </div>
-
-            <div class="cml-chart-box">
-              <div class="cml-chart-title">
-                💨 Andamento del vento
-              </div>
-
-              <div class="cml-chart-subtitle">
-                Vento medio e raffiche previste.
-              </div>
-
-              <div class="cml-chart-canvas-wrap">
-                <canvas id="ventoChart-{chiave}"></canvas>
-              </div>
-            </div>
-
-            </div>
-            """
-        )
-
-    dettagli_per_data = {
-        str(data): dettaglio
-        for data, dettaglio in zip(date_disponibili, tabelle_html)
-    }
-
-    carte_html = [
-        carta.replace(
-            f"<!--DETTAGLIO-{riga['time'].date()}-->",
-            dettagli_per_data.get(
-                str(riga['time'].date()),
-                '<div class="cml-day-inline-empty">Nessuna ora futura disponibile per questo giorno.</div>',
-            ),
-        )
-        for carta, (_, riga) in zip(carte_html, giorni.iterrows())
-    ]
-
-    dati_grafici_json = json.dumps(dati_grafici, ensure_ascii=False)
+    ora_per_ora_html = sezione_ora_per_ora_html(ore, probabilita)
 
     # ---------------------------------------------------------
     # HTML COMPLETO CON HOME / PREVISIONI / RADAR
@@ -620,7 +430,6 @@ def genera_app_completa(
 
     script_app = (
         leggi_static("app.js")
-        .replace("__CML_DATI_GRAFICI__", dati_grafici_json)
         .replace("__CML_LAT__", str(latitudine))
         .replace("__CML_LON__", str(longitudine))
         .replace(
@@ -631,6 +440,7 @@ def genera_app_completa(
     )
 
     script_adesso = leggi_static("adesso.js")
+    script_oraperora = leggi_static("oraperora.js")
 
     documento_html = f"""
 <!DOCTYPE html>
@@ -668,8 +478,7 @@ def genera_app_completa(
         <h2>📅 I prossimi tre giorni</h2>
 
         <p>
-          Premi sul giorno che ti interessa per visualizzare prima
-          la previsione oraria e poi il grafico.
+          Il riassunto di ogni giorno: toccalo per vederlo ora per ora nel grafico.
         </p>
       </div>
 
@@ -694,7 +503,9 @@ def genera_app_completa(
   </section>
 
 <!-- ===================== ORA PER ORA ===================== -->
-<section id="cml-ora-per-ora" class="cml-sezione" aria-label="Previsione ora per ora"></section>
+<div id="cml-ora-per-ora" class="cml-sezione">
+{ora_per_ora_html}
+</div>
 
 <!-- ===================== MARE ===================== -->
 {mare_sezione}
@@ -850,6 +661,9 @@ def genera_app_completa(
 <script>
 {script_adesso}
 </script>
+<script>
+{script_oraperora}
+</script>
 
 <!-- ===================== COPYRIGHT ===================== -->
 <footer class="cml-copyright">
@@ -861,26 +675,7 @@ def genera_app_completa(
 </html>
 """
 
-    return aggiungi_dashboard_interattiva(documento_html, ore, luogo, probabilita)
-
-
-def aggiungi_dashboard_interattiva(documento_html, ore, luogo, probabilita=None):
-    campi = ["time", "temperature_2m", "apparent_temperature", "precipitation",
-             "wind_speed_10m", "wind_gusts_10m", "cloud_cover", "relative_humidity_2m", "Scenario", "Notte"]
-    tabella = ore.reindex(columns=campi).copy()
-    orarie = (probabilita or {}).get("orarie") or {}
-    tabella["prob_pioggia"] = [
-        None if (orarie.get(pd.Timestamp(t)) or {}).get("pioggia") is None
-        else round(orarie[pd.Timestamp(t)]["pioggia"] * 100)
-        for t in ore["time"]
-    ]
-    tabella["time"] = pd.to_datetime(tabella["time"]).dt.strftime("%Y-%m-%dT%H:%M")
-    dati_json = tabella.to_json(orient="records", force_ascii=False).replace("<", "\\u003c")
-    interfaccia = leggi_static("esploratore.html")
-    interfaccia = interfaccia.replace("__EX_DATA__", dati_json).replace(
-        "__EX_PLACE__", json.dumps(str(luogo), ensure_ascii=False).replace("<", "\\u003c")
-    )
-    return documento_html.replace("</body>", interfaccia + "\n</body>")
+    return documento_html
 
 
 def aggiungi_altezza_automatica(documento_html):

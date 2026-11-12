@@ -61,7 +61,12 @@ function init(){
  if(s.snow){const n=Math.round(35+s.amount*100);for(let i=0;i<n;i++){const x=(i*93.3+t*(6+s.wind*.1)+Math.sin(t+i)*12)%(w+30)-15,y=(i*63.7+t*(18+i%7))%(h+20)-10;circle(x,y,1+(i%3)*.6,'#f2faffb0')}}
  if(s.fog){for(let i=0;i<5;i++){const y=h*(.2+i*.16)+Math.sin(t*.15+i)*16;const g=ctx.createLinearGradient(0,y-45,0,y+45);g.addColorStop(0,'#e9f4f500');g.addColorStop(.5,'#e9f4f54d');g.addColorStop(1,'#e9f4f500');ctx.fillStyle=g;ctx.fillRect(0,y-45,w,90)}}
  }
- function resize(){w=window.innerWidth;h=window.innerHeight;const d=Math.min(devicePixelRatio||1,1.5);canvas.width=Math.round(w*d);canvas.height=Math.round(h*d);ctx.setTransform(d,0,0,d,0,0);draw()}
+ // Con l'altezza automatica il riquadro è alto quanto la pagina: la tela resta
+ // alta quanto lo schermo e si sposta con lo scorrimento della pagina Streamlit.
+ function areaVisibile(){try{const f=window.frameElement;if(f&&document.documentElement.classList.contains('cml-auto-altezza')){const r=f.getBoundingClientRect(),schermo=window.parent.innerHeight,alta=Math.min(schermo,window.innerHeight);return{top:Math.min(Math.max(0,-r.top),Math.max(0,window.innerHeight-alta)),h:alta}}}catch(e){}return{top:0,h:window.innerHeight}}
+ function resize(){const a=areaVisibile();w=window.innerWidth;h=a.h;canvas.style.top=a.top+'px';canvas.style.height=h+'px';const d=Math.min(devicePixelRatio||1,1.5);canvas.width=Math.round(w*d);canvas.height=Math.round(h*d);ctx.setTransform(d,0,0,d,0,0);draw()}
+ function segui(){const a=areaVisibile();canvas.style.top=a.top+'px';if(Math.abs(a.h-h)>1)resize()}
+ try{window.parent.document.addEventListener('scroll',segui,{capture:true,passive:true});window.parent.addEventListener('resize',resize)}catch(e){}
  function halt(){if(raf)cancelAnimationFrame(raf);raf=0;last=0}
  function frame(now){raf=0;if(paused||!enabled||document.hidden){last=0;return}if(last)t+=Math.min((now-last)/1000,.05);last=now;draw();raf=requestAnimationFrame(frame)}
  function start(){if(!raf&&!paused&&enabled&&!document.hidden)raf=requestAnimationFrame(frame)}

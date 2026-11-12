@@ -62,6 +62,11 @@ def dati_ore(ore, probabilita=None, indicatori=None):
             "cape": livello(valore_ora(indicatori, istante, "cape"), SOGLIE_INDICATORI["cape"]),
             "uv": _numero(valore_ora(indicatori, istante, "uv"), 0),
             "polveri": _numero(valore_ora(indicatori, istante, "polveri"), 0),
+            "modelli": {
+                chiave.replace("modello_temp_", ""): _numero(valore, 0)
+                for chiave, valore in riga.items()
+                if str(chiave).startswith("modello_temp_") and _numero(valore, 0) is not None
+            },
         })
     return righe
 
@@ -101,6 +106,9 @@ def _riga_html(r, riga_originale, prima):
         dettagli.append(f"☀️ Indice UV <b>{_fmt(r['uv'])}</b>")
     if r["polveri"] is not None and r["polveri"] >= 50:
         dettagli.append(f"🏜️ Polveri sahariane <b>{_fmt(r['polveri'])} µg/m³</b>")
+    if len(r["modelli"]) > 1:
+        dettagli.append("🧮 Temperatura nei modelli: " + " · ".join(
+            f"{html.escape(nome)} <b>{_fmt(valore, 0, '°')}</b>" for nome, valore in r["modelli"].items()))
 
     etichetta_ora = "Ora" if prima else r["ora"]
     return f"""

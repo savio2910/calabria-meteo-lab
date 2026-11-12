@@ -19,6 +19,7 @@ from meteo.formato import data_it, direzione, meteo, numero, ora_it
 from meteo.indicatori import riassunto_giorno, testi_indicatori
 from meteo.oraperora import sezione_ora_per_ora_html
 from meteo.probabilita import testo_affidabilita
+from meteo.situazione import situazione_html
 
 
 STILE_CSS = leggi_static("stile.css")
@@ -201,6 +202,7 @@ def genera_app_completa(
     probabilita=None,
     allerta=None,
     indicatori=None,
+    situazione=None,
 ):
     corrente = dati_terrestri["current"]
 
@@ -528,6 +530,7 @@ def genera_app_completa(
 <!-- ===================== ADESSO ===================== -->
 {adesso_html}
 {fonti_html}
+{situazione_html(situazione)}
 {riquadro_correzione}
 
 <!-- ===================== PROSSIMI GIORNI ===================== -->

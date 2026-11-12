@@ -385,6 +385,11 @@ def riga_fonti_html(dati_terrestri, correzione, dati_mare, is_costiero, probabil
 
     servizi.append(("attesa", "Radar", "caricamento…"))
 
+    if pesi:
+        meteohub = any(nome in pesi for nome in ("MOLOCH", "WRF ItaliaMeteo", "WRF CIMA", "BOLAM"))
+        intestazione = f"Previsione combinata di {len(pesi)} modelli via Open-Meteo" + (" e MeteoHub" if meteohub else "")
+    else:
+        intestazione = f"Dati {fonte} (ItaliaMeteo–ARPAE) via Open-Meteo"
     voci = "".join(
         f'<li class="cml-servizio cml-servizio-{stato}" id="cml-stato-{nome.lower()}">'
         f'<span class="cml-pallino" aria-hidden="true"></span>'
@@ -393,7 +398,7 @@ def riga_fonti_html(dati_terrestri, correzione, dati_mare, is_costiero, probabil
     )
     return f"""
 <div class="cml-fonti">
-  <p>{html.escape("Previsione combinata di " + str(len(pesi)) + " modelli" if pesi else "Dati " + fonte + " (ItaliaMeteo–ARPAE)")} via Open-Meteo{html.escape(orario)}</p>
+  <p>{html.escape(intestazione)}{html.escape(orario)}</p>
   <ul aria-label="Stato dei servizi">{voci}</ul>
 </div>
 """

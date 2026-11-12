@@ -14,6 +14,7 @@ import streamlit.components.v1 as components
 from meteo.allerta import allerta_per_comune
 from meteo.api import scarica_previsione_mare, scarica_previsione_terrestre
 from meteo.combinato import combina, scarica_modelli_aggiuntivi
+from meteo.meteohub import scarica_modelli_meteohub
 from meteo.config import FUSO_ORARIO
 from meteo.correzione import calcola_correzione_osservativa, scarica_osservazioni_meteostat
 from meteo.dati import prepara_dati_terrestri
@@ -155,9 +156,11 @@ SERVIZI_METEO = """
 
 - **🌍 Situazione generale**: pressione, aria e correnti a circa 1.500 m e zero termico, spiegati a parole.
 
-La previsione è **combinata da quattro modelli**: **ICON-2I** (ItaliaMeteo–ARPAE, dettaglio di circa 2 km,
-adatto alle montagne e alle coste calabresi), **ECMWF IFS** e **AIFS** del Centro Europeo e **ICON-EU**.
-ICON-2I pesa di più nelle prime ore, ECMWF dal secondo giorno. Quando possibile la previsione è
+La previsione è **combinata da otto modelli**. Cinque sono ad alta risoluzione, adatti alle montagne,
+alle coste e ai temporali calabresi: **ICON-2I** (ItaliaMeteo–ARPAE, 2,2 km), **MOLOCH** (CNR-ISAC, 1,2 km),
+**WRF** di ItaliaMeteo e di Fondazione CIMA (1,5 km) e **BOLAM** (CNR-ISAC, 8 km). Tre sono europei:
+**ECMWF IFS** e **AIFS** del Centro Europeo e **ICON-EU**. I modelli ad alta risoluzione pesano di più
+nelle prime ore, ECMWF dal secondo giorno. Quando possibile la previsione è
 corretta con le osservazioni delle stazioni vicine. Puoi condividere la previsione copiando
 l'indirizzo della pagina.
 """
@@ -257,11 +260,15 @@ def mostra_meteo():
         with st.spinner(f"Elaborazione previsione per {luogo}..."):
             dati_terrestri = scarica_previsione_terrestre(latitudine, longitudine)
 
-            # Modello combinato: ICON-2I + ECMWF IFS + ICON-EU + AIFS (se rispondono)
+            # Modello combinato: ICON-2I + MOLOCH + WRF + BOLAM + ECMWF IFS + ICON-EU + AIFS
+            # (quelli che rispondono)
             try:
                 combina(
                     dati_terrestri,
-                    scarica_modelli_aggiuntivi(latitudine, longitudine),
+                    {
+                        **scarica_modelli_aggiuntivi(latitudine, longitudine),
+                        **scarica_modelli_meteohub(latitudine, longitudine),
+                    },
                     datetime.now(FUSO_ORARIO).replace(tzinfo=None),
                 )
             except Exception:

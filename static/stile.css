@@ -2535,79 +2535,87 @@ body {
 .cml-giorno-prob .cml-affidabilita-2 { color: #8a4108; font-weight: 700; }
 
 /* =============================================================================
-   ORA PER ORA: grafico unico sui 3 giorni
+   ORA PER ORA: schede dei giorni ed elenco orario
    ============================================================================= */
 
-.oo-testa { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; }
-.oo-testa h2 { margin: 4px 0 0; color: var(--ink); font-size: 26px; }
+.oo h2 { margin: 4px 0 14px; color: var(--ink); font-size: 26px; }
 
-.oo-viste {
-  display: flex;
-  gap: 4px;
-  padding: 4px;
-  overflow-x: auto;
-  border-radius: 999px;
-  background: #eef5f8;
-  scrollbar-width: none;
-}
-.oo-vista, .oo-giorno {
-  flex: 0 0 auto;
-  min-height: 40px;
-  padding: 8px 14px;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: #284d5a;
-  font: inherit;
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-}
-.oo-vista[aria-selected="true"] { background: #ffffff; color: var(--ink); box-shadow: 0 2px 8px rgba(16, 43, 59, 0.12); }
-.oo-vista:focus-visible, .oo-giorno:focus-visible, .oo-scorri:focus-visible { outline: 3px solid #00a6dd; outline-offset: 2px; }
-
-.oo-giorni { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 8px; }
-.oo-giorno { border: 1px solid #d5e4e9; background: #ffffff; }
-.oo-giorno[aria-pressed="true"] { border-color: #0b7f98; background: #e6f4f7; color: #075d74; }
-
-.oo-scorri { overflow-x: auto; border-radius: 12px; }
-.oo-tela { position: relative; height: 300px; }
-
-.oo-dettaglio {
-  margin-top: 12px;
-  padding: 14px 16px;
+.oo-schede { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px; }
+.oo-scheda {
+  display: grid;
+  gap: 2px;
+  justify-items: center;
+  min-height: 60px;
+  padding: 8px 6px;
   border: 1px solid #d5e4e9;
   border-radius: 16px;
-  background: #f7fbfc;
+  background: #ffffff;
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
 }
-.oo-d-testa { display: flex; align-items: center; gap: 12px; }
-.oo-d-icona { font-size: 34px; line-height: 1; }
-.oo-d-testa strong { display: block; color: var(--ink); font-size: 16px; }
-.oo-d-testa span { color: var(--muted); font-size: 14px; }
-.oo-d-temp { margin-left: auto; color: var(--ink); font-size: 30px; }
-.oo-dettaglio ul {
+.oo-scheda[aria-selected="true"] { border: 2px solid #0b7f98; background: #e6f4f7; }
+.oo-scheda:focus-visible, .oo-ora summary:focus-visible { outline: 3px solid #00a6dd; outline-offset: 2px; }
+.oo-scheda-nome { font-size: 16px; font-weight: 800; }
+.oo-scheda-dati { color: #284d5a; font-size: 14px; }
+
+.oo-elenco { border: 1px solid #d5e4e9; border-radius: 18px; overflow: hidden; background: #ffffff; }
+
+.oo-intestazione, .oo-ora summary {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  grid-template-columns: 56px 40px minmax(0, 1fr) 64px 120px 120px;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+}
+.oo-intestazione {
+  background: #f1f7f9;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+.oo-ora { border-top: 1px solid #e7eff1; }
+.oo-ora summary { min-height: 52px; list-style: none; cursor: pointer; }
+.oo-ora summary::-webkit-details-marker { display: none; }
+.oo-ora[open] summary, .oo-ora summary:hover { background: #f4fafc; }
+.oo-notte summary { background: #f2f4fa; }
+.oo-h { color: #087087; font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.oo-ic { font-size: 26px; line-height: 1; }
+.oo-ic .cml-weather-svg { width: 32px; height: 32px; }
+.oo-cielo { overflow: hidden; color: #284d5a; font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
+.oo-t { color: var(--ink); font-size: 20px; }
+.oo-p { color: #2f6db3; font-size: 14px; font-weight: 700; }
+.oo-bagnata .oo-p { color: #1f5fa8; }
+.oo-nulla { color: #a9bac4; font-weight: 500; }
+.oo-v { display: flex; align-items: center; gap: 4px; color: #284d5a; font-size: 15px; font-weight: 700; }
+.oo-v small { color: var(--muted); font-size: 13px; font-weight: 600; }
+.oo-v .cml-freccia-vento { width: 18px; height: 18px; color: #0b7f98; }
+
+.oo-extra {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 6px 16px;
-  margin: 12px 0 0;
-  padding: 0;
+  margin: 0;
+  padding: 10px 14px 14px 70px;
   list-style: none;
+  background: #f4fafc;
   color: #284d5a;
   font-size: 14px;
 }
+.oo-extra-cielo { display: none; }
 .oo-piede { margin: 10px 2px 0; color: var(--muted); font-size: 13px; }
-.oo-piede a { color: #0b7f98; font-weight: 700; }
 
-/* Schede dei giorni: ora sono riassunti che portano al grafico */
+/* Schede dei giorni: ora sono riassunti che portano all'elenco */
 .cml-day-card { cursor: pointer; }
 .cml-day-vai { display: block; margin-top: 12px; color: #0b7f98; font-size: 14px; font-weight: 800; }
 
 @media (max-width: 680px) {
-  .oo-testa h2 { font-size: 22px; }
-  .oo-vista, .oo-giorno { min-height: 44px; }
-  .oo-viste { display: grid; grid-template-columns: 1fr 1fr; width: 100%; border-radius: 18px; }
-  .oo-vista { text-align: center; }
-  .oo-tela { height: 260px; }
+  .oo h2 { font-size: 22px; }
+  .oo-intestazione, .oo-ora summary { grid-template-columns: 46px 34px 52px minmax(0, 1fr) minmax(0, 1fr); gap: 6px; padding: 8px 10px; }
+  .oo-cielo { display: none; }
+  .oo-extra { padding-left: 14px; grid-template-columns: 1fr; }
+  .oo-extra-cielo { display: block; font-weight: 700; }
+  .oo-scheda-dati { font-size: 13px; }
 }
 
 /* =============================================================================

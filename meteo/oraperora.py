@@ -1,19 +1,20 @@
 # =============================================================================
-# Calabria Meteo Lab - Sezione "Ora per ora": un unico grafico sui 3 giorni
+# Calabria Meteo Lab - Sezione "Ora per ora": elenco orario dei 3 giorni
 # Copyright (c) 2026 Saverio Campanella
 # Tutti i diritti riservati.
 # =============================================================================
 #
-# Sostituisce le tabelle orarie dentro i giorni, i tre grafici per giorno e
-# l'"Esploratore": un solo grafico con quattro viste (temperatura, pioggia,
-# vento, nuvole) e il dettaglio dell'ora toccata. Il disegno è in
-# static/oraperora.js.
+# Una scheda per giorno (Oggi, Domani, ...) con una riga per ora: ora, icona,
+# cielo, temperatura, pioggia con probabilità, vento con freccia. Toccando una
+# riga si aprono i dettagli. Le righe si aprono senza JavaScript (<details>);
+# static/oraperora.js gestisce solo il cambio di giorno.
 
-import json
+import html
 
 import pandas as pd
 
-from meteo.formato import data_it, direzione, meteo, valore_finito
+from meteo.adesso import freccia_vento_html
+from meteo.formato import data_it, direzione, icona_meteo_html, meteo, numero, valore_finito
 from meteo.indicatori import SOGLIE_INDICATORI, livello, quota_neve, valore_ora
 
 
@@ -65,46 +66,101 @@ def dati_ore(ore, probabilita=None, indicatori=None):
     return righe
 
 
-def sezione_ora_per_ora_html(ore, probabilita=None, indicatori=None):
+LIVELLI_CAPE = ["basso", "moderato", "alto", "molto alto"]
+
+
+def _fmt(valore, decimali=0, unita=""):
+    if valore is None:
+        return "—"
+    return f"{valore:.{decimali}f}".replace(".", ",") + unita
+
+
+def _riga_html(r, riga_originale, prima):
+    pioggia_testo = ""
+    if (r["pioggia"] or 0) >= 0.1:
+        pioggia_testo = f"{_fmt(r['pioggia'], 1)} mm"
+    if r["prob"] is not None and (r["prob"] >= 20 or pioggia_testo):
+        pioggia_testo += (" · " if pioggia_testo else "") + f"{r['prob']}%"
+    bagnata = (r["pioggia"] or 0) >= 0.2 or (r["prob"] or 0) >= 50
+
+    dettagli = [
+        f"🌡️ Percepita <b>{_fmt(r['percepita'], 0, '°')}</b>",
+        f"💨 Raffiche <b>{_fmt(r['raffiche'], 0, ' km/h')}</b>",
+        f"☁️ Nuvole <b>{_fmt(r['nubi'], 0, '%')}</b>",
+        f"💧 Umidità <b>{_fmt(r['umidita'], 0, '%')}</b>",
+    ]
+    if r["prob"] is not None:
+        dettagli.append(f"🎲 Probabilità di pioggia <b>{r['prob']}%</b>")
+    if r["temporali"] is not None and r["temporali"] >= 30:
+        dettagli.append(f"⚡ Temporali nella zona <b>{r['temporali']}%</b>")
+    if r["neve"] is not None:
+        dettagli.append(f"❄️ Quota neve <b>circa {r['neve']:,} m</b>".replace(",", "."))
+    if r["cape"]:
+        dettagli.append(f"⛈️ Potenziale temporalesco <b>{LIVELLI_CAPE[r['cape']]}</b>")
+    if r["uv"] is not None and r["uv"] >= 3:
+        dettagli.append(f"☀️ Indice UV <b>{_fmt(r['uv'])}</b>")
+    if r["polveri"] is not None and r["polveri"] >= 50:
+        dettagli.append(f"🏜️ Polveri sahariane <b>{_fmt(r['polveri'])} µg/m³</b>")
+
+    etichetta_ora = "Ora" if prima else r["ora"]
+    return f"""
+      <details class="oo-ora{' oo-notte' if r['notte'] else ''}{' oo-bagnata' if bagnata else ''}">
+        <summary aria-label="{html.escape(etichetta_ora, quote=True)}: {html.escape(r['cielo'], quote=True)}, {_fmt(r['temp'], 0)} gradi">
+          <span class="oo-h">{html.escape(etichetta_ora)}</span>
+          <span class="oo-ic">{icona_meteo_html(riga_originale.get('weather_code'), r['notte'])}</span>
+          <span class="oo-cielo">{html.escape(r['cielo'])}</span>
+          <strong class="oo-t">{_fmt(r['temp'], 0, '°')}</strong>
+          <span class="oo-p">{html.escape(pioggia_testo) if pioggia_testo else '<span class="oo-nulla">—</span>'}</span>
+          <span class="oo-v">{freccia_vento_html(riga_originale.get('wind_direction_10m'))}{_fmt(r['vento'])} <small>{html.escape(r['da'])}</small></span>
+        </summary>
+        <ul class="oo-extra"><li class="oo-extra-cielo">{html.escape(r['cielo'])}</li>{''.join(f'<li>{d}</li>' for d in dettagli)}</ul>
+      </details>"""
+
+
+def sezione_ora_per_ora_html(ore, probabilita=None, indicatori=None, giorni=None):
     righe = dati_ore(ore, probabilita, indicatori)
-    giorni = []
+    originali = [r for _, r in ore.iterrows()]
+    date = []
     for riga in righe:
-        if not giorni or giorni[-1][0] != riga["data"]:
-            giorni.append((riga["data"], riga["giorno"]))
-    etichette = ["Oggi", "Domani"]
-    pulsanti_giorni = "".join(
-        f'<button type="button" class="oo-giorno" data-data="{data}">'
-        f'{etichette[i] if i < len(etichette) else nome.split(" ")[0]}</button>'
-        for i, (data, nome) in enumerate(giorni)
-    )
-    dati_json = json.dumps(righe, ensure_ascii=False).replace("<", "\\u003c")
+        if riga["data"] not in date:
+            date.append(riga["data"])
+
+    riassunti = {}
+    if giorni is not None and not giorni.empty:
+        for _, g in giorni.iterrows():
+            codice = g.get("weather_code_prevalente", g.get("weather_code"))
+            riassunti[pd.Timestamp(g["time"]).strftime("%Y-%m-%d")] = (
+                meteo(codice)[0], numero(g.get("temperature_2m_min"), 0, "°"), numero(g.get("temperature_2m_max"), 0, "°")
+            )
+
+    nomi = ["Oggi", "Domani"]
+    schede, pannelli = [], []
+    for indice, data in enumerate(date):
+        etichetta = nomi[indice] if indice < len(nomi) else data_it(pd.Timestamp(data)).split(" ")[0].capitalize()
+        icona, minima, massima = riassunti.get(data, ("", "—", "—"))
+        attiva = indice == 0
+        schede.append(f"""
+        <button type="button" role="tab" class="oo-scheda" id="oo-scheda-{data}" data-data="{data}"
+                aria-controls="oo-giorno-{data}" aria-selected="{'true' if attiva else 'false'}" tabindex="{0 if attiva else -1}">
+          <span class="oo-scheda-nome">{html.escape(etichetta)}</span>
+          <span class="oo-scheda-dati">{icona} {minima} / <b>{massima}</b></span>
+        </button>""")
+        righe_giorno = "".join(
+            _riga_html(r, originali[k], k == 0) for k, r in enumerate(righe) if r["data"] == data
+        )
+        pannelli.append(f"""
+      <div class="oo-elenco" role="tabpanel" id="oo-giorno-{data}" aria-labelledby="oo-scheda-{data}"{'' if attiva else ' hidden'}>
+        <div class="oo-intestazione" aria-hidden="true"><span>Ora</span><span></span><span class="oo-cielo">Cielo</span><span>Temp.</span><span>Pioggia</span><span>Vento km/h</span></div>
+        {righe_giorno}
+      </div>""")
+
     return f"""
 <section class="cml-radar-box oo" aria-labelledby="oo-titolo">
-  <div class="oo-testa">
-    <div>
-      <span class="cml-eyebrow">PROSSIME 72 ORE</span>
-      <h2 id="oo-titolo">🕒 Ora per ora</h2>
-    </div>
-    <div class="oo-viste" role="tablist" aria-label="Cosa mostrare nel grafico">
-      <button type="button" role="tab" class="oo-vista" data-vista="temperatura" aria-selected="true">🌡️ Temperatura</button>
-      <button type="button" role="tab" class="oo-vista" data-vista="pioggia" aria-selected="false">🌧️ Pioggia</button>
-      <button type="button" role="tab" class="oo-vista" data-vista="vento" aria-selected="false">💨 Vento</button>
-      <button type="button" role="tab" class="oo-vista" data-vista="nuvole" aria-selected="false">☁️ Nuvole</button>
-    </div>
-  </div>
-
-  <div class="oo-giorni" aria-label="Vai al giorno">{pulsanti_giorni}</div>
-
-  <div class="oo-scorri" id="oo-scorri" tabindex="0"
-       aria-label="Grafico ora per ora: usa le frecce sinistra e destra per cambiare ora">
-    <div class="oo-tela" id="oo-tela"><canvas id="oo-grafico" role="img"
-         aria-label="Andamento ora per ora della variabile scelta"></canvas></div>
-  </div>
-
-  <div class="oo-dettaglio" id="oo-dettaglio" aria-live="polite"></div>
-
-  <p class="oo-piede">Tocca il grafico per vedere un'ora · le fasce scure sono le ore di buio ·
-    <a href="#" id="oo-csv">scarica i dati (CSV)</a></p>
+  <span class="cml-eyebrow">PROSSIMI 3 GIORNI</span>
+  <h2 id="oo-titolo">🕒 Ora per ora</h2>
+  <div class="oo-schede" role="tablist" aria-label="Scegli il giorno">{''.join(schede)}</div>
+  {''.join(pannelli)}
+  <p class="oo-piede">Tocca un'ora per i dettagli · pioggia in mm e probabilità · la freccia indica dove va il vento,
+     la sigla da dove arriva · le righe scure sono le ore di buio</p>
 </section>
-<script>window.CML_ORE = {dati_json};</script>
 """

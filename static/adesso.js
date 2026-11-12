@@ -283,26 +283,36 @@
   avvia();
 })();
 
-/* ---------- Menu rapido: scorrimento alle sezioni e menu che resta in vista ---------- */
+/* ---------- Menu rapido: in alto su computer, barra fissa in basso su telefono ---------- */
 (function () {
   'use strict';
   var menu = document.getElementById('cml-menu-rapido');
   if (!menu) return;
 
+  function vai(id) {
+    var destinazione = document.getElementById(id);
+    if (!destinazione) return;
+    if (destinazione.tagName === 'DETAILS') destinazione.open = true;
+    destinazione.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
   menu.addEventListener('click', function (evento) {
     var link = evento.target.closest('a[data-vai]');
     if (!link) return;
-    var destinazione = document.getElementById(link.getAttribute('data-vai'));
-    if (!destinazione) return;
     evento.preventDefault();
-    destinazione.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    vai(link.getAttribute('data-vai'));
   });
 
-  // Con l'altezza automatica a scorrere è la pagina Streamlit: il menu segue
-  // lo scorrimento spostandosi dentro il riquadro (equivalente di "sticky").
   var cornice = null;
   try { cornice = window.frameElement; } catch (e) { cornice = null; }
   if (!cornice) return;
+
+  var telefono = window.matchMedia && window.matchMedia('(max-width: 680px)').matches;
+  if (telefono) {
+    try { if (barraInBasso()) return; } catch (e) { /* si resta col menu in alto */ }
+  }
+
+  // Computer: il menu segue lo scorrimento della pagina Streamlit (equivalente di "sticky").
   var partenza = 0;
   function misuraPartenza() {
     var precedente = menu.style.transform; menu.style.transform = '';
@@ -322,6 +332,80 @@
     window.parent.addEventListener('resize', function () { misuraPartenza(); segui(); });
   } catch (e) { /* non accessibile: il menu resta in cima */ }
   segui();
+
+  // Telefono: barra fissa in basso nella pagina principale (fissa rispetto allo schermo).
+  function barraInBasso() {
+    var genitore = window.parent.document;
+    var finestra = window.parent;
+    ['cml-barra-in-basso', 'cml-barra-stile'].forEach(function (id) {
+      var vecchio = genitore.getElementById(id);
+      if (vecchio) vecchio.remove();
+    });
+
+    var stile = genitore.createElement('style');
+    stile.id = 'cml-barra-stile';
+    stile.textContent =
+      '#cml-barra-in-basso{position:fixed;left:8px;right:8px;bottom:calc(8px + env(safe-area-inset-bottom));' +
+      'z-index:999999;display:flex;gap:2px;padding:5px;border:1px solid #d5e4e9;border-radius:20px;' +
+      'background:rgba(255,255,255,.96);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);' +
+      'box-shadow:0 8px 28px rgba(16,43,59,.22)}' +
+      '#cml-barra-in-basso[hidden]{display:none}' +
+      '#cml-barra-in-basso button{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;gap:2px;' +
+      'padding:6px 2px;border:0;border-radius:14px;background:none;color:#102b3b;' +
+      'font:700 11px/1.1 system-ui,-apple-system,"Segoe UI",sans-serif;cursor:pointer}' +
+      '#cml-barra-in-basso button span:first-child{font-size:20px;line-height:1}' +
+      '#cml-barra-in-basso button[aria-current="true"]{background:#e3f1f6;color:#0b5f7a}' +
+      '#cml-barra-in-basso button:focus-visible{outline:3px solid #00a6dd;outline-offset:-3px}' +
+      '[data-testid="stMain"] .block-container,[data-testid="stMainBlockContainer"]{padding-bottom:96px !important}';
+    genitore.head.appendChild(stile);
+
+    var barra = genitore.createElement('nav');
+    barra.id = 'cml-barra-in-basso';
+    barra.setAttribute('aria-label', 'Sezioni della previsione');
+    var voci = Array.prototype.slice.call(menu.querySelectorAll('a[data-vai]'));
+    voci.forEach(function (link) {
+      var bottone = genitore.createElement('button');
+      bottone.type = 'button';
+      bottone.setAttribute('data-vai', link.getAttribute('data-vai'));
+      var icona = link.querySelector('.cml-menu-icona');
+      var testo = link.querySelector('.cml-menu-testo');
+      var i = genitore.createElement('span'); i.setAttribute('aria-hidden', 'true'); i.textContent = icona ? icona.textContent : '';
+      var t = genitore.createElement('span'); t.textContent = testo ? testo.textContent : link.textContent;
+      bottone.appendChild(i); bottone.appendChild(t);
+      bottone.addEventListener('click', function () { vai(link.getAttribute('data-vai')); });
+      barra.appendChild(bottone);
+    });
+    genitore.body.appendChild(barra);
+    menu.classList.add('cml-menu-in-basso');
+    document.body.classList.add('cml-con-barra');
+
+    function togli() { barra.remove(); stile.remove(); }
+    window.addEventListener('pagehide', togli);
+
+    // Visibile solo quando la previsione è sullo schermo (non nella scheda Viaggio)
+    if (finestra.IntersectionObserver) {
+      new finestra.IntersectionObserver(function (voci) {
+        barra.hidden = !voci[0].isIntersecting;
+      }).observe(cornice);
+    }
+
+    // Sezione in cui ci si trova
+    var bottoni = Array.prototype.slice.call(barra.querySelectorAll('button'));
+    function evidenzia() {
+      if (!cornice.isConnected) { togli(); return; }
+      var alto = cornice.getBoundingClientRect().top;
+      var soglia = finestra.innerHeight * 0.35;
+      var attivo = null;
+      bottoni.forEach(function (b) {
+        var sezione = document.getElementById(b.getAttribute('data-vai'));
+        if (sezione && alto + sezione.getBoundingClientRect().top <= soglia) attivo = b;
+      });
+      bottoni.forEach(function (b) { b.setAttribute('aria-current', b === attivo ? 'true' : 'false'); });
+    }
+    genitore.addEventListener('scroll', evidenzia, { capture: true, passive: true });
+    evidenzia();
+    return true;
+  }
 })();
 
 /* ---------- Fisarmoniche: su telefono partono chiuse ---------- */

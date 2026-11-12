@@ -339,6 +339,22 @@ def riquadro_adesso_html(luogo, corrente, ore, giorni, probabilita=None, indicat
 """
 
 
+def riga_breve_fonti_html(dati_terrestri):
+    """Una riga sotto "Adesso": quanti modelli, taratura, ora di aggiornamento e link ai dettagli."""
+    pesi = dati_terrestri.get("_pesi") or {}
+    parti = [f"Previsione combinata di {len(pesi)} modelli" if pesi else "Previsione ICON-2I"]
+    taratura = dati_terrestri.get("_taratura")
+    if taratura and taratura.get("variabili"):
+        n = len(taratura["stazioni"])
+        parti.append(f"tarata con {n} {'stazione vicina' if n == 1 else 'stazioni vicine'}")
+    scaricato = dati_terrestri.get("_scaricato_alle")
+    if scaricato:
+        parti.append(f"aggiornata alle {pd.Timestamp(scaricato):%H:%M}")
+    return (f'<p class="cml-fonti-breve">{html.escape(" · ".join(parti))} · '
+            f'<a href="#cml-info" onclick="var d=document.getElementById(\'cml-info\'); if (d) d.open = true;">'
+            f'fonti e affidabilità</a></p>')
+
+
 def riga_fonti_html(dati_terrestri, correzione, dati_mare, is_costiero, probabilita=None, allerta=None):
     """Fonte, ora di aggiornamento e stato dei servizi (verde = attivo, grigio = no)."""
     fonte = dati_terrestri.get("_fonte", "ICON-2I")
@@ -417,9 +433,13 @@ def riga_fonti_html(dati_terrestri, correzione, dati_mare, is_costiero, probabil
 
 
 def menu_rapido_html(ha_mare):
-    voci = [("cml-adesso", "Adesso"), ("cml-giorni", "Giorni"), ("cml-ora-per-ora", "Ora per ora")]
+    voci = [("cml-adesso", "🌤️", "Adesso"), ("cml-giorni", "📅", "Giorni"), ("cml-ora-per-ora", "🕒", "Ore")]
     if ha_mare:
-        voci.append(("cml-mare", "Mare"))
-    voci += [("cml-radar", "Radar"), ("cml-attivita", "Attività")]
-    collegamenti = "".join(f'<a href="#{ancora}" data-vai="{ancora}">{testo}</a>' for ancora, testo in voci)
+        voci.append(("cml-mare", "🌊", "Mare"))
+    voci += [("cml-radar", "📡", "Radar"), ("cml-attivita", "🏃", "Attività")]
+    collegamenti = "".join(
+        f'<a href="#{ancora}" data-vai="{ancora}"><span class="cml-menu-icona" aria-hidden="true">{icona}</span>'
+        f'<span class="cml-menu-testo">{testo}</span></a>'
+        for ancora, icona, testo in voci
+    )
     return f'<nav class="cml-menu-rapido" id="cml-menu-rapido" aria-label="Sezioni della pagina">{collegamenti}</nav>'

@@ -15,10 +15,23 @@ import streamlit as st
 from meteo.config import API_MARE_URL, API_METEO_URL, FUSO_ORARIO, GIORNI_PREVISIONE, MODELLO_RISERVA, MODELLO_TERRESTRE, VARIABILI_CORRENTI, VARIABILI_GIORNALIERE, VARIABILI_MARINE_CORRENTI, VARIABILI_MARINE_GIORNALIERE, VARIABILI_MARINE_ORARIE, VARIABILI_ORARIE
 
 
+class TentativiBrevi(Retry):
+    """Come Retry, ma l'attesa chiesta dal server (Retry-After) non supera pochi secondi.
+
+    Quando Open-Meteo esaurisce il limite giornaliero risponde 429 con Retry-After di
+    molte ore: rispettarlo bloccherebbe la pagina su "Elaborazione previsione...".
+    """
+    ATTESA_MASSIMA_S = 3
+
+    def get_retry_after(self, response):
+        valore = super().get_retry_after(response)
+        return None if valore is None else min(valore, self.ATTESA_MASSIMA_S)
+
+
 def crea_sessione_http(tentativi_massimi=3, attesa=1.5):
     """Sessione HTTP che riprova da sola su errori temporanei (429, 5xx)."""
     sessione = requests.Session()
-    tentativi = Retry(
+    tentativi = TentativiBrevi(
         total=tentativi_massimi,
         backoff_factor=attesa,
         status_forcelist=(429, 500, 502, 503, 504),

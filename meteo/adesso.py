@@ -363,6 +363,16 @@ def riga_fonti_html(dati_terrestri, correzione, dati_mare, is_costiero, probabil
     else:
         servizi.append(("spento", "Correzione", "nessuna stazione vicina a quota simile"))
 
+    taratura = dati_terrestri.get("_taratura")
+    if taratura and taratura.get("variabili"):
+        nomi = {"temperatura": "temperatura", "pioggia": "pioggia", "vento": "vento", "raffica": "raffiche"}
+        stazioni = " · ".join(f"{s['nome']} {s['distanza_km']:.0f} km" for s in taratura["stazioni"][:3])
+        servizi.append(("attivo", "Taratura", f"{stazioni} ({', '.join(nomi[v] for v in taratura['variabili'])})"))
+    elif taratura:
+        servizi.append(("parziale", "Taratura", "stazioni vicine senza errori sistematici da correggere"))
+    else:
+        servizi.append(("spento", "Taratura", "nessuna stazione vicina a quota simile"))
+
     if dati_mare:
         servizi.append(("attivo", "Mare", "previsione marina"))
     elif is_costiero:

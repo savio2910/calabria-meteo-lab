@@ -332,6 +332,45 @@ def scrivi(cartella, risultati, oggi):
     return indice
 
 
+def previsioni_nelle_stazioni(cartella_storico, risultati):
+    """Aggiunge allo storico le previsioni dei modelli MeteoHub nei punti delle stazioni
+    (punto di griglia più vicino), per poterli tarare come gli altri modelli."""
+    percorso = Path(cartella_storico) / "stazioni.csv"
+    if not percorso.exists():
+        return 0
+    import pandas as pd
+    sys.path.insert(0, str(Path(__file__).parent))
+    from storico_calabria import COLONNE_PREV, aggiorna_mesi
+
+    stazioni = pd.read_csv(percorso)
+    righe_griglia = np.rint((stazioni["lat"].to_numpy() - LAT0) / PASSO).astype(int)
+    colonne_griglia = np.rint((stazioni["lon"].to_numpy() - LON0) / PASSO).astype(int)
+    dentro = (righe_griglia >= 0) & (righe_griglia < NY) & (colonne_griglia >= 0) & (colonne_griglia < NX)
+    stazioni, punti = stazioni[dentro], (righe_griglia * NX + colonne_griglia)[dentro]
+    nomi = {"temperature_2m": "temperatura", "precipitation": "pioggia", "wind_speed_10m": "vento"}
+    tabelle = []
+    for nome, dati in risultati.items():
+        corsa = pd.Timestamp(dati["corsa"]).tz_convert("UTC").tz_localize(None)
+        blocco, variabili = dati["blocco"], dati["variabili"]
+        ore = blocco.shape[2]
+        tempi = corsa + pd.to_timedelta(np.arange(ore), unit="h")
+        for ident, punto in zip(stazioni["id"], punti):
+            colonne = {}
+            for k, variabile in enumerate(variabili):
+                if variabile in nomi:
+                    interi = blocco[punto, k, :].astype(float)
+                    interi[interi == MANCANTE] = np.nan
+                    scala, scarto = VARIABILI[variabile]
+                    colonne[nomi[variabile]] = interi / scala + scarto
+            t = pd.DataFrame({"id": ident, "time": tempi, "modello": nome,
+                              "giorno": (np.arange(ore) // 24).clip(0, 2), **colonne})
+            tabelle.append(t[t["time"] > corsa])
+    if not tabelle:
+        return 0
+    nuove = pd.concat(tabelle, ignore_index=True).reindex(columns=COLONNE_PREV)
+    return aggiorna_mesi(Path(cartella_storico) / "previsioni", nuove, ["id", "time", "modello", "giorno"])
+
+
 def main(cartella):
     cartella = Path(cartella)
     precedenti = leggi_precedente(cartella)
@@ -363,6 +402,11 @@ def main(cartella):
         print("Nessun modello disponibile", file=sys.stderr)
         return 1
     indice = scrivi(cartella, risultati, datetime.now(timezone.utc).strftime("%Y-%m-%d"))
+    try:
+        righe = previsioni_nelle_stazioni(cartella.parent / "storico", risultati)
+        print(f"Previsioni nei punti delle stazioni: {righe} righe")
+    except Exception as errore:          # lo storico non deve mai bloccare l'elaborazione principale
+        print(f"Previsioni nei punti delle stazioni: ERRORE {errore}", file=sys.stderr)
     print(f"Scritto: {len(indice['modelli'])} modelli, {indice['byte_per_punto']} byte per punto")
     return 0
 

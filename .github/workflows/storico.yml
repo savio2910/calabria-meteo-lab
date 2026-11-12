@@ -1,0 +1,64 @@
+# Ogni giorno: raccoglie le osservazioni delle stazioni (Protezione Civile, ultimi
+# 3 giorni) e le previsioni passate dei modelli nei loro punti, poi ricalcola le
+# correzioni e i pesi dei modelli (elaborazione/allena_correzioni.py).
+# Risultato nel ramo "dati": storico/ e correzioni/ (correzioni.json, rapporto.md).
+
+name: Storico e taratura
+
+on:
+  schedule:
+    - cron: "23 5 * * *"
+  workflow_dispatch:
+    inputs:
+      giorni:
+        description: "Giorni di osservazioni da (ri)scaricare (al massimo 9 senza accesso all'archivio)"
+        default: "3"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ramo-dati
+  cancel-in-progress: false
+
+jobs:
+  taratura:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Codice
+        uses: actions/checkout@v4
+
+      - name: Ramo dati (se esiste)
+        run: |
+          if git ls-remote --exit-code --heads origin dati; then
+            git fetch --depth 1 origin dati
+            git worktree add --detach dati FETCH_HEAD
+          else
+            mkdir -p dati
+          fi
+
+      - name: Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Librerie
+        run: pip install "numpy>=1.26" "pandas>=2.2,<3" "requests>=2.31"
+
+      - name: Osservazioni e previsioni passate
+        run: python elaborazione/storico_calabria.py dati/storico --giorni "${{ github.event.inputs.giorni || '3' }}"
+
+      - name: Allenamento e verifica delle correzioni
+        run: python elaborazione/allena_correzioni.py dati/storico dati/correzioni
+
+      - name: Pubblicazione nel ramo dati
+        working-directory: dati
+        run: |
+          [ -e .git ] || git init -q
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -q --orphan nuovo
+          git add -A
+          git commit -q -m "Storico e taratura $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" nuovo:dati

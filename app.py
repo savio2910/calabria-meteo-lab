@@ -6,14 +6,12 @@
 # o riutilizzo, anche parziale, senza autorizzazione scritta dell’autore.
 # =============================================================================
 
-import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
 
 from meteo.api import scarica_previsione_mare, scarica_previsione_terrestre
 from meteo.correzione import calcola_correzione_osservativa, scarica_osservazioni_meteostat
 from meteo.dati import prepara_dati_terrestri
-from meteo.home_viva import aggiungi_home_viva
 from meteo.localita import (
     carica_comuni_costieri,
     carica_elenco_comuni,
@@ -25,7 +23,6 @@ from meteo.localita import (
 )
 from meteo.pagina import aggiungi_altezza_automatica, genera_app_completa
 from meteo.posizione import pulsante_posizione
-from meteo.sfondo_meteo import aggiungi_sfondo_meteo
 
 # =============================================================================
 # CONFIGURAZIONE STREAMLIT
@@ -233,14 +230,6 @@ try:
                 dati_mare = None
                 distanza_mare_km = None
 
-    ore_riserva = dati_terrestri.get("_ore_riserva") or []
-    if dati_terrestri.get("_fonte", "ICON-2I") != "ICON-2I":
-        st.warning(f"⚠️ Fonte dei dati: {dati_terrestri['_fonte']}.")
-    elif ore_riserva:
-        st.info(
-            f"ℹ️ {len(ore_riserva)} ore non coperte da ICON-2I sono state completate "
-            f"con ICON-EU (a partire dalle {pd.Timestamp(ore_riserva[0]).strftime('%d/%m %H:%M')})."
-        )
     documento = genera_app_completa(
         luogo,
         latitudine,
@@ -253,17 +242,6 @@ try:
         correzione_osservativa,
         is_costiero,
     )
-    documento = aggiungi_home_viva(documento)
-
-    documento = aggiungi_sfondo_meteo(
-        documento,
-        luogo,
-        dati_terrestri,
-        dati_orari,
-        dati_giornalieri,
-        is_costiero=is_costiero,
-    )
-    
     documento = aggiungi_altezza_automatica(documento)
 
     # L'altezza viene poi adattata dallo script; 1100 px è il valore iniziale

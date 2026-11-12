@@ -10,10 +10,11 @@ from datetime import datetime
 
 import pandas as pd
 
+from meteo.adesso import menu_rapido_html, riga_fonti_html, riquadro_adesso_html
 from meteo.attivita import tabella_attivita_luogo_html
 from meteo.config import FUSO_ORARIO, GIORNI_PREVISIONE, leggi_static
 from meteo.dati import stato_mare_da_onda, valuta_rischio_locale
-from meteo.formato import data_it, direzione, e_notte, icona_meteo_html, meteo, numero, ora_it, sintesi_oraria_html, valore_finito
+from meteo.formato import data_it, direzione, icona_meteo_html, meteo, numero, ora_it
 
 
 STILE_CSS = leggi_static("stile.css")
@@ -124,124 +125,6 @@ def genera_app_completa(
     is_costiero=False,
 ):
     corrente = dati_terrestri["current"]
-
-    # Condizione attuale: icona coerente con la nuvolosità
-    # quando non sono previsti fenomeni significativi.
-    codice_corrente = corrente.get("weather_code")
-    nuvolosita_corrente = corrente.get("cloud_cover")
-
-    if (
-        codice_corrente in (0, 1, 2, 3)
-        and nuvolosita_corrente is not None
-        and not pd.isna(nuvolosita_corrente)
-    ):
-        nuvolosita = float(nuvolosita_corrente)
-        if nuvolosita <= 15: codice_corrente = 0
-        elif nuvolosita <= 45: codice_corrente = 1
-        elif nuvolosita <= 75: codice_corrente = 2
-        else: codice_corrente = 3
-
-    icona_corrente, descrizione_corrente = meteo(codice_corrente)
-    sintesi_html = sintesi_oraria_html(ore)
-    ora_corrente = corrente.get("time")
-    alba_corrente = None
-    tramonto_corrente = None
-
-    if ora_corrente is not None and not giorni.empty:
-        giorno_corrente = giorni.loc[
-            giorni["time"].dt.date == pd.Timestamp(ora_corrente).date()
-        ]
-        if not giorno_corrente.empty:
-            alba_corrente = giorno_corrente.iloc[0].get("sunrise")
-            tramonto_corrente = giorno_corrente.iloc[0].get("sunset")
-
-    icona_corrente_html = icona_meteo_html(
-        corrente.get("weather_code"),
-        e_notte(ora_corrente, alba_corrente, tramonto_corrente),
-    )
-
-    metriche = [
-        (
-            "🌡️",
-            "Percepita",
-            numero(
-                corrente.get("apparent_temperature"),
-                1,
-                " °C",
-            ),
-        ),
-        (
-            "💧",
-            "Umidità",
-            numero(
-                corrente.get("relative_humidity_2m"),
-                0,
-                " %",
-            ),
-        ),
-        (
-            "☁️",
-            "Nuvolosità",
-            numero(
-                corrente.get("cloud_cover"),
-                0,
-                " %",
-            ),
-        ),
-        (
-            "💨",
-            "Vento",
-            numero(
-                corrente.get("wind_speed_10m"),
-                0,
-                " km/h",
-            ),
-        ),
-        (
-            "🧭",
-            "Provenienza",
-            direzione(
-                corrente.get("wind_direction_10m")
-            ),
-        ),
-        (
-            "🌬️",
-            "Raffica",
-            numero(
-                corrente.get("wind_gusts_10m"),
-                0,
-                " km/h",
-            ),
-        ),
-        (
-            "🌀",
-            "Pressione",
-            numero(
-                corrente.get("pressure_msl"),
-                1,
-                " hPa",
-            ),
-        ),
-    ]
-
-    metriche_html = "".join(
-        f"""
-        <div class="cml-metric-card">
-          <div class="cml-metric-icon">{icona}</div>
-
-          <div>
-            <div class="cml-metric-label">
-              {html.escape(etichetta)}
-            </div>
-
-            <div class="cml-metric-value">
-              {html.escape(valore)}
-            </div>
-          </div>
-        </div>
-        """
-        for icona, etichetta, valore in metriche
-    )
 
     mare_html = ""
 
@@ -727,57 +610,12 @@ def genera_app_completa(
         is_costiero,
     )
 
-    codice_sfondo = int(
-        valore_finito(
-            corrente.get("weather_code"),
-            -1,
-        )
-    )
+    # Riquadro "Adesso", fonti dei dati e menu rapido
+    adesso_html = riquadro_adesso_html(luogo, corrente, ore, giorni)
+    fonti_html = riga_fonti_html(dati_terrestri, correzione_osservativa, dati_mare, is_costiero)
+    menu_html = menu_rapido_html(bool(mare_html))
+    mare_sezione = f'<div id="cml-mare" class="cml-sezione">{mare_html}</div>' if mare_html else ""
 
-    ora_sfondo = pd.to_datetime(
-        corrente.get("time"),
-        errors="coerce",
-    )
-
-    notte_sfondo = False
-
-    if pd.notna(ora_sfondo) and not giorni.empty:
-        giorno_sfondo = giorni.loc[
-            giorni["time"].dt.date == ora_sfondo.date()
-        ]
-
-        if not giorno_sfondo.empty:
-            notte_sfondo = e_notte(
-                ora_sfondo,
-                giorno_sfondo.iloc[0].get("sunrise"),
-                giorno_sfondo.iloc[0].get("sunset"),
-            )
-
-    if codice_sfondo in (95, 96, 99):
-        classe_sfondo_meteo = "cml-bg-thunder"
-
-    elif codice_sfondo in (71, 73, 75, 77, 85, 86):
-        classe_sfondo_meteo = "cml-bg-snow"
-
-    elif codice_sfondo in (
-        51, 53, 55, 56, 57,
-        61, 63, 65, 66, 67,
-        80, 81, 82,
-    ):
-        classe_sfondo_meteo = "cml-bg-rain"
-
-    elif codice_sfondo in (45, 48):
-        classe_sfondo_meteo = "cml-bg-fog"
-
-    elif codice_sfondo in (2, 3):
-        classe_sfondo_meteo = "cml-bg-cloud"
-
-    elif notte_sfondo:
-        classe_sfondo_meteo = "cml-bg-night"
-
-    else:
-        classe_sfondo_meteo = "cml-bg-clear"
-        
     script_app = (
         leggi_static("app.js")
         .replace("__CML_DATI_GRAFICI__", dati_grafici_json)
@@ -789,6 +627,8 @@ def genera_app_completa(
             json.dumps(str(luogo), ensure_ascii=False).replace("<", "\\u003c"),
         )
     )
+
+    script_adesso = leggi_static("adesso.js")
 
     documento_html = f"""
 <!DOCTYPE html>
@@ -808,130 +648,57 @@ def genera_app_completa(
 
 <body>
 
-<!-- ===================== HOME ===================== -->
-<section id="cml-home" class="cml-view">
+<main id="cml-pagina">
 
-  <section class="cml-home-hero">
-    <div class="cml-hero-backdrop" aria-hidden="true">
-      <div class="cml-hero-glow"></div>
-      <div class="cml-hero-grid"></div>
-    </div>
+{menu_html}
 
-    <div class="cml-hero-content">
-      <div class="cml-brand">
-        <span class="cml-brand-mark"></span>
-        CALABRIA · METEOROLOGIA LOCALE
+<!-- ===================== ADESSO ===================== -->
+{adesso_html}
+{fonti_html}
+{riquadro_correzione}
+
+<!-- ===================== PROSSIMI GIORNI ===================== -->
+  <section class="cml-three-days cml-sezione" id="cml-giorni">
+    <div class="cml-section-title">
+      <div>
+        <span>ORIZZONTE PREVISIONALE</span>
+
+        <h2>📅 I prossimi tre giorni</h2>
+
+        <p>
+          Premi sul giorno che ti interessa per visualizzare prima
+          la previsione oraria e poi il grafico.
+        </p>
       </div>
 
-      <h1>
-        <span class="cml-hero-title-line">Calabria</span>
-        <span class="cml-hero-title-accent">Meteo Lab</span>
-      </h1>
-
-      <p class="cml-hero-lead">
-        Previsioni locali, radar delle precipitazioni, satellite e fulminazioni
-        per scegliere la località e leggere il tempo in Calabria.
-      </p>
-
-      <div class="cml-hero-badges">
-        <span class="cml-hero-badge">🌦️ ICON-2I</span>
-        <span class="cml-hero-badge">📡 Radar live</span>
-        <span class="cml-hero-badge">🛰️ Satellite</span>
-        <span class="cml-hero-badge">⚡ Fulmini</span>
-      </div>
+      <div class="cml-pill">72 ore</div>
     </div>
 
-    <div class="cml-hero-visual" aria-hidden="true">
-      <svg class="cml-hero-scene" viewBox="0 0 420 260" role="img" aria-label="Illustrazione meteorologica della Calabria">
-        <defs>
-          <linearGradient id="cmlSky" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#0b3f5c"/>
-            <stop offset="55%" stop-color="#12708c"/>
-            <stop offset="100%" stop-color="#22a3ad"/>
-          </linearGradient>
-          <linearGradient id="cmlSea" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#0d6d86"/>
-            <stop offset="100%" stop-color="#063a4d"/>
-          </linearGradient>
-          <linearGradient id="cmlLand" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#2f7a5b"/>
-            <stop offset="100%" stop-color="#14453a"/>
-          </linearGradient>
-          <radialGradient id="cmlSun" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stop-color="#ffe89a"/>
-            <stop offset="70%" stop-color="#ffc247"/>
-            <stop offset="100%" stop-color="#ff9d2e"/>
-          </radialGradient>
-        </defs>
+    <div class="cml-days-grid">
+      {''.join(carte_html)}
+    </div>
+    <div class="cml-note">
+      ℹ️ L'«indice meteo» è una stima automatica di questa app, <b>non un'allerta ufficiale</b>.
+      Per le allerte consulta il
+      <a href="https://www.cfd.calabria.it/" target="_blank" rel="noopener">Centro Funzionale Multirischi – ARPACAL</a>.
+    </div>
 
-        <rect width="420" height="260" fill="url(#cmlSky)"/>
-        <!-- Radar meteorologico in lontananza -->
-        <g class="cml-radar-sweep" opacity=".30">
-          <circle cx="345" cy="155" r="72" fill="none"
-                  stroke="#9ee8ed" stroke-width="1.4"/>
-          <circle cx="345" cy="155" r="48" fill="none"
-                  stroke="#9ee8ed" stroke-width="1.1"/>
-          <circle cx="345" cy="155" r="24" fill="none"
-                  stroke="#9ee8ed" stroke-width="1"/>
-          <line x1="345" y1="155" x2="409" y2="155"
-                stroke="#d7ffff" stroke-width="1.5"/>
-        </g>
-        
-        <!-- Particelle atmosferiche -->
-        <g class="cml-hero-particles" fill="#d8fbff">
-          <circle cx="44" cy="52" r="2"/>
-          <circle cx="68" cy="178" r="1.6"/>
-          <circle cx="244" cy="31" r="1.5"/>
-          <circle cx="386" cy="126" r="2"/>
-          <circle cx="256" cy="175" r="1.4"/>
-          <circle cx="29" cy="213" r="1.3"/>
-        </g>
-        
-        <!-- Fulmine discreto -->
-        <path
-          class="cml-hero-lightning"
-          d="M252 104 L234 142 L251 142 L239 172 L274 126 L256 126 Z"
-          fill="#fff1a3"
-          opacity="0"
-        />
-        <g class="cml-hero-sun">
-          <circle cx="318" cy="72" r="34" fill="url(#cmlSun)"/>
-          <g class="cml-hero-rays" stroke="#ffd166" stroke-width="4" stroke-linecap="round">
-            <line x1="318" y1="16" x2="318" y2="28"/>
-            <line x1="318" y1="116" x2="318" y2="128"/>
-            <line x1="262" y1="72" x2="274" y2="72"/>
-            <line x1="362" y1="72" x2="374" y2="72"/>
-            <line x1="279" y1="33" x2="288" y2="42"/>
-            <line x1="348" y1="102" x2="357" y2="111"/>
-            <line x1="357" y1="33" x2="348" y2="42"/>
-            <line x1="288" y1="102" x2="279" y2="111"/>
-          </g>
-        </g>
-
-        <g class="cml-hero-cloud">
-          <path d="M116 96c0-16 13-29 29-29 8 0 15 3 20 9 5-12 17-20 31-20 19 0 34 15 34 34 0 2 0 4-1 6h-113z" fill="#eaf4f8" opacity=".94"/>
-          <path d="M70 122c0-12 10-22 22-22 6 0 11 2 15 7 4-9 13-15 24-15 14 0 26 12 26 26 0 2 0 3-1 4H70z" fill="#dcebf1" opacity=".82"/>
-        </g>
-
-        <g class="cml-hero-rain" stroke="#8ed8f2" stroke-width="4" stroke-linecap="round">
-          <line x1="112" y1="140" x2="104" y2="162"/>
-          <line x1="140" y1="140" x2="132" y2="162"/>
-          <line x1="168" y1="140" x2="160" y2="162"/>
-          <line x1="196" y1="140" x2="188" y2="162"/>
-        </g>
-
-        <path d="M0 197c48-38 92-58 141-52 40 5 69 24 110 18 49-7 89-33 169-24v121H0z" fill="url(#cmlLand)"/>
-        <path d="M0 226c58-25 111-34 168-22 55 12 96 7 138-11 43-18 78-20 114-10v87H0z" fill="url(#cmlSea)"/>
-        <g class="cml-hero-waves" stroke="#9be3ef" stroke-width="3" stroke-linecap="round" opacity=".7">
-          <path d="M35 236c14-7 28-7 42 0"/>
-          <path d="M112 247c14-7 28-7 42 0"/>
-          <path d="M208 238c14-7 28-7 42 0"/>
-          <path d="M292 250c14-7 28-7 42 0"/>
-        </g>
-      </svg>
+    <div class="cml-note">
+      ℹ️ Le icone sintetizzano i fenomeni significativi sulle 24 ore;
+      in assenza di fenomeni mostrano il cielo medio diurno.
+      La nuvolosità riportata è la media diurna. Temperature, precipitazioni e vento
+      rappresentano estremi o cumulati sulle 24 ore.
     </div>
   </section>
 
+<!-- ===================== ORA PER ORA ===================== -->
+<section id="cml-ora-per-ora" class="cml-sezione" aria-label="Previsione ora per ora"></section>
+
+<!-- ===================== MARE ===================== -->
+{mare_sezione}
+
+<!-- ===================== RADAR, SATELLITE, FULMINI ===================== -->
+<div id="cml-radar" class="cml-sezione">
   <section class="cml-radar-box">
     <div class="cml-radar-head">
       <div>
@@ -1053,173 +820,12 @@ def genera_app_completa(
       Consulta gli avvisi ufficiali.
     </div>
   </section>
+</div>
 
-</section>
-
-
-
-  <section class="cml-home-actions">
-
-    <button
-      class="cml-home-choice"
-      type="button"
-      onclick="mostraVista('previsioni')"
-    >
-      <div class="cml-home-choice-icon">📅</div>
-
-      <h2>Previsioni orarie</h2>
-
-      <p>
-        Consulta condizioni attuali, temperatura, vento, precipitazioni,
-        tabelle ora per ora e grafici per i prossimi tre giorni.
-      </p>
-
-      <span>Apri previsioni →</span>
-    </button>
-
-    <button
-      class="cml-home-choice activities"
-      type="button"
-      onclick="apriVistaAttivita()"
-    >
-      <div class="cml-home-choice-icon">🏃</div>
-
-      <h2>Attività</h2>
-
-      <p>
-        Scopri quali attività sono più adatte alle condizioni meteorologiche
-        previste nelle diverse zone della Calabria.
-      </p>
-
-      <span>Apri attività →</span>
-    </button>
-
-  </section>
-
-</section>
-
-
-<!-- ===================== PREVISIONI ===================== -->
-<section
-  id="cml-previsioni"
-  class="cml-view {classe_sfondo_meteo}"
-  hidden
->
-
-  <div class="cml-nav-bar">
-    <button
-      class="cml-back-btn"
-      type="button"
-      onclick="mostraVista('home')"
-    >
-      ← Torna alla home
-    </button>
-
-    <span class="cml-nav-title">
-      📅 Previsioni orarie · {html.escape(luogo)}
-    </span>
-  </div>
-
-  <section class="cml-hero">
-    <div class="cml-brand">
-      <span class="cml-brand-mark"></span>
-      CALABRIA · METEOROLOGIA LOCALE
-    </div>
-
-    <h1>Previsioni per {html.escape(luogo)}</h1>
-
-    <p>
-      Previsioni ad alta risoluzione per la località selezionata:
-      temperatura, cielo, vento, precipitazioni e sviluppo delle
-      prossime 72 ore.
-    </p>
-  </section>
-
-  <section class="cml-current">
-    <div class="cml-current-main">
-      <div class="cml-place-block">
-
-        <div class="cml-kicker">
-          <span class="cml-live-dot"></span>
-          ICON-2I · PREVISIONE LOCALE
-        </div>
-
-        <h2>📍 {html.escape(luogo)}</h2>
-
-        <div class="cml-condition">
-          <span class="cml-current-weather-icon">
-            {icona_corrente_html}
-          </span>
-
-          {html.escape(descrizione_corrente)}
-        </div>
-
-      </div>
-
-      <div class="cml-temperature">
-        <span>{numero(corrente.get("temperature_2m"), 1, "")}</span>
-        <small>°C</small>
-      </div>
-    </div>
-
-    <div class="cml-metrics">
-      {metriche_html}
-    </div>
-
-    <div class="cml-current-footer">
-      <span>
-        ◷ Valido alle
-        <b>{html.escape(str(corrente.get("time", "—")))}</b>
-      </span>
-
-      <span>
-        ◉ Fuso
-        <b>Europe/Rome</b>
-      </span>
-
-      <span>
-        ◌ Fonte
-        <b>ItaliaMeteo–ARPAE</b>
-      </span>
-    </div>
-  </section>
-
-  {mare_html}
-  {riquadro_correzione}
-  {sintesi_html}
-
-  <section class="cml-three-days">
-    <div class="cml-section-title">
-      <div>
-        <span>ORIZZONTE PREVISIONALE</span>
-
-        <h2>📅 I prossimi tre giorni</h2>
-
-        <p>
-          Premi sul giorno che ti interessa per visualizzare prima
-          la previsione oraria e poi il grafico.
-        </p>
-      </div>
-
-      <div class="cml-pill">72 ore</div>
-    </div>
-
-    <div class="cml-days-grid">
-      {''.join(carte_html)}
-    </div>
-    <div class="cml-note">
-      ℹ️ L'«indice meteo» è una stima automatica di questa app, <b>non un'allerta ufficiale</b>.
-      Per le allerte consulta il
-      <a href="https://www.cfd.calabria.it/" target="_blank" rel="noopener">Centro Funzionale Multirischi – ARPACAL</a>.
-    </div>
-
-    <div class="cml-note">
-      ℹ️ Le icone sintetizzano i fenomeni significativi sulle 24 ore;
-      in assenza di fenomeni mostrano il cielo medio diurno.
-      La nuvolosità riportata è la media diurna. Temperature, precipitazioni e vento
-      rappresentano estremi o cumulati sulle 24 ore.
-    </div>
-  </section>
+<!-- ===================== ATTIVITÀ ===================== -->
+<div id="cml-attivita" class="cml-sezione">
+  {tabella_attivita_luogo}
+</div>
 
   <div class="cml-note">
     ℹ️ <b>ICON-2I:</b> modello deterministico ad alta risoluzione
@@ -1227,37 +833,14 @@ def genera_app_completa(
     Open-Meteo.
   </div>
 
-</section>
-
-
-<!-- ===================== RADAR ===================== -->
-
-
-
-<!-- ===================== ATTIVITÀ ===================== -->
-<section id="cml-attivita" class="cml-view" hidden>
-
-  <div class="cml-nav-bar">
-    <button
-      class="cml-back-btn"
-      type="button"
-      onclick="mostraVista('home')"
-    >
-      ← Torna alla home
-    </button>
-
-    <span class="cml-nav-title">
-      🏃 Attività consigliate · {html.escape(luogo)}
-    </span>
-  </div>
-
-  {tabella_attivita_luogo}
-
-</section>
+</main>
 
 <!-- ===================== SCRIPT ===================== -->
 <script>
 {script_app}
+</script>
+<script>
+{script_adesso}
 </script>
 
 <!-- ===================== COPYRIGHT ===================== -->

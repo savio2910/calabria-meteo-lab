@@ -345,7 +345,11 @@ def riga_fonti_html(dati_terrestri, correzione, dati_mare, is_costiero, probabil
     orario = f" · aggiornati alle {pd.Timestamp(scaricato).strftime('%H:%M')}" if scaricato else ""
 
     servizi = []
-    if fonte != "ICON-2I":
+    pesi = dati_terrestri.get("_pesi")
+    if pesi:
+        servizi.append(("attivo", "Previsione", "combinata · " + " · ".join(
+            f"{nome} {peso * 100:.0f}%" for nome, peso in pesi.items())))
+    elif fonte != "ICON-2I":
         servizi.append(("parziale", "Previsione", "ICON-EU (ICON-2I non disponibile)"))
     elif ore_riserva:
         servizi.append(("parziale", "Previsione", f"ICON-2I + ICON-EU per {len(ore_riserva)} ore"))
@@ -389,7 +393,7 @@ def riga_fonti_html(dati_terrestri, correzione, dati_mare, is_costiero, probabil
     )
     return f"""
 <div class="cml-fonti">
-  <p>Dati {html.escape(fonte)} (ItaliaMeteo–ARPAE) via Open-Meteo{html.escape(orario)}</p>
+  <p>{html.escape("Previsione combinata di " + str(len(pesi)) + " modelli" if pesi else "Dati " + fonte + " (ItaliaMeteo–ARPAE)")} via Open-Meteo{html.escape(orario)}</p>
   <ul aria-label="Stato dei servizi">{voci}</ul>
 </div>
 """

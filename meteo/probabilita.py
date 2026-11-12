@@ -194,7 +194,7 @@ def affidabilita(probabilita, forchetta_c, icon_piove, icon_fuori_forchetta=Fals
         (icon_piove and probabilita < basso) or (not icon_piove and probabilita > alto)
     )
     if pioggia_discorde or icon_fuori_forchetta:
-        motivi.append("ICON-2I e gli ensemble non concordano")
+        motivi.append("la previsione e gli ensemble non concordano")
     return min(len(motivi), 2), motivi
 
 

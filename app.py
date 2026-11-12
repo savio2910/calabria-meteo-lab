@@ -13,6 +13,7 @@ import streamlit.components.v1 as components
 
 from meteo.allerta import allerta_per_comune
 from meteo.api import scarica_previsione_mare, scarica_previsione_terrestre
+from meteo.combinato import combina, scarica_modelli_aggiuntivi
 from meteo.config import FUSO_ORARIO
 from meteo.correzione import calcola_correzione_osservativa, scarica_osservazioni_meteostat
 from meteo.dati import prepara_dati_terrestri
@@ -29,6 +30,7 @@ from meteo.localita import (
 from meteo.pagina import aggiungi_altezza_automatica, genera_app_completa
 from meteo.posizione import pulsante_posizione
 from meteo.probabilita import calcola_probabilita, scarica_ensemble, temporali_nell_intorno
+from meteo.situazione import frasi_situazione, scarica_quota
 from meteo.viaggio import (
     MEZZI,
     calcola_percorso,
@@ -151,9 +153,13 @@ SERVIZI_METEO = """
 - **🏃 Attività**: le ore migliori per escursioni, bici, corsa, foto, stelle, spiaggia, surf,
   kite, pesca e neve.
 
-La previsione arriva da **ICON-2I** (ItaliaMeteo–ARPAE), un modello con dettaglio di circa 2 km,
-adatto alle montagne e alle coste calabresi, corretta quando possibile con le osservazioni
-delle stazioni vicine. Puoi condividere la previsione copiando l'indirizzo della pagina.
+- **🌍 Situazione generale**: pressione, aria e correnti a circa 1.500 m e zero termico, spiegati a parole.
+
+La previsione è **combinata da quattro modelli**: **ICON-2I** (ItaliaMeteo–ARPAE, dettaglio di circa 2 km,
+adatto alle montagne e alle coste calabresi), **ECMWF IFS** e **AIFS** del Centro Europeo e **ICON-EU**.
+ICON-2I pesa di più nelle prime ore, ECMWF dal secondo giorno. Quando possibile la previsione è
+corretta con le osservazioni delle stazioni vicine. Puoi condividere la previsione copiando
+l'indirizzo della pagina.
 """
 
 SERVIZI_VIAGGIO = """
@@ -248,8 +254,18 @@ def mostra_meteo():
 
         st.caption("🔗 Il link nella barra degli indirizzi riapre questa previsione: puoi copiarlo e condividerlo.")
 
-        with st.spinner(f"Elaborazione previsione ICON-2I e radar per {luogo}..."):
+        with st.spinner(f"Elaborazione previsione per {luogo}..."):
             dati_terrestri = scarica_previsione_terrestre(latitudine, longitudine)
+
+            # Modello combinato: ICON-2I + ECMWF IFS + ICON-EU + AIFS (se rispondono)
+            try:
+                combina(
+                    dati_terrestri,
+                    scarica_modelli_aggiuntivi(latitudine, longitudine),
+                    datetime.now(FUSO_ORARIO).replace(tzinfo=None),
+                )
+            except Exception:
+                pass  # resta la previsione ICON-2I
 
             osservazioni, stazione_oss, ultima_osservazione = scarica_osservazioni_meteostat(
                 latitudine,
@@ -285,6 +301,17 @@ def mostra_meteo():
             except Exception:
                 indicatori = None
 
+            # Situazione generale: pressione, aria e vento a circa 1500 m, zero termico
+            try:
+                situazione = frasi_situazione(
+                    dati_orari,
+                    scarica_quota(latitudine, longitudine),
+                    indicatori,
+                    datetime.now(FUSO_ORARIO).replace(tzinfo=None),
+                )
+            except Exception:
+                situazione = []
+
             # Allerta ufficiale della Protezione Civile per la zona del comune
             try:
                 allerta = allerta_per_comune(comune_amministrativo, datetime.now(FUSO_ORARIO).date())
@@ -311,6 +338,7 @@ def mostra_meteo():
             probabilita,
             allerta,
             indicatori,
+            situazione,
         )
         mostra_documento(documento)
 

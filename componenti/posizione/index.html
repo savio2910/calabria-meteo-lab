@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; padding: 0; background: transparent; font-family: "Source Sans Pro", system-ui, sans-serif; }
+  button {
+    width: 100%; min-height: 40px; padding: 8px 12px; border-radius: 8px; cursor: pointer;
+    border: 1px solid #c7d6de; background: #ffffff; color: #163449; font: inherit; font-size: 15px;
+    display: flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap;
+  }
+  button:hover { border-color: #0b7fab; color: #0b7fab; }
+  button:focus-visible { outline: 3px solid #00a6dd; outline-offset: 2px; }
+  button[disabled] { opacity: .6; cursor: progress; }
+  #stato { font-size: 12px; color: #a33; margin: 4px 2px 0; }
+  #stato:empty { display: none; }
+</style>
+</head>
+<body>
+<button id="pulsante" type="button">📍 Usa la mia posizione</button>
+<div id="stato" role="status" aria-live="polite"></div>
+<script>
+/* Calabria Meteo Lab - componente Streamlit "Usa la mia posizione".
+   Chiede la posizione al browser e la restituisce a Python come
+   {lat, lon, accuratezza, istante}. Implementa il protocollo dei
+   componenti Streamlit senza librerie esterne. */
+(function () {
+  'use strict';
+  var pulsante = document.getElementById('pulsante');
+  var stato = document.getElementById('stato');
+
+  function invia(tipo, dati) {
+    var messaggio = Object.assign({ isStreamlitMessage: true, type: tipo }, dati || {});
+    window.parent.postMessage(messaggio, '*');
+  }
+  function adattaAltezza() {
+    invia('streamlit:setFrameHeight', { height: Math.ceil(document.body.scrollHeight) });
+  }
+  function errore(testo) {
+    stato.textContent = testo;
+    pulsante.disabled = false;
+    pulsante.textContent = '📍 Usa la mia posizione';
+    adattaAltezza();
+  }
+
+  pulsante.addEventListener('click', function () {
+    stato.textContent = '';
+    if (!navigator.geolocation) { errore('Il browser non permette di leggere la posizione.'); return; }
+    pulsante.disabled = true;
+    pulsante.textContent = '⏳ Ricerca posizione…';
+    navigator.geolocation.getCurrentPosition(function (p) {
+      pulsante.disabled = false;
+      pulsante.textContent = '📍 Usa la mia posizione';
+      adattaAltezza();
+      invia('streamlit:setComponentValue', {
+        dataType: 'json',
+        value: {
+          lat: p.coords.latitude,
+          lon: p.coords.longitude,
+          accuratezza: p.coords.accuracy,
+          istante: Date.now()
+        }
+      });
+    }, function (e) {
+      if (e.code === 1) errore('Permesso negato: consenti la posizione nelle impostazioni del browser.');
+      else if (e.code === 3) errore('Tempo scaduto: riprova.');
+      else errore('Posizione non disponibile.');
+    }, { enableHighAccuracy: false, timeout: 15000, maximumAge: 300000 });
+  });
+
+  window.addEventListener('message', function (evento) {
+    if (evento.data && evento.data.type === 'streamlit:render') adattaAltezza();
+  });
+  invia('streamlit:componentReady', { apiVersion: 1 });
+  adattaAltezza();
+})();
+</script>
+</body>
+</html>

@@ -14,8 +14,17 @@ from meteo.api import scarica_previsione_mare, scarica_previsione_terrestre
 from meteo.correzione import calcola_correzione_osservativa, scarica_osservazioni_meteostat
 from meteo.dati import prepara_dati_terrestri
 from meteo.home_viva import aggiungi_home_viva
-from meteo.localita import carica_comuni_costieri, comune_e_costiero, risolvi_localita
+from meteo.localita import (
+    carica_comuni_costieri,
+    carica_elenco_comuni,
+    comune_e_costiero,
+    localita_da_posizione,
+    risolvi_comune,
+    risolvi_localita,
+    trova_comune_scritto,
+)
 from meteo.pagina import aggiungi_altezza_automatica, genera_app_completa
+from meteo.posizione import pulsante_posizione
 from meteo.sfondo_meteo import aggiungi_sfondo_meteo
 
 # =============================================================================
@@ -53,6 +62,11 @@ st.markdown(
       iframe {
         background: #eef5f8 !important;
       }
+
+      /* Pulsante "Usa la mia posizione": allineato al menu di ricerca */
+      iframe[title="meteo.posizione.posizione_utente"] {
+        display: block;
+      }
     </style>
     """,
     unsafe_allow_html=True,
@@ -72,38 +86,68 @@ except (FileNotFoundError, ValueError) as errore_costieri:
 
 st.markdown("## 🔎 Seleziona località calabrese")
 
-with st.form("search_form", clear_on_submit=False):
-    colonna_input, colonna_bottone = st.columns([4, 1])
+ELENCO_COMUNI = carica_elenco_comuni()
 
-    with colonna_input:
-        testo_localita = st.text_input(
-            "Località",
-            value="",
-            placeholder="",
-            label_visibility="collapsed",
-        )
+# Località arrivata da un link condiviso (?luogo=...): fissata per tutta la
+# sessione, così le opzioni del menu restano stabili.
+st.session_state.setdefault("luogo_da_link", st.query_params.get("luogo"))
+luogo_da_link = st.session_state.luogo_da_link
 
-    with colonna_bottone:
-        cerca_localita = st.form_submit_button(
-            "Aggiorna previsione",
-            use_container_width=True,
-            type="primary",
-        )
+opzioni = list(ELENCO_COMUNI)
+indice_iniziale = None
+if luogo_da_link:
+    if luogo_da_link not in ELENCO_COMUNI:
+        opzioni.insert(0, luogo_da_link)  # frazione o località fuori elenco
+    indice_iniziale = opzioni.index(luogo_da_link)
+
+
+def _nuova_scelta():
+    # Una scelta nel menu ha la precedenza sulla posizione usata prima
+    st.session_state.usa_posizione = False
+
+
+colonna_ricerca, colonna_posizione = st.columns([4, 1.4], vertical_alignment="bottom")
+
+with colonna_ricerca:
+    scelta = st.selectbox(
+        "Località",
+        opzioni,
+        index=indice_iniziale,
+        key="localita",
+        placeholder="Scrivi un comune o una frazione della Calabria…",
+        accept_new_options=True,
+        on_change=_nuova_scelta,
+        label_visibility="collapsed",
+    )
+
+with colonna_posizione:
+    posizione = pulsante_posizione(key="posizione")
+
+if posizione and posizione.get("istante") != st.session_state.get("posizione_usata"):
+    st.session_state.posizione_usata = posizione.get("istante")
+    st.session_state.usa_posizione = True
 
 
 # =============================================================================
 # CONTROLLO INPUT
 # =============================================================================
 
-if not testo_localita.strip():
+richiesta = None
+if st.session_state.get("usa_posizione") and posizione:
+    richiesta = ("posizione", float(posizione["lat"]), float(posizione["lon"]))
+elif scelta:
+    richiesta = ("scelta", scelta)
+elif "lat" in st.query_params and "lon" in st.query_params:
+    try:
+        richiesta = ("posizione", float(st.query_params["lat"]), float(st.query_params["lon"]))
+    except ValueError:
+        richiesta = None
+
+if richiesta is None:
     st.info(
-        "Inserisci una località calabrese e premi «Aggiorna previsione» "
-        "per visualizzare le previsioni."
+        "Scrivi o scegli una località calabrese (comune o frazione), "
+        "oppure premi «Usa la mia posizione»."
     )
-    st.stop()
-
-
-if not cerca_localita and "previsione_caricata" not in st.session_state:
     st.stop()
 
 
@@ -112,12 +156,24 @@ if not cerca_localita and "previsione_caricata" not in st.session_state:
 # =============================================================================
 
 try:
-    (
-        luogo,
-        latitudine,
-        longitudine,
-        comune_amministrativo,
-    ) = risolvi_localita(testo_localita)
+    if richiesta[0] == "posizione":
+        latitudine = round(richiesta[1], 3)
+        longitudine = round(richiesta[2], 3)
+        luogo, comune_amministrativo = localita_da_posizione(latitudine, longitudine)
+        comune_amministrativo = comune_amministrativo or ""
+        # Nel link le coordinate sono arrotondate (circa 1 km)
+        st.query_params.from_dict({"lat": f"{latitudine:.2f}", "lon": f"{longitudine:.2f}"})
+    else:
+        # Testo scritto a mano che corrisponde a un solo comune -> quel comune
+        scelta = scelta if scelta in ELENCO_COMUNI else (trova_comune_scritto(scelta, ELENCO_COMUNI) or scelta)
+        if scelta in ELENCO_COMUNI:
+            comune, provincia = ELENCO_COMUNI[scelta]
+            luogo, latitudine, longitudine, comune_amministrativo = risolvi_comune(comune, provincia)
+        else:
+            luogo, latitudine, longitudine, comune_amministrativo = risolvi_localita(scelta)
+        st.query_params.from_dict({"luogo": scelta})
+
+    st.caption("🔗 Il link nella barra degli indirizzi riapre questa previsione: puoi copiarlo e condividerlo.")
 
     with st.spinner(
         f"Elaborazione previsione ICON-2I e radar per {luogo}..."
@@ -177,7 +233,6 @@ try:
                 dati_mare = None
                 distanza_mare_km = None
 
-    st.session_state.previsione_caricata = True
     ore_riserva = dati_terrestri.get("_ore_riserva") or []
     if dati_terrestri.get("_fonte", "ICON-2I") != "ICON-2I":
         st.warning(f"⚠️ Fonte dei dati: {dati_terrestri['_fonte']}.")

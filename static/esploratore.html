@@ -41,10 +41,10 @@ function init(){
  <div class="ex-time" id="ex-time"></div><p id="ex-scenario"></p>
  <label for="ex-slider">Trascina per cambiare l’ora prevista</label><input type="range" id="ex-slider" min="0" value="0" step="1">
  <div class="ex-grid"><div class="ex-card"><span>🌡 Temperatura</span><strong id="ex-temp"></strong><small id="ex-feel"></small></div>
- <div class="ex-card"><span>🌧 Precipitazione oraria</span><strong id="ex-rain"></strong><small>mm nell’intervallo orario</small></div>
+ <div class="ex-card"><span>🌧 Precipitazione oraria</span><strong id="ex-rain"></strong><small id="ex-rainp">mm nell’intervallo orario</small></div>
  <div class="ex-card"><span>💨 Vento medio</span><strong id="ex-wind"></strong><small id="ex-gust"></small></div>
  <div class="ex-card"><span>☁ Nuvolosità</span><strong id="ex-cloud"></strong><small id="ex-rh"></small></div></div>
- <label>Variabile del grafico <select id="ex-var"><option value="temperature_2m">Temperatura · °C</option><option value="precipitation">Precipitazione · mm</option><option value="wind_speed_10m">Vento medio · km/h</option><option value="wind_gusts_10m">Raffiche · km/h</option><option value="cloud_cover">Nuvolosità · %</option><option value="relative_humidity_2m">Umidità · %</option></select></label>
+ <label>Variabile del grafico <select id="ex-var"><option value="temperature_2m">Temperatura · °C</option><option value="precipitation">Precipitazione · mm</option><option value="prob_pioggia">Probabilità di pioggia · %</option><option value="wind_speed_10m">Vento medio · km/h</option><option value="wind_gusts_10m">Raffiche · km/h</option><option value="cloud_cover">Nuvolosità · %</option><option value="relative_humidity_2m">Umidità · %</option></select></label>
  <div class="ex-chart"><canvas id="ex-chart" aria-label="Andamento orario della variabile selezionata" role="img"></canvas></div>
  <p class="ex-caption" id="ex-note">Clicca su un punto del grafico per selezionare l’ora. Orari Europe/Rome. Dati della previsione caricata, non osservazioni in tempo reale. L’animazione scorre le scadenze disponibili: non interpola i dati.</p>`;
  target.appendChild(panel);
@@ -61,7 +61,7 @@ function init(){
  $('time').textContent=r.time.slice(11,16)+' · '+$('day').selectedOptions[0].textContent;
  $('scenario').textContent=(r.Notte?'🌙 ':'☀️ ')+(r.Scenario||'Scenario non disponibile');
  $('temp').textContent=fmt(r.temperature_2m,'°C');$('feel').textContent='Percepita '+fmt(r.apparent_temperature,'°C');
- $('rain').textContent=fmt(r.precipitation,'mm');$('wind').textContent=fmt(r.wind_speed_10m,'km/h',0);
+ $('rain').textContent=fmt(r.precipitation,'mm');$('rainp').textContent=typeof r.prob_pioggia==='number'?'Probabilità di pioggia '+r.prob_pioggia+'%':'mm nell’intervallo orario';$('wind').textContent=fmt(r.wind_speed_10m,'km/h',0);
  $('gust').textContent='Raffiche '+fmt(r.wind_gusts_10m,'km/h',0);$('cloud').textContent=fmt(r.cloud_cover,'%',0);$('rh').textContent='Umidità '+fmt(r.relative_humidity_2m,'%',0);
  if(chart){chart.data.datasets[0].pointRadius=dayRows.map((_,i)=>i===index?7:2);chart.update('none')}
  }
@@ -80,7 +80,7 @@ function init(){
  $('theme').onclick=()=>{const dark=panel.classList.toggle('ex-dark');$('theme').textContent=dark?'◐ Tema chiaro':'◐ Tema scuro';$('theme').setAttribute('aria-pressed',String(dark));draw();render()};
  $('compact').onclick=()=>{const compact=panel.classList.toggle('ex-compact');$('compact').setAttribute('aria-pressed',String(compact));if(chart)chart.resize()};
  $('csv').onclick=()=>{
- const keys=['time','temperature_2m','apparent_temperature','precipitation','wind_speed_10m','wind_gusts_10m','cloud_cover','relative_humidity_2m'];
+ const keys=['time','temperature_2m','apparent_temperature','precipitation','prob_pioggia','wind_speed_10m','wind_gusts_10m','cloud_cover','relative_humidity_2m'];
  const csv='\ufeff'+[keys.join(';'),...dayRows.map(r=>keys.map(k=>r[k]??'').join(';'))].join('\r\n');
  const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'})),a=document.createElement('a');a.href=url;a.download='previsione-'+$('day').value+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)
  };

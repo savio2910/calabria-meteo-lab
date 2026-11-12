@@ -10,6 +10,7 @@ import json
 import pandas as pd
 
 from meteo.formato import direzione, icona_meteo_html, meteo, numero, ora_it, valore_finito
+from meteo.probabilita import testo_affidabilita
 
 CODICI_TEMPORALE = {95, 96, 99}
 CODICI_NEVE = {71, 73, 75, 77, 85, 86}
@@ -78,11 +79,28 @@ def _intensita(millimetri):
     return "forte"
 
 
-def frase_riassuntiva(ore, ore_totali=ORE_STRISCIA):
-    """Una o due frasi semplici sulle prossime ore (pioggia, poi vento o temperatura)."""
+def _percentuale(valore):
+    return f"{valore * 100:.0f}%"
+
+
+def _probabilita_ora(probabilita, istante, chiave):
+    if not probabilita:
+        return None
+    return (probabilita["orarie"].get(pd.Timestamp(istante)) or {}).get(chiave)
+
+
+def frase_riassuntiva(ore, ore_totali=ORE_STRISCIA, probabilita=None):
+    """Una o due frasi semplici sulle prossime ore (pioggia, poi vento o temperatura).
+
+    Con le probabilità degli ensemble aggiunge la probabilità della pioggia
+    prevista, la pioggia possibile non prevista da ICON-2I e i temporali
+    possibili nella zona.
+    """
     prossime = ore.head(ore_totali).reset_index(drop=True)
     if prossime.empty:
         return "Previsione oraria non disponibile."
+    prob_pioggia = [_probabilita_ora(probabilita, t, "pioggia") for t in prossime["time"]]
+    prob_temporali = [_probabilita_ora(probabilita, t, "temporali") for t in prossime["time"]]
 
     pioggia = pd.to_numeric(prossime["precipitation"], errors="coerce").fillna(0.0)
     codici = prossime["weather_code"].map(_codice)
@@ -113,13 +131,28 @@ def frase_riassuntiva(ore, ore_totali=ORE_STRISCIA):
         else:
             massimo = float(pioggia.iloc[inizio:fine + 1].max())
             nome = "Neve" if tipo == "neve" else "Pioggia"
-            frasi.append(f"{nome} {_intensita(massimo)} dalle {ora_inizio}.")
+            noti = [x for x in prob_pioggia[inizio:fine + 1] if x is not None]
+            dettaglio = f" (probabilità {_percentuale(max(noti))})" if noti else ""
+            frasi.append(f"{nome} {_intensita(massimo)} dalle {ora_inizio}{dettaglio}.")
+    elif any(x is not None and x >= 0.5 for x in prob_pioggia):
+        # ICON-2I non prevede pioggia, ma almeno metà degli scenari sì
+        i = next(k for k, x in enumerate(prob_pioggia) if x is not None and x >= 0.5)
+        massima = max(x for x in prob_pioggia if x is not None)
+        frasi.append(f"Possibile pioggia dalle {_ora(prossime.loc[i, 'time'])} (probabilità {_percentuale(massima)}).")
     else:
         nebbia = [i for i in range(len(prossime)) if codici.iloc[i] in CODICI_NEBBIA]
         if nebbia:
             frasi.append(f"Niente pioggia; possibile nebbia dalle {_ora(prossime.loc[nebbia[0], 'time'])}.")
         else:
             frasi.append(f"Niente pioggia nelle prossime {len(prossime)} ore.")
+
+    # Temporali possibili nella zona (circa 10 km) anche se non previsti sul punto
+    if not codici.isin(CODICI_TEMPORALE).any():
+        zona = [(k, x) for k, x in enumerate(prob_temporali) if x is not None and x >= 0.3]
+        if zona:
+            massima = max(x for _, x in zona)
+            frasi.append(f"Possibili temporali nella zona dalle {_ora(prossime.loc[zona[0][0], 'time'])} "
+                         f"(probabilità {_percentuale(massima)}).")
 
     # 2) Vento, altrimenti temperatura
     raffiche = pd.to_numeric(prossime["wind_gusts_10m"], errors="coerce")
@@ -162,16 +195,24 @@ def freccia_vento_html(gradi):
     )
 
 
-def striscia_ore_html(ore, numero_ore=ORE_STRISCIA):
+def striscia_ore_html(ore, numero_ore=ORE_STRISCIA, probabilita=None):
     elementi = []
     for indice, riga in ore.head(numero_ore).iterrows():
         pioggia = valore_finito(riga.get("precipitation"), 0.0)
-        testo_pioggia = f"{pioggia:.1f} mm" if pioggia >= 0.1 else "—"
+        prob = _probabilita_ora(probabilita, riga["time"], "pioggia")
+        temporali = _probabilita_ora(probabilita, riga["time"], "temporali")
+        if prob is not None:
+            testo_pioggia = f"💧 {_percentuale(prob)}" + (" ⚡" if temporali is not None and temporali >= 0.3 else "")
+            descrizione_pioggia = f"probabilità di pioggia {_percentuale(prob)}"
+        else:
+            testo_pioggia = f"{pioggia:.1f} mm" if pioggia >= 0.1 else "—"
+            descrizione_pioggia = f"pioggia {testo_pioggia}"
+        bagnata = pioggia >= SOGLIA_PIOGGIA_MM or (prob is not None and prob >= 0.5)
         etichetta = "Ora" if indice == ore.index[0] else riga["time"].strftime("%H:%M")
         descrizione = meteo(riga.get("weather_code"))[1]
         elementi.append(f"""
-        <li class="cml-ora{' cml-ora-bagnata' if pioggia >= SOGLIA_PIOGGIA_MM else ''}"
-            aria-label="{html.escape(etichetta, quote=True)}: {html.escape(descrizione, quote=True)}, {numero(riga.get('temperature_2m'), 0, ' gradi')}, pioggia {html.escape(testo_pioggia, quote=True)}">
+        <li class="cml-ora{' cml-ora-bagnata' if bagnata else ''}"
+            aria-label="{html.escape(etichetta, quote=True)}: {html.escape(descrizione, quote=True)}, {numero(riga.get('temperature_2m'), 0, ' gradi')}, {html.escape(descrizione_pioggia, quote=True)}">
           <span class="cml-ora-quando">{html.escape(etichetta)}</span>
           <span class="cml-ora-icona">{icona_meteo_html(riga.get("weather_code"), bool(riga.get("Notte", False)))}</span>
           <strong>{numero(riga.get("temperature_2m"), 0, "°")}</strong>
@@ -204,7 +245,20 @@ def dati_cielo(corrente, ore, giorni):
     }
 
 
-def riquadro_adesso_html(luogo, corrente, ore, giorni):
+def affidabilita_html(probabilita):
+    """Riga "Affidabilità alta/media/bassa nelle prossime 12 ore" (vuota senza ensemble)."""
+    prossime = (probabilita or {}).get("prossime_12")
+    if not prossime or prossime.get("affidabilita") is None:
+        return ""
+    testo = f"{testo_affidabilita(prossime['affidabilita'])} nelle prossime 12 ore"
+    if prossime.get("pioggia") is not None:
+        testo += f" · pioggia nelle 12 ore {_percentuale(prossime['pioggia'])}"
+    if prossime.get("motivi"):
+        testo += " · " + ", ".join(prossime["motivi"])
+    return f'<p class="cml-adesso-affidabilita cml-affidabilita-{prossime["affidabilita"]}">{html.escape(testo)}</p>'
+
+
+def riquadro_adesso_html(luogo, corrente, ore, giorni, probabilita=None):
     codice = codice_attuale(corrente)
     descrizione = meteo(codice)[1]
     istante = corrente.get("time")
@@ -241,7 +295,8 @@ def riquadro_adesso_html(luogo, corrente, ore, giorni):
       </div>
     </div>
 
-    <p class="cml-adesso-frase">{html.escape(frase_riassuntiva(ore))}</p>
+    <p class="cml-adesso-frase">{html.escape(frase_riassuntiva(ore, probabilita=probabilita))}</p>
+    {affidabilita_html(probabilita)}
 
     <div class="cml-adesso-dati">
       <div class="cml-dato">
@@ -263,14 +318,14 @@ def riquadro_adesso_html(luogo, corrente, ore, giorni):
       </div>
     </div>
 
-    <ol class="cml-ore" aria-label="Prossime {ORE_STRISCIA} ore">{striscia_ore_html(ore)}</ol>
+    <ol class="cml-ore" aria-label="Prossime {ORE_STRISCIA} ore">{striscia_ore_html(ore, probabilita=probabilita)}</ol>
   </div>
 </section>
 <script>window.CML_CIELO = {cielo_json};</script>
 """
 
 
-def riga_fonti_html(dati_terrestri, correzione, dati_mare, is_costiero):
+def riga_fonti_html(dati_terrestri, correzione, dati_mare, is_costiero, probabilita=None):
     """Fonte, ora di aggiornamento e stato dei servizi (verde = attivo, grigio = no)."""
     fonte = dati_terrestri.get("_fonte", "ICON-2I")
     ore_riserva = dati_terrestri.get("_ore_riserva") or []
@@ -296,6 +351,12 @@ def riga_fonti_html(dati_terrestri, correzione, dati_mare, is_costiero):
         servizi.append(("spento", "Mare", "non disponibile"))
     else:
         servizi.append(("spento", "Mare", "località non costiera"))
+
+    if probabilita:
+        stato = "attivo" if len(probabilita["modelli"]) > 1 else "parziale"
+        servizi.append((stato, "Probabilità", f"{' + '.join(probabilita['modelli'])} ({probabilita['scenari']} scenari)"))
+    else:
+        servizi.append(("spento", "Probabilità", "ensemble non disponibili"))
 
     servizi.append(("attesa", "Radar", "caricamento…"))
 

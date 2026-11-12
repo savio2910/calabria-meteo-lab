@@ -15,6 +15,7 @@ from meteo.attivita import sezione_attivita_html
 from meteo.config import FUSO_ORARIO, GIORNI_PREVISIONE, leggi_static
 from meteo.dati import stato_mare_da_onda, valuta_rischio_locale
 from meteo.formato import data_it, direzione, icona_meteo_html, meteo, numero, ora_it
+from meteo.probabilita import testo_affidabilita
 
 
 STILE_CSS = leggi_static("stile.css")
@@ -41,6 +42,22 @@ def badge_rischio_html(livello, rischio):
         f"<span>{html.escape(testo)}{dettaglio}</span>"
         "</span>"
     )
+
+
+def probabilita_giorno_html(data, probabilita):
+    """Probabilità di pioggia, forchette delle temperature e affidabilità di un giorno."""
+    giorno = ((probabilita or {}).get("giornaliere") or {}).get(data)
+    if not giorno:
+        return ""
+    massima, minima = giorno["massima"], giorno["minima"]
+    motivi = ", ".join(giorno.get("motivi") or [])
+    return f"""
+              <div class="cml-giorno-prob" title="{html.escape(motivi, quote=True)}">
+                <span>🎲 Pioggia <b>{giorno['pioggia'] * 100:.0f}%</b></span>
+                <span>Max <b>{massima[0]:.0f}–{massima[1]:.0f}°</b></span>
+                <span>Min <b>{minima[0]:.0f}–{minima[1]:.0f}°</b></span>
+                <span class="cml-affidabilita-{giorno['affidabilita']}">{html.escape(testo_affidabilita(giorno['affidabilita']))}</span>
+              </div>"""
 
 
 def riquadro_correzione_html(correzione):
@@ -125,6 +142,7 @@ def genera_app_completa(
     distanza_mare_km=None,
     correzione_osservativa=None,
     is_costiero=False,
+    probabilita=None,
 ):
     corrente = dati_terrestri["current"]
 
@@ -329,6 +347,8 @@ def genera_app_completa(
                   </strong>
                 </div>
               </div>
+
+              {probabilita_giorno_html(riga["time"].date(), probabilita)}
 
               <div class="cml-day-details">
                 <div>
@@ -593,8 +613,8 @@ def genera_app_completa(
     )
 
     # Riquadro "Adesso", fonti dei dati e menu rapido
-    adesso_html = riquadro_adesso_html(luogo, corrente, ore, giorni)
-    fonti_html = riga_fonti_html(dati_terrestri, correzione_osservativa, dati_mare, is_costiero)
+    adesso_html = riquadro_adesso_html(luogo, corrente, ore, giorni, probabilita)
+    fonti_html = riga_fonti_html(dati_terrestri, correzione_osservativa, dati_mare, is_costiero, probabilita)
     menu_html = menu_rapido_html(bool(mare_html))
     mare_sezione = f'<div id="cml-mare" class="cml-sezione">{mare_html}</div>' if mare_html else ""
 
@@ -841,13 +861,19 @@ def genera_app_completa(
 </html>
 """
 
-    return aggiungi_dashboard_interattiva(documento_html, ore, luogo)
+    return aggiungi_dashboard_interattiva(documento_html, ore, luogo, probabilita)
 
 
-def aggiungi_dashboard_interattiva(documento_html, ore, luogo):
+def aggiungi_dashboard_interattiva(documento_html, ore, luogo, probabilita=None):
     campi = ["time", "temperature_2m", "apparent_temperature", "precipitation",
              "wind_speed_10m", "wind_gusts_10m", "cloud_cover", "relative_humidity_2m", "Scenario", "Notte"]
     tabella = ore.reindex(columns=campi).copy()
+    orarie = (probabilita or {}).get("orarie") or {}
+    tabella["prob_pioggia"] = [
+        None if (orarie.get(pd.Timestamp(t)) or {}).get("pioggia") is None
+        else round(orarie[pd.Timestamp(t)]["pioggia"] * 100)
+        for t in ore["time"]
+    ]
     tabella["time"] = pd.to_datetime(tabella["time"]).dt.strftime("%Y-%m-%dT%H:%M")
     dati_json = tabella.to_json(orient="records", force_ascii=False).replace("<", "\\u003c")
     interfaccia = leggi_static("esploratore.html")

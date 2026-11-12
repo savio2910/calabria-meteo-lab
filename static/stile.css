@@ -2609,3 +2609,35 @@ body {
   .oo-vista { text-align: center; }
   .oo-tela { height: 260px; }
 }
+
+/* =============================================================================
+   ALLERTA UFFICIALE DELLA PROTEZIONE CIVILE (colori ufficiali)
+   ============================================================================= */
+
+.cml-allerta {
+  margin: 0 0 14px;
+  padding: 16px 20px;
+  border: 2px solid;
+  border-radius: 20px;
+  color: #3a2a00;
+}
+.cml-allerta-1 { border-color: #e0b400; background: #fff7cc; }
+.cml-allerta-2 { border-color: #ee7d00; background: #ffe7cc; color: #4a2300; }
+.cml-allerta-3 { border-color: #d0021b; background: #ffd9dd; color: #4d0009; }
+.cml-allerta strong { display: block; font-size: 17px; }
+.cml-allerta ul { margin: 8px 0; padding-left: 18px; font-size: 16px; }
+.cml-allerta p { margin: 0; font-size: 14px; }
+.cml-allerta a { color: inherit; font-weight: 800; }
+
+.cml-allerta-giorno {
+  margin: 10px 0 0;
+  padding: 8px 12px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 700;
+}
+.cml-allerta-giorno-0 { background: #e9f7ee; color: #11663a; }
+.cml-allerta-giorno-1 { background: #fff7cc; color: #6b5200; border: 1px solid #e0b400; }
+.cml-allerta-giorno-2 { background: #ffe7cc; color: #7a3a00; border: 1px solid #ee7d00; }
+.cml-allerta-giorno-3 { background: #ffd9dd; color: #8a0012; border: 1px solid #d0021b; }
+.cml-allerta-giorno-nd { background: #eef3f5; color: #546b78; font-weight: 600; }

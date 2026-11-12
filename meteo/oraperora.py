@@ -16,6 +16,7 @@ import pandas as pd
 from meteo.adesso import freccia_vento_html
 from meteo.formato import data_it, direzione, icona_meteo_html, meteo, numero, valore_finito
 from meteo.indicatori import SOGLIE_INDICATORI, livello, quota_neve, valore_ora
+from meteo.probabilita import PROBABILITA_MINIMA_MOSTRATA, SOGLIE_RAFFICHE
 
 
 def _numero(valore, decimali=1):
@@ -52,6 +53,8 @@ def dati_ore(ore, probabilita=None, indicatori=None):
             "pioggia": _numero(riga.get("precipitation")),
             "prob": None if prob.get("pioggia") is None else round(prob["pioggia"] * 100),
             "temporali": None if prob.get("temporali") is None else round(prob["temporali"] * 100),
+            "prob_raffiche": {s: round(p * 100) for s, p in (prob.get("raffiche") or {}).items()
+                              if s in SOGLIE_RAFFICHE.values()},
             "vento": _numero(riga.get("wind_speed_10m"), 0),
             "raffiche": _numero(riga.get("wind_gusts_10m"), 0),
             "da": direzione(riga.get("wind_direction_10m")),
@@ -96,6 +99,10 @@ def _riga_html(r, riga_originale, prima):
     ]
     if r["prob"] is not None:
         dettagli.append(f"🎲 Probabilità di pioggia <b>{r['prob']}%</b>")
+    for soglia in sorted(r["prob_raffiche"], reverse=True):     # la soglia più alta che conta
+        if r["prob_raffiche"][soglia] >= PROBABILITA_MINIMA_MOSTRATA * 100:
+            dettagli.append(f"🌬️ Probabilità di raffiche ≥ {soglia} km/h <b>{r['prob_raffiche'][soglia]}%</b>")
+            break
     if r["temporali"] is not None and r["temporali"] >= 30:
         dettagli.append(f"⚡ Temporali nella zona <b>{r['temporali']}%</b>")
     if r["neve"] is not None:

@@ -6,6 +6,7 @@
 # o riutilizzo, anche parziale, senza autorizzazione scritta dell’autore.
 # =============================================================================
 
+import math
 from datetime import datetime, timedelta
 
 import streamlit as st
@@ -30,7 +31,7 @@ from meteo.localita import (
 )
 from meteo.pagina import aggiungi_altezza_automatica, genera_app_completa
 from meteo.posizione import pulsante_posizione
-from meteo.probabilita import calcola_probabilita, scarica_ensemble, temporali_nell_intorno
+from meteo.probabilita import calcola_probabilita, raffiche_nei_punti, scarica_ensemble, temporali_nell_intorno
 from meteo.situazione import frasi_situazione, scarica_quota
 from meteo.viaggio import (
     MEZZI,
@@ -145,7 +146,8 @@ SERVIZI_METEO = """
   idrogeologico, idraulico) per la zona della località, oggi e domani.
 - **📅 Prossimi 3 giorni** e **🕒 Ora per ora**: minime, massime, pioggia, vento e cielo
   per ogni giorno e per ogni ora.
-- **🎲 Probabilità e affidabilità**: quanto è probabile la pioggia e quanto è sicura la
+- **🎲 Probabilità e affidabilità**: quanto è probabile la pioggia, quanto potrebbero essere
+  forti vento e raffiche (forchetta e probabilità di raffiche ≥ 50 e ≥ 75 km/h) e quanto è sicura la
   previsione, confrontando 91 scenari dei modelli europei (ICON-EU ed ECMWF).
 - **❄️ Neve, ⛈️ temporali, ☀️ UV, 🏜️ polveri**: quota neve, potenziale temporalesco,
   indice UV e sabbia del Sahara quando contano.
@@ -174,6 +176,8 @@ SERVIZI_VIAGGIO = """
 4. Vedi il viaggio **passo passo** (strada, quota, meteo, giudizio) e su una **mappa**.
 
 Auto, moto e bici hanno soglie diverse: la moto e la bici risentono di più di pioggia, vento e freddo.
+💨 Se gli scenari degli ensemble danno **raffiche forti** con probabilità di almeno il 30% anche quando la
+previsione resta sotto soglia, la partenza e il tratto lo segnalano.
 Sono indicazioni basate sulla previsione: segui sempre gli avvisi ufficiali e lo stato delle strade.
 """
 
@@ -370,6 +374,25 @@ def risolvi_tappa(testo):
     return geocodifica_italia(testo)
 
 
+PUNTI_ENSEMBLE_VIAGGIO = 6
+
+
+def raffiche_lungo_il_percorso(punti):
+    """Raffiche degli scenari ensemble per ogni punto, scaricate per al massimo 6 punti del percorso
+    (ogni punto usa il campione più vicino lungo la strada). None se non disponibili."""
+    if not punti:
+        return None
+    passo = max(1, math.ceil(len(punti) / PUNTI_ENSEMBLE_VIAGGIO))
+    campioni = list(range(0, len(punti), passo))
+    if campioni[-1] != len(punti) - 1:
+        campioni.append(len(punti) - 1)
+    try:
+        dati = raffiche_nei_punti(tuple((round(punti[i]["lat"], 2), round(punti[i]["lon"], 2)) for i in campioni))
+    except Exception:
+        return None
+    return [dati[min(range(len(campioni)), key=lambda k: abs(campioni[k] - i))] for i in range(len(punti))]
+
+
 def calcola_viaggio(testo_partenza, testo_arrivo, mezzo, giorno, ora_da, ora_a):
     origine = risolvi_tappa(testo_partenza)
     destinazione = risolvi_tappa(testo_arrivo)
@@ -383,7 +406,8 @@ def calcola_viaggio(testo_partenza, testo_arrivo, mezzo, giorno, ora_da, ora_a):
     partenze = partenze_possibili(giorno, ora_da, ora_a)
     if not partenze:
         raise ValueError("Nessuna partenza possibile nella fascia scelta: per oggi l'orario è già passato.")
-    valutazioni = [valuta_partenza(p, punti, meteo_punti, mezzo) for p in partenze]
+    raffiche = raffiche_lungo_il_percorso(punti)
+    valutazioni = [valuta_partenza(p, punti, meteo_punti, mezzo, raffiche) for p in partenze]
     return {
         "origine": origine[0],
         "destinazione": destinazione[0],

@@ -16,6 +16,7 @@ import pandas as pd
 
 from meteo.formato import data_it, valore_finito
 from meteo.indicatori import SOGLIE_INDICATORI, valore_ora
+from meteo.probabilita import PROBABILITA_AVVISO_RAFFICHE, SOGLIE_RAFFICHE_ORARIE
 
 OTTIMO, BUONO, DISCRETO, SCONSIGLIATO = 0, 1, 2, 3
 LIVELLI = {
@@ -409,7 +410,27 @@ def attivita_disponibili(is_costiero, quota):
     ]
 
 
-def valuta_attivita(ore, giorni, dati_mare=None, is_costiero=False, quota=None, indicatori=None):
+NOTA_RAFFICHE = "possibili raffiche forti"
+
+
+def soglia_raffiche(chiave):
+    """Soglia delle raffiche che peggiora il giudizio dell'attività (tra quelle calcolate dagli ensemble)."""
+    s = SOGLIE.get(chiave, {})
+    soglia = s.get("raffiche_discreto") or s.get("raffiche_sconsigliato") or SOGLIE["comuni"]["raffiche_sconsigliato"]
+    return max((x for x in SOGLIE_RAFFICHE_ORARIE if x <= soglia), default=SOGLIE_RAFFICHE_ORARIE[0])
+
+
+def avviso_raffiche(probabilita, istante, soglia, raffiche_previste):
+    """'possibili raffiche forti (40%)' se gli scenari lo indicano ma la previsione resta sotto soglia."""
+    if not probabilita or (raffiche_previste is not None and raffiche_previste >= soglia):
+        return None
+    quota = ((probabilita.get("orarie") or {}).get(pd.Timestamp(istante)) or {}).get("raffiche", {}).get(soglia)
+    if quota is None or quota < PROBABILITA_AVVISO_RAFFICHE:
+        return None
+    return f"{NOTA_RAFFICHE} ({quota * 100:.0f}%)"
+
+
+def valuta_attivita(ore, giorni, dati_mare=None, is_costiero=False, quota=None, indicatori=None, probabilita=None):
     """Per ogni attività disponibile, il giudizio di ogni ora (None = fuori orario)."""
     mare = _mare_per_ora(dati_mare)
     risultati = {}
@@ -426,6 +447,9 @@ def valuta_attivita(ore, giorni, dati_mare=None, is_costiero=False, quota=None, 
                 uv = valore_ora(indicatori, istante, "uv")
                 if giudizio and chiave == "spiaggia" and uv is not None and uv >= SOGLIE_INDICATORI["uv"][2]:
                     giudizio[2].append("UV molto alto: proteggiti dal sole")
+                avviso = avviso_raffiche(probabilita, istante, soglia_raffiche(chiave), _valore(riga, "wind_gusts_10m"))
+                if giudizio and avviso and giudizio[0] < SCONSIGLIATO:
+                    giudizio[2].append(avviso)
             ore_valutate.append((istante, giudizio))
         risultati[chiave] = {"nome": nome, "icona": icona, "quando": quando, "ore": ore_valutate}
     return risultati
@@ -497,7 +521,8 @@ def _scheda_attivita(chiave, dati, oggi):
     else:
         testo_adesso = _etichetta(adesso[0])
         motivo = f"Adesso: {adesso[1]}." + "".join(
-            f" {'✨ ' if nota == 'ora dorata' else ''}{nota[:1].upper() + nota[1:]}." for nota in adesso[2]
+            f" {'✨ ' if nota == 'ora dorata' else '💨 ' if nota.startswith(NOTA_RAFFICHE) else ''}"
+            f"{nota[:1].upper() + nota[1:]}." for nota in adesso[2]
         )
 
     fasce = fasce_migliori(ore_valutate)
@@ -512,6 +537,7 @@ def _scheda_attivita(chiave, dati, oggi):
         if elenco:
             testo = " · ".join(
                 f"{inizio:%H}–{_ora_fine(fine)} {LIVELLI[livello][0]}" + (" ✨" if "ora dorata" in note else "")
+                + (" 💨" if any(n.startswith(NOTA_RAFFICHE) for n in note) else "")
                 for inizio, fine, livello, note in elenco
             )
         else:
@@ -546,8 +572,9 @@ def _scheda_attivita(chiave, dati, oggi):
     </article>"""
 
 
-def sezione_attivita_html(luogo, ore, giorni, dati_mare=None, is_costiero=False, quota=None, indicatori=None):
-    risultati = valuta_attivita(ore, giorni, dati_mare, is_costiero, quota, indicatori)
+def sezione_attivita_html(luogo, ore, giorni, dati_mare=None, is_costiero=False, quota=None, indicatori=None,
+                          probabilita=None):
+    risultati = valuta_attivita(ore, giorni, dati_mare, is_costiero, quota, indicatori, probabilita)
     oggi = pd.Timestamp(ore.iloc[0]["time"]).date() if not ore.empty else pd.Timestamp.now().date()
     schede = "".join(_scheda_attivita(chiave, dati, oggi) for chiave, dati in risultati.items())
 
@@ -556,6 +583,9 @@ def sezione_attivita_html(luogo, ore, giorni, dati_mare=None, is_costiero=False,
         note.append("Località non costiera: spiaggia, surf, kite e pesca non sono valutati.")
     if valore_finito(quota, 0.0) < QUOTA_MINIMA_NEVE_M:
         note.append(f"Neve valutata solo sopra {QUOTA_MINIMA_NEVE_M} m di quota.")
+    if any(NOTA_RAFFICHE in "".join(g[2]) for d in risultati.values() for _, g in d["ore"] if g):
+        note.append(f"💨 = {NOTA_RAFFICHE} secondo gli scenari degli ensemble (probabilità ≥ "
+                    f"{PROBABILITA_AVVISO_RAFFICHE * 100:.0f}%), anche se la previsione resta sotto soglia.")
     legenda = " ".join(_etichetta(l) for l in LIVELLI) + ' <span class="cml-liv cml-liv-nd">⚪ Fuori orario</span>'
 
     return f"""

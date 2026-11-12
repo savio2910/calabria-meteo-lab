@@ -23,6 +23,7 @@ import streamlit as st
 from meteo.api import HTTP, _completa_con_riserva
 from meteo.config import API_GEOCODING_URL, API_METEO_URL, FUSO_ORARIO, MODELLO_RISERVA, MODELLO_TERRESTRE
 from meteo.localita import in_calabria, normalizza_comune
+from meteo.probabilita import PROBABILITA_AVVISO_RAFFICHE, quota_scenari_oltre
 
 OTTIMO, BUONO, DISCRETO, SCONSIGLIATO = 0, 1, 2, 3
 LIVELLI = {
@@ -355,10 +356,29 @@ def _riga_all_ora(orario, istante):
     return orario.loc[ora]
 
 
-def valuta_partenza(partenza, punti, meteo, mezzo):
-    """Giudizio di ogni punto per una partenza; il viaggio vale quanto il punto peggiore."""
+def avviso_raffiche_tappa(mezzo, riga, raffiche_scenari, passaggio, livello):
+    """(quota, testo) se gli scenari degli ensemble danno raffiche oltre la soglia del mezzo
+    con probabilità ≥ 30% mentre la previsione resta sotto (None altrimenti)."""
+    if not raffiche_scenari or livello is None or livello >= SCONSIGLIATO:
+        return None
+    soglia = SOGLIE_VIAGGIO[mezzo]["raffiche_discreto"]
+    prevista = _valore(riga, "wind_gusts_10m")
+    if prevista is not None and prevista >= soglia:
+        return None
+    quota = quota_scenari_oltre(raffiche_scenari, passaggio, soglia)
+    if quota is None or quota < PROBABILITA_AVVISO_RAFFICHE:
+        return None
+    return quota, f"possibili raffiche ≥ {soglia} km/h ({quota * 100:.0f}%)"
+
+
+def valuta_partenza(partenza, punti, meteo, mezzo, raffiche=None):
+    """Giudizio di ogni punto per una partenza; il viaggio vale quanto il punto peggiore.
+
+    'raffiche': per ogni punto, le tabelle delle raffiche degli scenari ensemble (facoltativo).
+    """
+    raffiche = raffiche or [None] * len(punti)
     tappe = []
-    for punto, dati in zip(punti, meteo):
+    for punto, dati, raffiche_scenari in zip(punti, meteo, raffiche):
         passaggio = partenza + pd.Timedelta(minutes=punto["minuti"])
         riga = _riga_all_ora(dati["orario"], passaggio)
         if riga is None:
@@ -366,15 +386,20 @@ def valuta_partenza(partenza, punti, meteo, mezzo):
                           "livello": None, "motivo": "previsione non disponibile"})
             continue
         livello, motivo = giudica_punto(mezzo, riga)
+        avviso = avviso_raffiche_tappa(mezzo, riga, raffiche_scenari, passaggio, livello)
         tappe.append({**punto, "passaggio": passaggio, "quota": dati["quota"], "meteo": riga,
-                      "livello": livello, "motivo": motivo})
+                      "livello": livello, "motivo": motivo, "avviso": avviso[1] if avviso else None,
+                      "quota_avviso": avviso[0] if avviso else 0.0})
 
     noti = [t for t in tappe if t["livello"] is not None]
     if not noti:
         return {"partenza": partenza, "arrivo": tappe[-1]["passaggio"], "livello": None, "tappe": tappe,
                 "motivo": "previsione non disponibile", "dove": "", "completo": False}
     peggiore = max(noti, key=lambda t: t["livello"])
+    con_avviso = max(noti, key=lambda t: t.get("quota_avviso", 0.0))
     return {
+        "avviso": con_avviso.get("avviso"),
+        "avviso_dove": (con_avviso["strada"] or f"km {con_avviso['km']:.0f}") if con_avviso.get("avviso") else "",
         "partenza": partenza,
         "arrivo": tappe[-1]["passaggio"],
         "livello": peggiore["livello"],

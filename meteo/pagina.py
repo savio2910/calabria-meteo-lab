@@ -18,7 +18,7 @@ from meteo.dati import stato_mare_da_onda, valuta_rischio_locale
 from meteo.formato import data_it, direzione, meteo, numero, ora_it
 from meteo.indicatori import riassunto_giorno, testi_indicatori
 from meteo.oraperora import sezione_ora_per_ora_html
-from meteo.probabilita import testo_affidabilita
+from meteo.probabilita import PROBABILITA_MINIMA_MOSTRATA, SOGLIE_RAFFICHE, testo_affidabilita
 from meteo.situazione import situazione_html
 
 
@@ -108,11 +108,24 @@ def probabilita_giorno_html(data, probabilita):
         return ""
     massima, minima = giorno["massima"], giorno["minima"]
     motivi = ", ".join(giorno.get("motivi") or [])
+    vento = ""
+    if giorno.get("raffica"):
+        if giorno.get("vento"):
+            vento += f'<span>💨 Vento <b>{giorno["vento"][0]:.0f}–{giorno["vento"][1]:.0f}</b> · '
+        else:
+            vento += "<span>💨 "
+        vento += f'raffiche <b>{giorno["raffica"][0]:.0f}–{giorno["raffica"][1]:.0f} km/h</b></span>'
+        for chiave, testo in (("burrasca", f"Raffiche ≥ {SOGLIE_RAFFICHE['burrasca']}"),
+                              ("raffiche_forti", f"Raffiche ≥ {SOGLIE_RAFFICHE['forti']}")):
+            if (giorno.get(chiave) or 0) >= PROBABILITA_MINIMA_MOSTRATA:
+                vento += f'<span class="cml-prob-vento">🌬️ {testo} km/h: <b>{giorno[chiave] * 100:.0f}%</b></span>'
+                break
     return f"""
               <div class="cml-giorno-prob" title="{html.escape(motivi, quote=True)}">
                 <span>🎲 Pioggia <b>{giorno['pioggia'] * 100:.0f}%</b></span>
                 <span>Max <b>{massima[0]:.0f}–{massima[1]:.0f}°</b></span>
                 <span>Min <b>{minima[0]:.0f}–{minima[1]:.0f}°</b></span>
+                {vento}
                 <span class="cml-affidabilita-{giorno['affidabilita']}">{html.escape(testo_affidabilita(giorno['affidabilita']))}</span>
               </div>"""
 
@@ -480,7 +493,7 @@ def genera_app_completa(
     )
 
     sezione_attivita = sezione_attivita_html(
-        luogo, ore, giorni, dati_mare, is_costiero, dati_terrestri.get("elevation"), indicatori
+        luogo, ore, giorni, dati_mare, is_costiero, dati_terrestri.get("elevation"), indicatori, probabilita
     )
 
     # Riquadro "Adesso", fonti dei dati e menu rapido

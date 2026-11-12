@@ -2693,3 +2693,7 @@ body {
 .cml-situazione li b { display: block; color: var(--ink); font-size: 15px; }
 .cml-situazione li span { color: #284d5a; font-size: 15px; }
 .sit-nota { margin: 10px 2px 0; color: var(--muted); font-size: 13px; }
+
+/* Probabilità di raffiche forti (ensemble) nelle schede dei giorni */
+.cml-giorno-prob .cml-prob-vento { color: #8a5300; font-weight: 700; }
+.cml-giorno-prob .cml-prob-vento b { color: #8a5300; }

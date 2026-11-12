@@ -5,13 +5,14 @@
 # =============================================================================
 
 import math
+from datetime import datetime
 
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 import streamlit as st
 
-from meteo.config import API_MARE_URL, API_METEO_URL, GIORNI_PREVISIONE, MODELLO_RISERVA, MODELLO_TERRESTRE, VARIABILI_CORRENTI, VARIABILI_GIORNALIERE, VARIABILI_MARINE_CORRENTI, VARIABILI_MARINE_GIORNALIERE, VARIABILI_MARINE_ORARIE, VARIABILI_ORARIE
+from meteo.config import API_MARE_URL, API_METEO_URL, FUSO_ORARIO, GIORNI_PREVISIONE, MODELLO_RISERVA, MODELLO_TERRESTRE, VARIABILI_CORRENTI, VARIABILI_GIORNALIERE, VARIABILI_MARINE_CORRENTI, VARIABILI_MARINE_GIORNALIERE, VARIABILI_MARINE_ORARIE, VARIABILI_ORARIE
 
 
 def crea_sessione_http():
@@ -89,6 +90,7 @@ def scarica_previsione_terrestre(latitudine, longitudine):
     try:
         dati = _scarica_modello(parametri, MODELLO_TERRESTRE)
         dati["_fonte"] = "ICON-2I"
+        dati["_scaricato_alle"] = datetime.now(FUSO_ORARIO).isoformat()
     except requests.RequestException:
         dati = None
 
@@ -116,6 +118,7 @@ def scarica_previsione_terrestre(latitudine, longitudine):
 
     if dati is None:
         riserva["_fonte"] = "ICON-EU (riserva: ICON-2I non disponibile)"
+        riserva["_scaricato_alle"] = datetime.now(FUSO_ORARIO).isoformat()
         riserva["_ore_riserva"] = list((riserva.get("hourly") or {}).get("time", []))
         return riserva
 

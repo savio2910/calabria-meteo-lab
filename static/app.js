@@ -22,53 +22,14 @@ const PASSO_LON = PASSO_GRIGLIA_KM / 86.0;
 let celleAttivita = [];
 const CACHE_DURATION_MS = 15 * 60 * 1000;
 
-/* ---------- NAVIGAZIONE HOME / PREVISIONI / RADAR ---------- */
+/* ---------- STATO DEI SERVIZI (riga sotto "Adesso") ---------- */
 
-function mostraVista(nome) {
-  document.querySelectorAll(".cml-view").forEach(function(vista) {
-    vista.setAttribute("hidden", "");
-  });
-
-  const vistaDaMostrare = document.getElementById("cml-" + nome);
-
-  if (vistaDaMostrare) {
-    vistaDaMostrare.removeAttribute("hidden");
-  }
-
-  if (
-    nome === "radar"
-    && typeof radarMap !== "undefined"
-    && radarMap
-  ) {
-    setTimeout(function() {
-      radarMap.invalidateSize();
-    }, 200);
-  }
-
-  if (
-    nome === "attivita"
-    && typeof attivitaMap !== "undefined"
-    && attivitaMap
-  ) {
-    setTimeout(function() {
-      attivitaMap.invalidateSize();
-    }, 200);
-  }
-
-  window.scrollTo({
-    top: 0,
-    behavior: "smooth"
-  });
-
-  // Con l'altezza automatica scorre la pagina Streamlit, non il riquadro:
-  // riporta in vista l'inizio del riquadro se è uscito dallo schermo.
-  try {
-    if (window.frameElement && window.frameElement.getBoundingClientRect().top < 0) {
-      window.frameElement.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  } catch (errore) {
-    /* riquadro non accessibile: nulla da fare */
-  }
+function statoServizio(nome, stato, testo) {
+  const voce = document.getElementById("cml-stato-" + nome);
+  if (!voce) return;
+  voce.className = "cml-servizio cml-servizio-" + stato;
+  const descrizione = voce.querySelector("span:last-child");
+  if (descrizione) descrizione.textContent = testo;
 }
 
 /* ---------- GRAFICO METEO ---------- */
@@ -778,15 +739,6 @@ async function aggiornaMappaAttivita() {
   }
 }
 
-function apriVistaAttivita() {
-  mostraVista('attivita');
-  inizializzaMappaAttivita();
-  setTimeout(function() {
-    if (attivitaMap) attivitaMap.invalidateSize();
-    aggiornaMappaAttivita();
-  }, 250);
-}
-
 fetch(
   "https://api.rainviewer.com/public/weather-maps.json"
 )
@@ -825,7 +777,12 @@ fetch(
       radarFrameIndex = radarTimes.length - 1;
       visualizzaFrameRadar(radarFrameIndex);
       avviaRadar();
+      const ultimo = new Date(radarTimes[radarTimes.length - 1] * 1000);
+      statoServizio("radar", "attivo", "ultima immagine " + ultimo.toLocaleTimeString("it-IT", {
+        hour: "2-digit", minute: "2-digit", timeZone: "Europe/Rome"
+      }));
     } else {
+      statoServizio("radar", "spento", "nessuna immagine disponibile");
       const timestamp = document.getElementById("radar-timestamp");
 
       if (timestamp) {
@@ -834,15 +791,10 @@ fetch(
     }
   })
   .catch(function() {
+    statoServizio("radar", "spento", "temporaneamente non disponibile");
     const timestamp = document.getElementById("radar-timestamp");
 
     if (timestamp) {
       timestamp.textContent = "radar temporaneamente non disponibile";
     }
   });
-
-/* ---------- AVVIO INIZIALE ---------- */
-
-document.addEventListener("DOMContentLoaded", function() {
-  mostraVista("home");
-});

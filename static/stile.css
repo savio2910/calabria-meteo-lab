@@ -2312,3 +2312,127 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .cml-servizio-attesa .cml-pallino { animation: none; }
 }
+
+/* =============================================================================
+   LEGGIBILITÀ DA TELEFONO (tabelle a schede, fisarmoniche, dimensioni minime)
+   ============================================================================= */
+
+/* Larghezze minime da computer (prima scritte nell'HTML) */
+.cml-tabella-mare { min-width: 680px; }
+.cml-tabella-attivita { min-width: 620px; }
+
+/* Fisarmoniche: aperte su computer, chiuse su telefono (vedi adesso.js) */
+.cml-fisarmonica > summary { list-style: none; cursor: pointer; }
+.cml-fisarmonica > summary::-webkit-details-marker { display: none; }
+.cml-fisarmonica > summary::after {
+  content: "▾";
+  margin-left: auto;
+  padding-left: 12px;
+  transition: transform .2s ease;
+}
+.cml-fisarmonica:not([open]) > summary::after { transform: rotate(-90deg); }
+.cml-fisarmonica > summary.cml-marine-forecast-title { display: flex; align-items: center; }
+.cml-fisarmonica-titolo { display: none; } /* su computer le mappe hanno già il loro titolo */
+
+@media (max-width: 680px) {
+  /* ---------- Tabelle orarie e del mare: una scheda per riga ---------- */
+  .cml-table.cml-tabella-oraria,
+  .cml-table.cml-tabella-mare,
+  .cml-table.cml-tabella-attivita { min-width: 0 !important; white-space: normal; }
+
+  .cml-tabella-oraria thead,
+  .cml-tabella-mare thead { display: none; }
+
+  .cml-tabella-oraria tbody,
+  .cml-tabella-mare tbody { display: block; }
+
+  .cml-tabella-oraria tr,
+  .cml-tabella-mare tr {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 10px;
+    padding: 10px 12px;
+    border-bottom: 1px solid #e3edf1;
+  }
+
+  .cml-tabella-oraria td,
+  .cml-tabella-mare td {
+    display: block;
+    padding: 0 !important;
+    border: 0 !important;
+    background: none !important;
+    text-align: left !important;
+  }
+
+  .cml-table .c-ora { flex: 0 0 48px; color: var(--ink); font-size: 15px; font-weight: 800; }
+  .cml-table .c-scenario {
+    display: flex !important;
+    flex: 1 1 calc(100% - 150px);
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    font-size: 14px;
+  }
+  .cml-table .c-temp { flex: 0 0 auto; color: var(--ink); font-size: 18px; font-weight: 800; }
+  .cml-table .c-temp::after { content: attr(data-unita); }
+  .cml-table .c-dato { flex: 0 0 auto; color: var(--muted); font-size: 13px; white-space: nowrap; }
+  .cml-table .c-dato::before { content: attr(data-etichetta) " "; color: var(--ink); font-weight: 700; }
+  .cml-table .c-dato::after { content: attr(data-unita); }
+  .cml-tabella-oraria tr, .cml-tabella-mare tr { column-gap: 14px; }
+
+  /* Righe notturne (sfondo blu scuro): testi chiari */
+  .cml-night-row .c-ora { color: #a8eaf5; }
+  .cml-night-row .c-temp { color: #ffffff; }
+  .cml-night-row .c-dato { color: #c9d8ea; }
+  .cml-night-row .c-dato::before { color: #ffffff; }
+
+  /* Tabella attività e striscia delle ore */
+  .cml-activity-bar { min-width: 72px; }
+  .cml-tabella-attivita th, .cml-tabella-attivita td { padding-left: 8px; padding-right: 8px; white-space: normal; }
+  .cml-tabella-attivita th { padding-left: 6px; padding-right: 6px; letter-spacing: 0; }
+  .cml-ora-pioggia { font-size: 13px; }
+  .cml-marine-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .cml-marine-card { padding: 12px; }
+
+  /* ---------- Fisarmoniche ---------- */
+  .cml-fisarmonica-titolo {
+    display: flex;
+    align-items: center;
+    min-height: 52px;
+    margin: 0 0 14px;
+    padding: 12px 18px;
+    border: 1px solid #d5e4e9;
+    border-radius: 18px;
+    background: #ffffff;
+    box-shadow: 0 6px 20px rgba(23, 67, 84, 0.08);
+    color: var(--ink);
+    font-size: 17px;
+    font-weight: 800;
+  }
+  .cml-fisarmonica-mappa[open] .cml-radar-head h2 { display: none; } /* titolo già nel sommario */
+  .cml-fisarmonica-mappa iframe { height: 420px !important; }
+
+  /* ---------- Testi: almeno 13 px ---------- */
+  .cml-adesso-etichetta, .cml-dato-titolo,
+  .cml-astro-grid b, .cml-astro-grid span,
+  .cml-chart-subtitle, .cml-copyright div, .cml-copyright strong,
+  .cml-day-date, .cml-day-moon, .cml-day-tag, .cml-eyebrow,
+  .cml-marine-box p, .cml-marine-card small, .cml-marine-card span,
+  .cml-marine-forecast-status, .cml-marine-head p, .cml-marine-note, .cml-marine-note b,
+  .cml-nowcast-head p, .cml-nowcast-note, .cml-pill,
+  .cml-radar-footer a, .cml-radar-footer span, .cml-radar-head p, .cml-radar-time,
+  .cml-risk-badge span, .cml-sea-status small, .cml-section-title span,
+  .cml-table th, .cml-temp-box span,
+  #cml-explorer .ex-caption, #cml-explorer .ex-card span { font-size: 13px !important; }
+
+  /* ---------- Elementi da toccare: almeno 44 px ---------- */
+  .cml-menu-rapido a { display: inline-flex; align-items: center; min-height: 44px; }
+  .cml-cielo-pausa { width: 44px; height: 44px; }
+  .cml-radar-btn { min-height: 44px; }
+  #cml-attivita details > summary,
+  .cml-fisarmonica > summary { display: flex; align-items: center; min-height: 44px; cursor: pointer; }
+  #cml-explorer button, #cml-explorer select { min-height: 44px; }
+  #cml-explorer input[type=range] { height: 44px; }
+  .leaflet-touch .leaflet-bar a { width: 44px; height: 44px; line-height: 44px; }
+}

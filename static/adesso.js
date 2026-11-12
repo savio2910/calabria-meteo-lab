@@ -323,3 +323,12 @@
   } catch (e) { /* non accessibile: il menu resta in cima */ }
   segui();
 })();
+
+/* ---------- Fisarmoniche: su telefono partono chiuse ---------- */
+(function () {
+  'use strict';
+  if (!window.matchMedia || !window.matchMedia('(max-width: 680px)').matches) return;
+  document.querySelectorAll('details[data-chiudi-su-telefono]').forEach(function (d) {
+    d.removeAttribute('open');
+  });
+})();

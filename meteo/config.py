@@ -44,6 +44,7 @@ CARTELLA_APP = Path(__file__).resolve().parent.parent
 
 
 FILE_COMUNI_COSTIERI = CARTELLA_APP / "comuni_costieri_calabria.csv"
+FILE_COMUNI_CALABRIA = CARTELLA_APP / "risorse" / "comuni_calabria.csv"
 
 
 CARTELLA_STATIC = CARTELLA_APP / "static"

@@ -6,10 +6,13 @@
 # o riutilizzo, anche parziale, senza autorizzazione scritta dell’autore.
 # =============================================================================
 
+from datetime import datetime, timedelta
+
 import streamlit as st
 import streamlit.components.v1 as components
 
 from meteo.api import scarica_previsione_mare, scarica_previsione_terrestre
+from meteo.config import FUSO_ORARIO
 from meteo.correzione import calcola_correzione_osservativa, scarica_osservazioni_meteostat
 from meteo.dati import prepara_dati_terrestri
 from meteo.localita import (
@@ -23,6 +26,18 @@ from meteo.localita import (
 )
 from meteo.pagina import aggiungi_altezza_automatica, genera_app_completa
 from meteo.posizione import pulsante_posizione
+from meteo.viaggio import (
+    MEZZI,
+    calcola_percorso,
+    consiglia,
+    e_in_calabria,
+    geocodifica_italia,
+    meteo_nei_punti,
+    partenze_possibili,
+    punti_di_controllo,
+    valuta_partenza,
+)
+from meteo.viaggio_pagina import documento_viaggio
 
 # =============================================================================
 # CONFIGURAZIONE STREAMLIT
@@ -81,177 +96,250 @@ except (FileNotFoundError, ValueError) as errore_costieri:
     st.error(str(errore_costieri))
     st.stop()
 
-st.markdown("## 🔎 Seleziona località calabrese")
-
 ELENCO_COMUNI = carica_elenco_comuni()
 
-# Località arrivata da un link condiviso (?luogo=...): fissata per tutta la
-# sessione, così le opzioni del menu restano stabili.
-st.session_state.setdefault("luogo_da_link", st.query_params.get("luogo"))
-luogo_da_link = st.session_state.luogo_da_link
 
-opzioni = list(ELENCO_COMUNI)
-indice_iniziale = None
-if luogo_da_link:
-    if luogo_da_link not in ELENCO_COMUNI:
-        opzioni.insert(0, luogo_da_link)  # frazione o località fuori elenco
-    indice_iniziale = opzioni.index(luogo_da_link)
+def mostra_documento(documento):
+    """Mostra una pagina HTML nel riquadro che si adatta alla sua altezza."""
+    # 1100 px è l'altezza iniziale (e di riserva, con scorrimento interno,
+    # se lo script dell'altezza automatica non può agire).
+    components.html(aggiungi_altezza_automatica(documento), height=1100, scrolling=True)
 
+
+# =============================================================================
+# SCHEDA METEO
+# =============================================================================
 
 def _nuova_scelta():
     # Una scelta nel menu ha la precedenza sulla posizione usata prima
     st.session_state.usa_posizione = False
 
 
-colonna_ricerca, colonna_posizione = st.columns([4, 1.4], vertical_alignment="bottom")
+def mostra_meteo():
+    st.markdown("## 🔎 Seleziona località calabrese")
 
-with colonna_ricerca:
-    scelta = st.selectbox(
-        "Località",
-        opzioni,
-        index=indice_iniziale,
-        key="localita",
-        placeholder="Scrivi un comune o una frazione della Calabria…",
-        accept_new_options=True,
-        on_change=_nuova_scelta,
-        label_visibility="collapsed",
-    )
+    # Località arrivata da un link condiviso (?luogo=...): fissata per tutta la
+    # sessione, così le opzioni del menu restano stabili.
+    st.session_state.setdefault("luogo_da_link", st.query_params.get("luogo"))
+    luogo_da_link = st.session_state.luogo_da_link
 
-with colonna_posizione:
-    posizione = pulsante_posizione(key="posizione")
+    opzioni = list(ELENCO_COMUNI)
+    indice_iniziale = None
+    if luogo_da_link:
+        if luogo_da_link not in ELENCO_COMUNI:
+            opzioni.insert(0, luogo_da_link)  # frazione o località fuori elenco
+        indice_iniziale = opzioni.index(luogo_da_link)
 
-if posizione and posizione.get("istante") != st.session_state.get("posizione_usata"):
-    st.session_state.posizione_usata = posizione.get("istante")
-    st.session_state.usa_posizione = True
+    colonna_ricerca, colonna_posizione = st.columns([4, 1.4], vertical_alignment="bottom")
 
+    with colonna_ricerca:
+        scelta = st.selectbox(
+            "Località",
+            opzioni,
+            index=indice_iniziale,
+            key="localita",
+            placeholder="Scrivi un comune o una frazione della Calabria…",
+            accept_new_options=True,
+            on_change=_nuova_scelta,
+            label_visibility="collapsed",
+        )
 
-# =============================================================================
-# CONTROLLO INPUT
-# =============================================================================
+    with colonna_posizione:
+        posizione = pulsante_posizione(key="posizione")
 
-richiesta = None
-if st.session_state.get("usa_posizione") and posizione:
-    richiesta = ("posizione", float(posizione["lat"]), float(posizione["lon"]))
-elif scelta:
-    richiesta = ("scelta", scelta)
-elif "lat" in st.query_params and "lon" in st.query_params:
+    if posizione and posizione.get("istante") != st.session_state.get("posizione_usata"):
+        st.session_state.posizione_usata = posizione.get("istante")
+        st.session_state.usa_posizione = True
+
+    # ---------- Controllo input ----------
+    richiesta = None
+    if st.session_state.get("usa_posizione") and posizione:
+        richiesta = ("posizione", float(posizione["lat"]), float(posizione["lon"]))
+    elif scelta:
+        richiesta = ("scelta", scelta)
+    elif "lat" in st.query_params and "lon" in st.query_params:
+        try:
+            richiesta = ("posizione", float(st.query_params["lat"]), float(st.query_params["lon"]))
+        except ValueError:
+            richiesta = None
+
+    if richiesta is None:
+        st.info(
+            "Scrivi o scegli una località calabrese (comune o frazione), "
+            "oppure premi «Usa la mia posizione»."
+        )
+        return
+
+    # ---------- Esecuzione ----------
     try:
-        richiesta = ("posizione", float(st.query_params["lat"]), float(st.query_params["lon"]))
-    except ValueError:
-        richiesta = None
-
-if richiesta is None:
-    st.info(
-        "Scrivi o scegli una località calabrese (comune o frazione), "
-        "oppure premi «Usa la mia posizione»."
-    )
-    st.stop()
-
-
-# =============================================================================
-# ESECUZIONE
-# =============================================================================
-
-try:
-    if richiesta[0] == "posizione":
-        latitudine = round(richiesta[1], 3)
-        longitudine = round(richiesta[2], 3)
-        luogo, comune_amministrativo = localita_da_posizione(latitudine, longitudine)
-        comune_amministrativo = comune_amministrativo or ""
-        # Nel link le coordinate sono arrotondate (circa 1 km)
-        st.query_params.from_dict({"lat": f"{latitudine:.2f}", "lon": f"{longitudine:.2f}"})
-    else:
-        # Testo scritto a mano che corrisponde a un solo comune -> quel comune
-        scelta = scelta if scelta in ELENCO_COMUNI else (trova_comune_scritto(scelta, ELENCO_COMUNI) or scelta)
-        if scelta in ELENCO_COMUNI:
-            comune, provincia = ELENCO_COMUNI[scelta]
-            luogo, latitudine, longitudine, comune_amministrativo = risolvi_comune(comune, provincia)
+        if richiesta[0] == "posizione":
+            latitudine = round(richiesta[1], 3)
+            longitudine = round(richiesta[2], 3)
+            luogo, comune_amministrativo = localita_da_posizione(latitudine, longitudine)
+            comune_amministrativo = comune_amministrativo or ""
+            # Nel link le coordinate sono arrotondate (circa 1 km)
+            st.query_params.from_dict({"lat": f"{latitudine:.2f}", "lon": f"{longitudine:.2f}"})
         else:
-            luogo, latitudine, longitudine, comune_amministrativo = risolvi_localita(scelta)
-        st.query_params.from_dict({"luogo": scelta})
+            # Testo scritto a mano che corrisponde a un solo comune -> quel comune
+            scelta = scelta if scelta in ELENCO_COMUNI else (trova_comune_scritto(scelta, ELENCO_COMUNI) or scelta)
+            if scelta in ELENCO_COMUNI:
+                comune, provincia = ELENCO_COMUNI[scelta]
+                luogo, latitudine, longitudine, comune_amministrativo = risolvi_comune(comune, provincia)
+            else:
+                luogo, latitudine, longitudine, comune_amministrativo = risolvi_localita(scelta)
+            st.query_params.from_dict({"luogo": scelta})
 
-    st.caption("🔗 Il link nella barra degli indirizzi riapre questa previsione: puoi copiarlo e condividerlo.")
+        st.caption("🔗 Il link nella barra degli indirizzi riapre questa previsione: puoi copiarlo e condividerlo.")
 
-    with st.spinner(
-        f"Elaborazione previsione ICON-2I e radar per {luogo}..."
-    ):
-        dati_terrestri = scarica_previsione_terrestre(
-            latitudine,
-            longitudine,
-        )
+        with st.spinner(f"Elaborazione previsione ICON-2I e radar per {luogo}..."):
+            dati_terrestri = scarica_previsione_terrestre(latitudine, longitudine)
 
-        dati_orari, dati_giornalieri = (
-            prepara_dati_terrestri(
-                dati_terrestri
-            )
-        )
-
-        osservazioni, stazione_oss, ultima_osservazione = (
-            scarica_osservazioni_meteostat(
+            osservazioni, stazione_oss, ultima_osservazione = scarica_osservazioni_meteostat(
                 latitudine,
                 longitudine,
                 dati_terrestri.get("elevation"),
             )
-        )
-
-        correzione_osservativa = calcola_correzione_osservativa(
-            dati_terrestri,
-            osservazioni,
-            stazione_oss,
-            ultima_osservazione,
-        )
-
-        # Ricalcola le serie dopo la correzione osservativa
-        dati_orari, dati_giornalieri = (
-            prepara_dati_terrestri(
-                dati_terrestri
+            correzione_osservativa = calcola_correzione_osservativa(
+                dati_terrestri,
+                osservazioni,
+                stazione_oss,
+                ultima_osservazione,
             )
+            # Serie orarie e giornaliere dopo la correzione osservativa
+            dati_orari, dati_giornalieri = prepara_dati_terrestri(dati_terrestri)
+
+            dati_mare = None
+            distanza_mare_km = None
+            is_costiero = comune_e_costiero(comune_amministrativo, COMUNI_COSTIERI)
+            if is_costiero:
+                try:
+                    dati_mare, distanza_mare_km = scarica_previsione_mare(latitudine, longitudine)
+                except RuntimeError:
+                    dati_mare = None
+                    distanza_mare_km = None
+
+        documento = genera_app_completa(
+            luogo,
+            latitudine,
+            longitudine,
+            dati_terrestri,
+            dati_orari,
+            dati_giornalieri,
+            dati_mare,
+            distanza_mare_km,
+            correzione_osservativa,
+            is_costiero,
         )
+        mostra_documento(documento)
 
-        dati_mare = None
-        distanza_mare_km = None
+    except Exception as errore:
+        st.error(str(errore))
 
-        is_costiero = comune_e_costiero(
-            comune_amministrativo,
-            COMUNI_COSTIERI,
+
+# =============================================================================
+# SCHEDA VIAGGIO
+# =============================================================================
+
+GIORNI_VIAGGIO = {"Oggi": 0, "Domani": 1, "Dopodomani": 2}
+
+
+def risolvi_tappa(testo):
+    """(nome, lat, lon, regione) di partenza o arrivo: comuni calabresi o località italiane."""
+    etichetta = testo if testo in ELENCO_COMUNI else trova_comune_scritto(testo, ELENCO_COMUNI)
+    if etichetta:
+        comune, provincia = ELENCO_COMUNI[etichetta]
+        nome, latitudine, longitudine, _ = risolvi_comune(comune, provincia)
+        return nome, latitudine, longitudine, "Calabria"
+    return geocodifica_italia(testo)
+
+
+def calcola_viaggio(testo_partenza, testo_arrivo, mezzo, giorno, ora_da, ora_a):
+    origine = risolvi_tappa(testo_partenza)
+    destinazione = risolvi_tappa(testo_arrivo)
+    if not (e_in_calabria(origine[3], origine[1], origine[2]) or e_in_calabria(destinazione[3], destinazione[1], destinazione[2])):
+        raise ValueError("La partenza o l'arrivo devono essere in Calabria.")
+
+    percorso = calcola_percorso((origine[1], origine[2]), (destinazione[1], destinazione[2]), mezzo)
+    punti = punti_di_controllo(percorso)
+    meteo_punti = meteo_nei_punti(tuple((round(p["lat"], 3), round(p["lon"], 3)) for p in punti))
+
+    partenze = partenze_possibili(giorno, ora_da, ora_a)
+    if not partenze:
+        raise ValueError("Nessuna partenza possibile nella fascia scelta: per oggi l'orario è già passato.")
+    valutazioni = [valuta_partenza(p, punti, meteo_punti, mezzo) for p in partenze]
+    return {
+        "origine": origine[0],
+        "destinazione": destinazione[0],
+        "mezzo": mezzo,
+        "percorso": percorso,
+        "valutazioni": valutazioni,
+        "consigliata": consiglia(valutazioni),
+    }
+
+
+def mostra_viaggio():
+    st.markdown("## 🚗 Pianifica un viaggio")
+    st.caption(
+        "Inserisci partenza e arrivo (almeno uno in Calabria): calcolo il meteo che incontrerai "
+        "lungo la strada e l'orario di partenza migliore."
+    )
+
+    opzioni = list(ELENCO_COMUNI)
+    with st.form("form_viaggio"):
+        colonna_a, colonna_b = st.columns(2)
+        testo_partenza = colonna_a.selectbox(
+            "Partenza", opzioni, index=None, accept_new_options=True,
+            placeholder="Comune calabrese o località italiana…",
         )
+        testo_arrivo = colonna_b.selectbox(
+            "Arrivo", opzioni, index=None, accept_new_options=True,
+            placeholder="Comune calabrese o località italiana…",
+        )
+        colonna_c, colonna_d, colonna_e = st.columns([1.3, 1, 2])
+        etichette_mezzi = {f"{MEZZI[m][1]} {MEZZI[m][0]}": m for m in MEZZI}
+        mezzo = etichette_mezzi[colonna_c.radio("Mezzo", list(etichette_mezzi), horizontal=True)]
+        nome_giorno = colonna_d.selectbox("Giorno", list(GIORNI_VIAGGIO))
+        ora_da, ora_a = colonna_e.slider("Partenza tra le", 0, 23, (7, 20), format="%d:00")
+        calcola = st.form_submit_button("Calcola il viaggio", type="primary", use_container_width=True)
 
-        if is_costiero:
-            try:
-                (
-                    dati_mare,
-                    distanza_mare_km,
-                ) = scarica_previsione_mare(
-                    latitudine,
-                    longitudine,
-                )
+    if calcola:
+        if not testo_partenza or not testo_arrivo:
+            st.warning("Inserisci sia la partenza sia l'arrivo.")
+            return
+        oggi = datetime.now(FUSO_ORARIO).date()
+        giorno = oggi + timedelta(days=GIORNI_VIAGGIO[nome_giorno])
+        try:
+            with st.spinner("Calcolo del percorso e del meteo lungo la strada…"):
+                st.session_state.viaggio = calcola_viaggio(testo_partenza, testo_arrivo, mezzo, giorno, ora_da, ora_a)
+        except Exception as errore:
+            st.session_state.pop("viaggio", None)
+            st.error(str(errore))
+            return
 
-            except RuntimeError:
-                dati_mare = None
-                distanza_mare_km = None
+    viaggio = st.session_state.get("viaggio")
+    if not viaggio:
+        return
 
-    documento = genera_app_completa(
-        luogo,
-        latitudine,
-        longitudine,
-        dati_terrestri,
-        dati_orari,
-        dati_giornalieri,
-        dati_mare,
-        distanza_mare_km,
-        correzione_osservativa,
-        is_costiero,
+    valutazioni = viaggio["valutazioni"]
+    consigliata = viaggio["consigliata"]
+    orari = [v["partenza"].strftime("%H:%M") for v in valutazioni]
+    predefinito = consigliata["partenza"].strftime("%H:%M") if consigliata else orari[0]
+    scelta = st.select_slider(
+        "Mostra il viaggio con partenza alle", options=orari, value=predefinito, key="partenza_mostrata"
     )
-    documento = aggiungi_altezza_automatica(documento)
+    selezionata = valutazioni[orari.index(scelta)]
+    mostra_documento(documento_viaggio(
+        viaggio["origine"], viaggio["destinazione"], viaggio["mezzo"], viaggio["percorso"],
+        valutazioni, selezionata, consigliata,
+    ))
 
-    # L'altezza viene poi adattata dallo script; 1100 px è il valore iniziale
-    # (e quello di riserva, con scorrimento interno, se lo script non può agire).
-    components.html(
-        documento,
-        height=1100,
-        scrolling=True,
-    )
-    
 
-except Exception as errore:
-    st.error(str(errore))
+# =============================================================================
+# SCHEDE
+# =============================================================================
+
+scheda_meteo, scheda_viaggio = st.tabs(["🌤️ Meteo", "🚗 Viaggio"])
+with scheda_meteo:
+    mostra_meteo()
+with scheda_viaggio:
+    mostra_viaggio()

@@ -14,6 +14,7 @@ import json
 import pandas as pd
 
 from meteo.formato import data_it, direzione, meteo, valore_finito
+from meteo.indicatori import SOGLIE_INDICATORI, livello, quota_neve, valore_ora
 
 
 def _numero(valore, decimali=1):
@@ -21,7 +22,15 @@ def _numero(valore, decimali=1):
     return None if v is None else round(v, decimali)
 
 
-def dati_ore(ore, probabilita=None):
+def _neve_ora(riga, indicatori):
+    pioggia = valore_finito(riga.get("precipitation"), 0.0)
+    if pioggia < SOGLIE_INDICATORI["pioggia_mm"]:
+        return None
+    quota = quota_neve(valore_ora(indicatori, riga["time"], "zero_termico"))
+    return quota if quota is not None and quota <= SOGLIE_INDICATORI["neve_quota_massima_m"] else None
+
+
+def dati_ore(ore, probabilita=None, indicatori=None):
     """Una riga per ora con tutto ciò che serve al grafico e al dettaglio."""
     orarie = (probabilita or {}).get("orarie") or {}
     righe = []
@@ -47,12 +56,17 @@ def dati_ore(ore, probabilita=None):
             "da": direzione(riga.get("wind_direction_10m")),
             "nubi": _numero(riga.get("cloud_cover"), 0),
             "umidita": _numero(riga.get("relative_humidity_2m"), 0),
+            # quota neve solo se in quell'ora è prevista precipitazione (e sotto i 2000 m)
+            "neve": _neve_ora(riga, indicatori),
+            "cape": livello(valore_ora(indicatori, istante, "cape"), SOGLIE_INDICATORI["cape"]),
+            "uv": _numero(valore_ora(indicatori, istante, "uv"), 0),
+            "polveri": _numero(valore_ora(indicatori, istante, "polveri"), 0),
         })
     return righe
 
 
-def sezione_ora_per_ora_html(ore, probabilita=None):
-    righe = dati_ore(ore, probabilita)
+def sezione_ora_per_ora_html(ore, probabilita=None, indicatori=None):
+    righe = dati_ore(ore, probabilita, indicatori)
     giorni = []
     for riga in righe:
         if not giorni or giorni[-1][0] != riga["data"]:

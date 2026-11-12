@@ -16,6 +16,7 @@ from meteo.api import scarica_previsione_mare, scarica_previsione_terrestre
 from meteo.config import FUSO_ORARIO
 from meteo.correzione import calcola_correzione_osservativa, scarica_osservazioni_meteostat
 from meteo.dati import prepara_dati_terrestri
+from meteo.indicatori import scarica_indicatori
 from meteo.localita import (
     carica_comuni_costieri,
     carica_elenco_comuni,
@@ -224,6 +225,12 @@ def mostra_meteo():
             dati_mare = None
             distanza_mare_km = None
             is_costiero = comune_e_costiero(comune_amministrativo, COMUNI_COSTIERI)
+            # Quota neve, potenziale temporalesco, polveri e UV (facoltativi)
+            try:
+                indicatori = scarica_indicatori(latitudine, longitudine)
+            except Exception:
+                indicatori = None
+
             # Allerta ufficiale della Protezione Civile per la zona del comune
             try:
                 allerta = allerta_per_comune(comune_amministrativo, datetime.now(FUSO_ORARIO).date())
@@ -249,6 +256,7 @@ def mostra_meteo():
             is_costiero,
             probabilita,
             allerta,
+            indicatori,
         )
         mostra_documento(documento)
 

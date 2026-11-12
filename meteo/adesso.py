@@ -300,7 +300,7 @@ def riquadro_adesso_html(luogo, corrente, ore, giorni, probabilita=None, indicat
     <div class="cml-adesso-principale">
       <div class="cml-adesso-temp">{numero(corrente.get("temperature_2m"), 0, "")}<span>°C</span></div>
       <div class="cml-adesso-condizione">
-        <span class="cml-adesso-icona">{icona_meteo_html(codice, notte)}</span>
+        <span class="cml-adesso-icona">{icona_meteo_html(codice, notte, animata=True)}</span>
         <div>
           <strong>{html.escape(descrizione)}</strong>
           <span>Percepita {numero(corrente.get("apparent_temperature"), 0, "°")} · Min {minima} · Max {massima}</span>

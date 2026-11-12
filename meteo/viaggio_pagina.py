@@ -9,6 +9,7 @@ import json
 
 from meteo.config import leggi_static
 from meteo.formato import data_it, icona_meteo_html, meteo, numero
+from meteo.icone import sprite_icone
 from meteo.viaggio import LIVELLI, MEZZI, SOGLIE_VIAGGIO, fasce_da_evitare
 
 
@@ -147,7 +148,7 @@ def documento_viaggio(origine, destinazione, mezzo, percorso, valutazioni, scelt
 {leggi_static("stile.css")}
 {leggi_static("viaggio.css")}
 </style></head>
-<body><main id="cml-pagina">
+<body>{sprite_icone()}<main id="cml-pagina">
 <section class="cml-radar-box v-testa">
   <span class="cml-eyebrow">VIAGGIO · {icona_mezzo} {html.escape(nome_mezzo.upper())}</span>
   <h2>{html.escape(origine)} → {html.escape(destinazione)}</h2>

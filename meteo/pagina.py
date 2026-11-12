@@ -14,7 +14,9 @@ from meteo.attivita import sezione_attivita_html
 from meteo.config import leggi_static
 from meteo.formato import data_it, ora_it
 from meteo.giorni import giorni_html
+from meteo.icone import sprite_icone
 from meteo.indicatori import riassunto_giorno, testi_indicatori
+from meteo.mappa import mappa_html
 from meteo.mare import mare_html
 from meteo.oraperora import sezione_ora_per_ora_html
 from meteo.probabilita import PROBABILITA_MINIMA_MOSTRATA, SOGLIE_RAFFICHE, testo_affidabilita
@@ -228,6 +230,7 @@ def genera_app_completa(
 </head>
 
 <body>
+{sprite_icone()}
 
 <main id="cml-pagina">
 
@@ -238,6 +241,9 @@ def genera_app_completa(
 <!-- ===================== ADESSO ===================== -->
 {adesso_html}
 {fonti_breve}
+
+<!-- ===================== MAPPA DELLA CALABRIA ===================== -->
+{mappa_html(luogo, latitudine, longitudine, corrente)}
 
 <!-- ===================== PROSSIMI GIORNI ===================== -->
 {sezione_giorni}

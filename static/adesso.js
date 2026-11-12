@@ -356,7 +356,9 @@
       '#cml-barra-in-basso button span:first-child{font-size:20px;line-height:1}' +
       '#cml-barra-in-basso button[aria-current="true"]{background:#e3f1f6;color:#0b5f7a}' +
       '#cml-barra-in-basso button:focus-visible{outline:3px solid #00a6dd;outline-offset:-3px}' +
-      '[data-testid="stMain"] .block-container,[data-testid="stMainBlockContainer"]{padding-bottom:96px !important}';
+      '[data-testid="stMain"] .block-container,[data-testid="stMainBlockContainer"]{padding-bottom:96px !important}' +
+      '@media (prefers-color-scheme:dark){#cml-barra-in-basso{border-color:#2b4250;background:rgba(22,36,46,.96)}' +
+      '#cml-barra-in-basso button{color:#e6f0f4}#cml-barra-in-basso button[aria-current="true"]{background:#123e4b;color:#7fdcf0}}';
     genitore.head.appendChild(stile);
 
     var barra = genitore.createElement('nav');
@@ -416,3 +418,20 @@
     d.removeAttribute('open');
   });
 })();
+
+/* ---------- Mappa "La Calabria adesso": tocco su un punto = previsione di quel punto ---------- */
+(function () {
+  'use strict';
+  document.addEventListener('click', function (evento) {
+    var punto = evento.target.closest('.mp-punto, .mp-punto-elenco');
+    if (!punto) return;
+    evento.preventDefault();
+    var parametri = punto.getAttribute('data-luogo')
+      ? 'luogo=' + encodeURIComponent(punto.getAttribute('data-luogo'))
+      : 'lat=' + punto.getAttribute('data-lat') + '&lon=' + punto.getAttribute('data-lon');
+    var finestra = window;
+    try { if (window.top.location.href) finestra = window.top; } catch (e) { finestra = window; }
+    finestra.location.href = finestra.location.pathname + '?' + parametri;
+  });
+})();
+

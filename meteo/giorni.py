@@ -14,7 +14,7 @@ import pandas as pd
 
 from meteo.allerta import LIVELLI_ALLERTA, descrivi_livelli
 from meteo.dati import valuta_rischio_locale
-from meteo.formato import data_it, meteo, numero, ora_it
+from meteo.formato import data_it, icona_meteo_html, meteo, numero, ora_it
 
 # Colori della temperatura (°C -> colore), interpolati tra un punto e l'altro
 SCALA_TEMPERATURA = [
@@ -111,7 +111,7 @@ def giorni_html(giorni, ore, corrente=None, probabilita=None, allerta=None, indi
     for indice, (_, riga) in enumerate(righe_giorni):
         data = pd.Timestamp(riga["time"]).date()
         codice = _codice(riga)
-        icona, descrizione = meteo(codice)
+        descrizione = meteo(codice)[1]
         minima, massima = minime[indice], massime[indice]
 
         # Pallino dell'allerta ufficiale e indice meteo dell'app
@@ -140,7 +140,7 @@ def giorni_html(giorni, ore, corrente=None, probabilita=None, allerta=None, indi
       <details class="gg-giorno" id="scheda-{data}"{' open' if indice == 0 and pallino_allerta else ''}>
         <summary aria-label="{html.escape(data_it(data), quote=True)}: {html.escape(descrizione, quote=True)}, minima {numero(minima, 0)}, massima {numero(massima, 0)} gradi">
           <span class="gg-nome"><b>{nome}</b><small>{data_breve}</small></span>
-          <span class="gg-icona" title="{html.escape(descrizione, quote=True)}">{icona}{pallino_allerta}</span>
+          <span class="gg-icona" title="{html.escape(descrizione, quote=True)}">{icona_meteo_html(codice)}{pallino_allerta}</span>
           {_pioggia_riga(riga, giornaliere.get(data))}
           <span class="gg-min">{numero(minima, 0, "°")}</span>
           {barra_temperatura_html(minima, massima, scala_min, scala_max, attuale if indice == 0 else None)}

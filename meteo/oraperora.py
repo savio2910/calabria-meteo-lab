@@ -145,7 +145,7 @@ def sezione_ora_per_ora_html(ore, probabilita=None, indicatori=None, giorni=None
         for _, g in giorni.iterrows():
             codice = g.get("weather_code_prevalente", g.get("weather_code"))
             riassunti[pd.Timestamp(g["time"]).strftime("%Y-%m-%d")] = (
-                meteo(codice)[0], numero(g.get("temperature_2m_min"), 0, "°"), numero(g.get("temperature_2m_max"), 0, "°")
+                icona_meteo_html(codice), numero(g.get("temperature_2m_min"), 0, "°"), numero(g.get("temperature_2m_max"), 0, "°")
             )
 
     nomi = ["Oggi", "Domani"]

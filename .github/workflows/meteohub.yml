@@ -1,0 +1,74 @@
+# Ogni mattina scarica MOLOCH, WRF (ItaliaMeteo e CIMA) e BOLAM da MeteoHub,
+# ritaglia la Calabria e pubblica il risultato nel ramo "dati" (un solo commit,
+# sostituito ogni volta: lo storico resta come file nella cartella storico/).
+#
+# Corse disponibili su MeteoHub verso le 07:00-08:40 UTC. Secondo passaggio
+# alle 12:47 UTC nel caso qualche modello fosse in ritardo (i modelli già
+# elaborati non vengono riscaricati).
+
+name: Modelli MeteoHub
+
+on:
+  schedule:
+    - cron: "17 9 * * *"
+    - cron: "47 12 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: meteohub
+  cancel-in-progress: false
+
+jobs:
+  elabora:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Codice
+        uses: actions/checkout@v4
+
+      - name: Ramo dati (se esiste)
+        run: |
+          if git ls-remote --exit-code --heads origin dati; then
+            git fetch --depth 1 origin dati
+            git worktree add --detach dati FETCH_HEAD
+          else
+            mkdir -p dati
+          fi
+
+      - name: Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Librerie
+        run: pip install "eccodes>=2.37" "numpy>=1.26" "scipy>=1.11" "requests>=2.31"
+
+      - name: Elaborazione
+        run: python elaborazione/meteohub_calabria.py dati/meteohub
+
+      - name: Pubblicazione nel ramo dati
+        working-directory: dati
+        run: |
+          [ -e .git ] || git init -q
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          cat > LEGGIMI.md <<'EOF'
+          # Dati elaborati - Calabria Meteo Lab
+
+          Ramo generato automaticamente da `.github/workflows/meteohub.yml`: non modificarlo a mano.
+
+          - `meteohub/ultima.json`, `meteohub/ultima.bin`: ultima corsa di MOLOCH, WRF ItaliaMeteo,
+            WRF CIMA e BOLAM sulla Calabria (griglia di 0,02°).
+          - `meteohub/storico/AAAA/AAAA-MM-GG.npz`: le stesse previsioni su griglia di 0,1°, ogni giorno.
+
+          Dati: MOLOCH e BOLAM (CNR-ISAC), WRF (Agenzia ItaliaMeteo, Fondazione CIMA, LaMMA),
+          dai dati aperti di MeteoHub - Agenzia ItaliaMeteo. Licenze CC BY 4.0 / CC BY-SA 4.0:
+          questi dati derivati sono distribuiti con licenza CC BY-SA 4.0.
+          EOF
+          git checkout -q --orphan nuovo
+          git add -A
+          git commit -q -m "Dati MeteoHub $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" nuovo:dati

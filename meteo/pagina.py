@@ -711,9 +711,10 @@ def genera_app_completa(
 </div>
 
   <div class="cml-note">
-    ℹ️ <b>ICON-2I:</b> modello deterministico ad alta risoluzione
-    di ItaliaMeteo–ARPAE. I dati terrestri sono forniti attraverso
-    Open-Meteo.
+    ℹ️ <b>Fonti dei modelli:</b> ICON-2I (ItaliaMeteo–ARPAE), ECMWF IFS e AIFS
+    (Centro Europeo), ICON-EU (DWD) attraverso Open-Meteo; MOLOCH e BOLAM
+    (CNR-ISAC), WRF (ItaliaMeteo, Fondazione CIMA, LaMMA) dai dati aperti di
+    MeteoHub – Agenzia ItaliaMeteo (licenze CC BY / CC BY-SA).
   </div>
 
 </main>

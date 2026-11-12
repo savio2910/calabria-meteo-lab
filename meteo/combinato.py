@@ -1,14 +1,18 @@
 # =============================================================================
-# Calabria Meteo Lab - Modello combinato: ICON-2I + ECMWF IFS + ICON-EU + AIFS
+# Calabria Meteo Lab - Modello combinato di 8 modelli
 # Copyright (c) 2026 Saverio Campanella
 # Tutti i diritti riservati.
 # =============================================================================
 #
-# Media pesata ora per ora con pesi che cambiano con la scadenza: ICON-2I
-# (2 km, dettaglio sul territorio) pesa di più nelle prime ore, ECMWF (il
-# miglior modello globale) dal secondo giorno. Se un modello manca, gli altri
-# vengono riproporzionati. AIFS non entra in pioggia e nuvolosità (dati ogni
-# 6 ore, troppo grossolani). I pesi andranno tarati con i dati storici.
+# Media pesata ora per ora con pesi che cambiano con la scadenza:
+# - ad alta risoluzione: ICON-2I (2,2 km), MOLOCH (1,2 km), WRF ItaliaMeteo e
+#   WRF CIMA (1,5 km), BOLAM (8 km): dettaglio su rilievi, coste e temporali,
+#   pesano di più nelle prime ore;
+# - globali ed europei: ECMWF IFS (il miglior modello globale), ICON-EU, AIFS:
+#   pesano di più dal secondo giorno.
+# Se un modello manca (o la sua corsa finisce prima, come MOLOCH dopo 45 ore)
+# gli altri vengono riproporzionati. AIFS non entra in pioggia e nuvolosità
+# (dati ogni 6 ore, troppo grossolani). I pesi andranno tarati con i dati storici.
 
 import math
 
@@ -27,15 +31,20 @@ MODELLI_AGGIUNTIVI = {
     "AIFS": ["ecmwf_aifs025_single", "ecmwf_aifs025"],
 }
 PRINCIPALE = "ICON-2I"
-ORDINE = [PRINCIPALE, "ECMWF IFS", "ICON-EU", "AIFS"]
+ORDINE = [PRINCIPALE, "MOLOCH", "WRF ItaliaMeteo", "WRF CIMA", "BOLAM", "ECMWF IFS", "ICON-EU", "AIFS"]
 
 # Pesi per ora di scadenza; tra un punto e l'altro variano in modo graduale
 PESI = {
-    0: {"ICON-2I": 0.50, "ECMWF IFS": 0.25, "ICON-EU": 0.15, "AIFS": 0.10},
-    24: {"ICON-2I": 0.35, "ECMWF IFS": 0.35, "ICON-EU": 0.15, "AIFS": 0.15},
-    48: {"ICON-2I": 0.25, "ECMWF IFS": 0.40, "ICON-EU": 0.15, "AIFS": 0.20},
-    72: {"ICON-2I": 0.25, "ECMWF IFS": 0.40, "ICON-EU": 0.15, "AIFS": 0.20},
+    0: {"ICON-2I": 0.25, "MOLOCH": 0.20, "WRF ItaliaMeteo": 0.075, "WRF CIMA": 0.075, "BOLAM": 0.05,
+        "ECMWF IFS": 0.20, "ICON-EU": 0.10, "AIFS": 0.05},
+    24: {"ICON-2I": 0.22, "MOLOCH": 0.15, "WRF ItaliaMeteo": 0.06, "WRF CIMA": 0.06, "BOLAM": 0.05,
+         "ECMWF IFS": 0.28, "ICON-EU": 0.10, "AIFS": 0.08},
+    48: {"ICON-2I": 0.20, "MOLOCH": 0.10, "WRF ItaliaMeteo": 0.05, "WRF CIMA": 0.05, "BOLAM": 0.05,
+         "ECMWF IFS": 0.35, "ICON-EU": 0.08, "AIFS": 0.12},
+    72: {"ICON-2I": 0.20, "MOLOCH": 0.05, "WRF ItaliaMeteo": 0.05, "WRF CIMA": 0.05, "BOLAM": 0.05,
+         "ECMWF IFS": 0.37, "ICON-EU": 0.08, "AIFS": 0.15},
 }
+MODELLI_METEOHUB = {"MOLOCH", "WRF ItaliaMeteo", "WRF CIMA", "BOLAM"}
 
 VARIABILI_MEDIA = [
     "temperature_2m", "apparent_temperature", "relative_humidity_2m", "cloud_cover",

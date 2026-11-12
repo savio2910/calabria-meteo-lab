@@ -28,7 +28,7 @@ def valuta_attivita_pesata(dati, tipo):
     limiti = []
     etichette = {"pioggia":"Precipitazione", "raffiche":"Raffiche", "vento":"Vento medio", "temperatura":"Temperatura", "percepita":"Temperatura percepita", "nuvole":"Nuvolosità", "neve":"Neve prevista", "nebbia":"Nebbia prevista"}
     campi = {"pioggia":"precipitation", "raffiche":"wind_gusts_10m", "vento":"wind_speed_10m", "temperatura":"temperature_2m", "percepita":"apparent_temperature", "nuvole":"cloud_cover"}
-    unita = {"pioggia":"mm nel periodo del dato current", "raffiche":"km/h", "vento":"km/h", "temperatura":"°C", "percepita":"°C", "nuvole":"%"}
+    unita = {"pioggia":"mm nell'ultimo intervallo", "raffiche":"km/h", "vento":"km/h", "temperatura":"°C", "percepita":"°C", "nuvole":"%"}
 
     def decrescente(x, ottimo, limite):
         return max(0.0, min(1.0, (limite-x)/(limite-ottimo)))
@@ -147,11 +147,11 @@ def tabella_attivita_luogo_html(luogo, corrente, is_costiero=False):
       <div class="cml-radar-head">
         <div>
           <h2>🏃 Attività per {html.escape(luogo)}</h2>
-          <p>Indice di idoneità meteorologica sulle condizioni current del modello, non probabilità di riuscita. Pesi e soglie sono criteri applicativi non validati; non certificano la sicurezza.</p>
+          <p>Indice di idoneità meteorologica sulle condizioni attuali previste dal modello, non probabilità di riuscita. Pesi e soglie sono criteri applicativi non validati; non certificano la sicurezza.</p>
         </div>
       </div>
       <div class="cml-table-wrap">
-        <table class="cml-table" style="min-width:620px;">
+        <table class="cml-table cml-tabella-attivita">
           <thead><tr><th>Attività</th><th>Idoneità meteorologica</th><th>Valore</th></tr></thead>
           <tbody>{''.join(righe)}</tbody>
         </table>

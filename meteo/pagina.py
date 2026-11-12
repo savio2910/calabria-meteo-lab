@@ -33,11 +33,13 @@ def badge_rischio_html(livello, rischio):
         palette["verde"],
     )
 
+    # Per il livello verde il tipo di rischio ("nessuna criticità") ripeterebbe il testo
+    dettaglio = "" if livello == "verde" else f" · {html.escape(rischio.capitalize())}"
     return (
         f'<span class="cml-risk-badge" style="background:{colore};">'
         f"<span>{icona}</span>"
-        f"<span>{html.escape(testo)} · {html.escape(rischio.title())}</span>"
-        f"</span>"
+        f"<span>{html.escape(testo)}{dettaglio}</span>"
+        "</span>"
     )
 
 
@@ -164,12 +166,12 @@ def genera_app_completa(
                     stato_prev, icona_prev, classe_prev = stato_mare_da_onda(riga_mare.get("wave_height"))
                     righe_mare.append(f"""
                       <tr>
-                        <td>{ora_it(riga_mare.get("time"))}</td>
-                        <td><span class="cml-marine-forecast-status {classe_prev}" style="margin:0;">
+                        <td class="c-ora">{ora_it(riga_mare.get("time"))}</td>
+                        <td class="c-scenario"><span class="cml-marine-forecast-status {classe_prev}" style="margin:0;">
                           {icona_prev} {html.escape(stato_prev)}</span></td>
-                        <td>{numero(riga_mare.get("wave_height"), 2)}</td>
-                        <td>{direzione(riga_mare.get("wave_direction"))} · {numero(riga_mare.get("wave_direction"), 0, "°")}</td>
-                        <td>{numero(riga_mare.get("sea_surface_temperature"), 1)}</td>
+                        <td class="c-temp" data-unita=" m">{numero(riga_mare.get("wave_height"), 2)}</td>
+                        <td class="c-dato" data-etichetta="Onda da">{direzione(riga_mare.get("wave_direction"))} · {numero(riga_mare.get("wave_direction"), 0, "°")}</td>
+                        <td class="c-dato" data-etichetta="Mare" data-unita=" °C">{numero(riga_mare.get("sea_surface_temperature"), 1)}</td>
                       </tr>
                     """)
                 sezioni_mare.append(f"""
@@ -177,9 +179,9 @@ def genera_app_completa(
                     {html.escape(data_it(data_mare).title())}
                   </div>
                   <div class="cml-table-wrap">
-                    <table class="cml-table" style="min-width:680px;">
+                    <table class="cml-table cml-tabella-mare">
                       <thead><tr>
-                        <th>Ora</th><th>Stazione del mare</th><th>Altezza onda m</th>
+                        <th>Ora</th><th>Stato del mare</th><th>Altezza onda m</th>
                         <th>Direzione onda</th><th>Temp. mare °C</th>
                       </tr></thead>
                       <tbody>{''.join(righe_mare)}</tbody>
@@ -187,12 +189,14 @@ def genera_app_completa(
                   </div>
                 """)
             previsioni_mare_html = f"""
-              <div class="cml-marine-forecast-title">🌊 Previsioni mare ogni 3 ore · prossimi {GIORNI_PREVISIONE} giorni</div>
+              <details class="cml-fisarmonica" open data-chiudi-su-telefono>
+              <summary class="cml-marine-forecast-title">🌊 Previsioni mare ogni 3 ore · prossimi {GIORNI_PREVISIONE} giorni</summary>
               <p style="color:#607987;font-size:12px;">
                 Orari locali Europe/Rome. Valori alle ore indicate, non medie su tre ore.
                 Per oggi sono mostrate solo le scadenze dall’ora corrente in avanti.
               </p>
               {''.join(sezioni_mare) if sezioni_mare else '<p>Nessuna scadenza trioraria disponibile.</p>'}
+              </details>
             """
         else:
             previsioni_mare_html = '<p>Previsioni marine orarie non disponibili.</p>'
@@ -455,9 +459,9 @@ def genera_app_completa(
             righe_tabella.append(
                 f"""
                 <tr class="{classe_notte}">
-                  <td>{riga["time"].strftime("%H:%M")}</td>
+                  <td class="c-ora">{riga["time"].strftime("%H:%M")}</td>
 
-                  <td class="cml-scenario-cell">
+                  <td class="cml-scenario-cell c-scenario">
                     <span class="cml-table-icon">
                       {icona_ora_html}
                     </span>
@@ -467,14 +471,14 @@ def genera_app_completa(
                     </span>
                   </td>
 
-                  <td>{numero(riga["temperature_2m"], 1)}</td>
-                  <td>{numero(riga["apparent_temperature"], 1)}</td>
-                  <td>{numero(riga["precipitation"], 1)}</td>
-                  <td>{numero(riga["wind_speed_10m"], 0)}</td>
-                  <td>{html.escape(str(riga["Da"]))}</td>
-                  <td>{numero(riga["wind_gusts_10m"], 0)}</td>
-                  <td>{numero(riga["cloud_cover"], 0)}</td>
-                  <td>{numero(riga["relative_humidity_2m"], 0)}</td>
+                  <td class="c-temp" data-unita="°">{numero(riga["temperature_2m"], 1)}</td>
+                  <td class="c-dato" data-etichetta="Percepita" data-unita="°">{numero(riga["apparent_temperature"], 1)}</td>
+                  <td class="c-dato" data-etichetta="Pioggia" data-unita=" mm">{numero(riga["precipitation"], 1)}</td>
+                  <td class="c-dato" data-etichetta="Vento" data-unita=" km/h">{numero(riga["wind_speed_10m"], 0)}</td>
+                  <td class="c-dato" data-etichetta="Da">{html.escape(str(riga["Da"]))}</td>
+                  <td class="c-dato" data-etichetta="Raffica" data-unita=" km/h">{numero(riga["wind_gusts_10m"], 0)}</td>
+                  <td class="c-dato" data-etichetta="Nubi" data-unita="%">{numero(riga["cloud_cover"], 0)}</td>
+                  <td class="c-dato" data-etichetta="Umidità" data-unita="%">{numero(riga["relative_humidity_2m"], 0)}</td>
                 </tr>
                 """
             )
@@ -490,7 +494,7 @@ def genera_app_completa(
               </h3>
 
               <div class="cml-table-wrap">
-                <table class="cml-table">
+                <table class="cml-table cml-tabella-oraria">
                   <thead>
                     <tr>
                       <th>Ora</th>
@@ -742,6 +746,8 @@ def genera_app_completa(
   </div>
 
   <!-- ===================== SATELLITE NUVOLOSITÀ ===================== -->
+  <details class="cml-fisarmonica cml-fisarmonica-mappa" open data-chiudi-su-telefono>
+  <summary class="cml-fisarmonica-titolo">🛰️ Satellite · Nuvolosità</summary>
   <section class="cml-radar-box">
     <div class="cml-radar-head">
       <div>
@@ -780,8 +786,11 @@ def genera_app_completa(
       oppure configura il riquadro dal generatore ufficiale Windy.
     </div>
   </section>
+  </details>
 
   <!-- ===================== FULMINAZIONI ===================== -->
+  <details class="cml-fisarmonica cml-fisarmonica-mappa" open data-chiudi-su-telefono>
+  <summary class="cml-fisarmonica-titolo">⚡ Fulminazioni osservate</summary>
   <section class="cml-radar-box">
     <div class="cml-radar-head">
       <div>
@@ -820,6 +829,7 @@ def genera_app_completa(
       Consulta gli avvisi ufficiali.
     </div>
   </section>
+  </details>
 </div>
 
 <!-- ===================== ATTIVITÀ ===================== -->

@@ -1284,3 +1284,11 @@ def aggiungi_dashboard_interattiva(documento_html, ore, luogo):
         "__EX_PLACE__", json.dumps(str(luogo), ensure_ascii=False).replace("<", "\\u003c")
     )
     return documento_html.replace("</body>", interfaccia + "\n</body>")
+
+
+def aggiungi_altezza_automatica(documento_html):
+    """Aggiunge lo script che adatta l'altezza del riquadro Streamlit alla pagina."""
+    script = leggi_static("altezza_automatica.html")
+    if "</body>" not in documento_html:
+        return documento_html + script
+    return documento_html.replace("</body>", script + "\n</body>", 1)

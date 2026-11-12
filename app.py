@@ -15,7 +15,7 @@ from meteo.correzione import calcola_correzione_osservativa, scarica_osservazion
 from meteo.dati import prepara_dati_terrestri
 from meteo.home_viva import aggiungi_home_viva
 from meteo.localita import carica_comuni_costieri, comune_e_costiero, risolvi_localita
-from meteo.pagina import genera_app_completa
+from meteo.pagina import aggiungi_altezza_automatica, genera_app_completa
 from meteo.sfondo_meteo import aggiungi_sfondo_meteo
 
 # =============================================================================
@@ -209,9 +209,13 @@ try:
         is_costiero=is_costiero,
     )
     
+    documento = aggiungi_altezza_automatica(documento)
+
+    # L'altezza viene poi adattata dallo script; 1100 px è il valore iniziale
+    # (e quello di riserva, con scorrimento interno, se lo script non può agire).
     components.html(
         documento,
-        height=4300,
+        height=1100,
         scrolling=True,
     )
     

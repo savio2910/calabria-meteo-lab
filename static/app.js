@@ -59,6 +59,16 @@ function mostraVista(nome) {
     top: 0,
     behavior: "smooth"
   });
+
+  // Con l'altezza automatica scorre la pagina Streamlit, non il riquadro:
+  // riporta in vista l'inizio del riquadro se è uscito dallo schermo.
+  try {
+    if (window.frameElement && window.frameElement.getBoundingClientRect().top < 0) {
+      window.frameElement.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  } catch (errore) {
+    /* riquadro non accessibile: nulla da fare */
+  }
 }
 
 /* ---------- GRAFICO METEO ---------- */

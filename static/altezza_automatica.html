@@ -1,0 +1,38 @@
+<style>
+/* Attivo solo se lo script riesce ad adattare il riquadro */
+html.cml-auto-altezza { overflow: hidden; }
+html.cml-auto-altezza body { min-height: 0 !important; }
+</style>
+<script>
+/* Calabria Meteo Lab - altezza automatica del riquadro Streamlit.
+   Misura l'altezza reale della pagina e la applica al riquadro (iframe),
+   così c'è una sola barra di scorrimento e nessuno spazio vuoto.
+   Se il riquadro non è accessibile, resta l'altezza fissa con scorrimento interno. */
+(function () {
+  'use strict';
+  var cornice = null;
+  try { cornice = window.frameElement; } catch (e) { cornice = null; }
+  if (!cornice || typeof ResizeObserver === 'undefined') return;
+
+  document.documentElement.classList.add('cml-auto-altezza');
+  var ultima = 0;
+  var attesa = 0;
+
+  function misura() {
+    attesa = 0;
+    var altezza = Math.ceil(document.body.getBoundingClientRect().height);
+    if (altezza < 200 || Math.abs(altezza - ultima) < 2) return;
+    ultima = altezza;
+    cornice.style.height = altezza + 'px';
+    cornice.setAttribute('height', String(altezza));
+  }
+
+  function programma() {
+    if (!attesa) attesa = requestAnimationFrame(misura);
+  }
+
+  new ResizeObserver(programma).observe(document.body);
+  window.addEventListener('load', programma);
+  programma();
+})();
+</script>

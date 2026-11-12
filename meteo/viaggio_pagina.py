@@ -65,6 +65,9 @@ def documento_viaggio(origine, destinazione, mezzo, percorso, valutazioni, scelt
           <span>arrivo verso le {consigliata['arrivo']:%H:%M} · {_etichetta(consigliata['livello'])}</span>
           <small>{html.escape(data_it(consigliata['partenza']).capitalize())} · peggior tratto:
           {html.escape(consigliata['motivo'])}{(' (' + html.escape(consigliata['dove']) + ')') if consigliata['livello'] else ''}</small>
+          {('<small class="v-raffiche">💨 ' + html.escape(consigliata['avviso'][:1].upper() + consigliata['avviso'][1:])
+            + ' (' + html.escape(consigliata['avviso_dove']) + ') secondo gli scenari degli ensemble</small>')
+           if consigliata.get('avviso') else ''}
         </div>"""
     else:
         riepilogo = """
@@ -86,7 +89,8 @@ def documento_viaggio(origine, destinazione, mezzo, percorso, valutazioni, scelt
         f'{" v-scelta" if v["partenza"] == scelta["partenza"] else ""}'
         f'{" v-consigliata" if consigliata is not None and v["partenza"] == consigliata["partenza"] else ""}" '
         f'title="{v["partenza"]:%H:%M} · {html.escape(LIVELLI[v["livello"]][1] if v["livello"] is not None else "non disponibile")}'
-        f' – {html.escape(v["motivo"], quote=True)}">'
+        f' – {html.escape(v["motivo"], quote=True)}'
+        f'{(" · 💨 " + html.escape(v["avviso"], quote=True)) if v.get("avviso") else ""}">'
         f'<span>{v["partenza"]:%H:%M}</span></li>'
         for v in valutazioni
     )
@@ -113,7 +117,8 @@ def documento_viaggio(origine, destinazione, mezzo, percorso, valutazioni, scelt
             <td class="c-dato v-dove"><b>{html.escape(nome)}</b> {html.escape(tappa['strada'] or '')}
               <small>quota {numero(tappa['quota'], 0, ' m')}</small></td>
             {meteo_html}
-            <td class="c-dato v-giudizio">{_etichetta(tappa['livello'])} <small>{html.escape(tappa['motivo'])}</small></td>
+            <td class="c-dato v-giudizio">{_etichetta(tappa['livello'])} <small>{html.escape(tappa['motivo'])}</small>
+              {('<small class="v-raffiche">💨 ' + html.escape(tappa['avviso']) + '</small>') if tappa.get('avviso') else ''}</td>
           </tr>""")
 
     # Mappa

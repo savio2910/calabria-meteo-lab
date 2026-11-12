@@ -52,7 +52,24 @@ VARIABILI_MEDIA = [
 ]
 ESCLUSI = {"precipitation": {"AIFS"}, "cloud_cover": {"AIFS"}}
 TEMPORALE = {95, 96, 99}
+
+# Raffiche per i modelli che non le forniscono (MeteoHub): vento medio x fattore di raffica
+# di ICON-2I nella stessa ora e nello stesso punto (rilievo, turbolenza), entro questi limiti.
+FATTORE_RAFFICA = {"minimo": 1.3, "massimo": 2.5, "predefinito": 1.6, "vento_minimo_kmh": 5.0}
+RAFFICA_MINIMA_SU_VENTO = 1.3     # le raffiche combinate non scendono mai sotto vento medio x 1,3
 NEVE_TEMPERATURA = 1.5
+
+
+def fattore_raffica(tabella):
+    """Rapporto raffica / vento medio ora per ora (da ICON-2I), con limiti ragionevoli."""
+    f = FATTORE_RAFFICA
+    if "wind_gusts_10m" not in tabella or "wind_speed_10m" not in tabella:
+        return np.full(len(tabella), f["predefinito"])
+    vento = tabella["wind_speed_10m"].to_numpy(dtype=float)
+    raffiche = tabella["wind_gusts_10m"].to_numpy(dtype=float)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        rapporto = np.clip(raffiche / vento, f["minimo"], f["massimo"])
+    return np.where(np.isnan(rapporto) | (vento < f["vento_minimo_kmh"]), f["predefinito"], rapporto)
 
 
 def pesi_alla_scadenza(ore):
@@ -151,6 +168,11 @@ def combina(dati_terrestri, modelli, adesso):
     base = pd.DataFrame({k: v for k, v in orario.items() if k != "time"}, index=tempi).apply(pd.to_numeric, errors="coerce")
     tabelle = {PRINCIPALE: base, **{m: t.reindex(tempi) for m, t in modelli.items()}}
     disponibili = [m for m in ORDINE if m in tabelle]
+    fattore = fattore_raffica(base)
+    for m in disponibili:
+        t = tabelle[m]
+        if "wind_gusts_10m" not in t and "wind_speed_10m" in t:
+            tabelle[m] = t.assign(wind_gusts_10m=t["wind_speed_10m"].to_numpy(dtype=float) * fattore)
     scadenze = ((tempi - pd.Timestamp(adesso).floor("h")) / pd.Timedelta(hours=1)).to_numpy()
     pesi_ora = [pesi_alla_scadenza(max(0.0, s)) for s in scadenze]
 
@@ -167,6 +189,9 @@ def combina(dati_terrestri, modelli, adesso):
             return np.where(somma > 0, np.nansum(np.nan_to_num(valori) * pesi, axis=1) / somma, np.nan)
 
     combinati = {v: media(v) for v in VARIABILI_MEDIA}
+    with np.errstate(invalid="ignore"):
+        combinati["wind_gusts_10m"] = np.fmax(combinati["wind_gusts_10m"],
+                                              combinati["wind_speed_10m"] * RAFFICA_MINIMA_SU_VENTO)
 
     # Direzione del vento: media dei vettori (nord e sud non fanno est)
     u = np.zeros(len(tempi)); v = np.zeros(len(tempi)); w = np.zeros(len(tempi))

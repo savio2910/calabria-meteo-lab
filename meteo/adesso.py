@@ -11,7 +11,7 @@ import pandas as pd
 
 from meteo.formato import direzione, icona_meteo_html, meteo, numero, ora_it, valore_finito
 from meteo.indicatori import riassunto_giorno, testi_indicatori
-from meteo.probabilita import testo_affidabilita
+from meteo.probabilita import PROBABILITA_MINIMA_MOSTRATA, SOGLIE_RAFFICHE, testo_affidabilita
 
 CODICI_TEMPORALE = {95, 96, 99}
 CODICI_NEVE = {71, 73, 75, 77, 85, 86}
@@ -264,6 +264,8 @@ def affidabilita_html(probabilita):
     testo = f"{testo_affidabilita(prossime['affidabilita'])} nelle prossime 12 ore"
     if prossime.get("pioggia") is not None:
         testo += f" · pioggia nelle 12 ore {_percentuale(prossime['pioggia'])}"
+    if (prossime.get("raffiche_forti") or 0) >= PROBABILITA_MINIMA_MOSTRATA:
+        testo += f" · raffiche ≥ {SOGLIE_RAFFICHE['forti']} km/h {_percentuale(prossime['raffiche_forti'])}"
     if prossime.get("motivi"):
         testo += " · " + ", ".join(prossime["motivi"])
     return f'<p class="cml-adesso-affidabilita cml-affidabilita-{prossime["affidabilita"]}">{html.escape(testo)}</p>'

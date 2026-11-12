@@ -86,3 +86,8 @@ body { background: transparent; }
   .v-tabella td small { display: inline; font-size: 13px; }
   #v-mappa { height: 320px; }
 }
+
+/* Possibili raffiche forti secondo gli ensemble */
+.v-raffiche { display: block; font-weight: 700; }
+.v-consiglio .v-raffiche { margin-top: 2px; padding: 6px 10px; border-radius: 10px; background: rgba(255, 255, 255, .16); opacity: 1; }
+.v-giudizio .v-raffiche { margin-top: 3px; color: #8a5300; }

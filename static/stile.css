@@ -2501,3 +2501,35 @@ body {
   .cml-attivita-griglia { grid-template-columns: 1fr; }
   .cml-att-fasce b { min-width: 64px; }
 }
+
+/* =============================================================================
+   PROBABILITÀ E AFFIDABILITÀ
+   ============================================================================= */
+
+.cml-adesso-affidabilita {
+  justify-self: start;
+  margin: -6px 0 0;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(4, 18, 32, 0.38);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.cml-giorno-prob {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin: 12px 0 14px;
+  padding: 10px 12px;
+  border: 1px solid #d5e4e9;
+  border-radius: 14px;
+  background: #f4f9fb;
+  color: #284d5a;
+  font-size: 13px;
+}
+
+.cml-giorno-prob b { color: var(--ink); }
+.cml-giorno-prob .cml-affidabilita-0 { color: #11663a; font-weight: 700; }
+.cml-giorno-prob .cml-affidabilita-1 { color: #725c00; font-weight: 700; }
+.cml-giorno-prob .cml-affidabilita-2 { color: #8a4108; font-weight: 700; }

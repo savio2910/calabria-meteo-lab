@@ -26,6 +26,7 @@ from meteo.localita import (
 )
 from meteo.pagina import aggiungi_altezza_automatica, genera_app_completa
 from meteo.posizione import pulsante_posizione
+from meteo.probabilita import calcola_probabilita, scarica_ensemble, temporali_nell_intorno
 from meteo.viaggio import (
     MEZZI,
     calcola_percorso,
@@ -208,6 +209,17 @@ def mostra_meteo():
             # Serie orarie e giornaliere dopo la correzione osservativa
             dati_orari, dati_giornalieri = prepara_dati_terrestri(dati_terrestri)
 
+            # Probabilità dagli ensemble: se non disponibili la pagina funziona senza
+            try:
+                probabilita = calcola_probabilita(
+                    scarica_ensemble(latitudine, longitudine),
+                    temporali_nell_intorno(latitudine, longitudine),
+                    dati_orari,
+                    dati_giornalieri,
+                )
+            except Exception:
+                probabilita = None
+
             dati_mare = None
             distanza_mare_km = None
             is_costiero = comune_e_costiero(comune_amministrativo, COMUNI_COSTIERI)
@@ -229,6 +241,7 @@ def mostra_meteo():
             distanza_mare_km,
             correzione_osservativa,
             is_costiero,
+            probabilita,
         )
         mostra_documento(documento)
 

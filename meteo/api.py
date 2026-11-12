@@ -15,12 +15,12 @@ import streamlit as st
 from meteo.config import API_MARE_URL, API_METEO_URL, FUSO_ORARIO, GIORNI_PREVISIONE, MODELLO_RISERVA, MODELLO_TERRESTRE, VARIABILI_CORRENTI, VARIABILI_GIORNALIERE, VARIABILI_MARINE_CORRENTI, VARIABILI_MARINE_GIORNALIERE, VARIABILI_MARINE_ORARIE, VARIABILI_ORARIE
 
 
-def crea_sessione_http():
+def crea_sessione_http(tentativi_massimi=3, attesa=1.5):
     """Sessione HTTP che riprova da sola su errori temporanei (429, 5xx)."""
     sessione = requests.Session()
     tentativi = Retry(
-        total=3,
-        backoff_factor=1.5,
+        total=tentativi_massimi,
+        backoff_factor=attesa,
         status_forcelist=(429, 500, 502, 503, 504),
         allowed_methods=("GET",),
         respect_retry_after_header=True,
@@ -31,6 +31,9 @@ def crea_sessione_http():
 
 
 HTTP = crea_sessione_http()
+# Per i dati facoltativi (es. probabilità): un solo nuovo tentativo, così un
+# servizio lento non ritarda la pagina principale.
+HTTP_FACOLTATIVO = crea_sessione_http(tentativi_massimi=1, attesa=0.5)
 
 
 def _scarica_modello(parametri, modello):

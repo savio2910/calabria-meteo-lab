@@ -511,6 +511,17 @@ def _nome_giorno(data, oggi):
     return data_it(data).split(" ")[0].capitalize()
 
 
+def migliore_prossima(fasce, oggi):
+    """Testo breve della prossima fascia buona: "Oggi 10–17 🟢", "Domani 07–11 🟡" o "Nessuna fascia buona"."""
+    for data in sorted(fasce):
+        elenco = fasce[data]
+        if not elenco:
+            continue
+        inizio, fine, livello, _ = max(elenco, key=lambda f: (f[1] - f[0], -f[2]))
+        return f"{_nome_giorno(data, oggi)} {inizio:%H}–{_ora_fine(fine)} {LIVELLI[livello][0]}"
+    return "Nessuna fascia buona"
+
+
 def _scheda_attivita(chiave, dati, oggi):
     ore_valutate = dati["ore"]
     adesso = ore_valutate[0][1] if ore_valutate else None
@@ -555,21 +566,25 @@ def _scheda_attivita(chiave, dati, oggi):
         celle.append(f'<span class="cml-linea-ora cml-liv-{classe}{separatore}" title="{html.escape(titolo, quote=True)}"></span>')
 
     criteri = "".join(f"<li>{html.escape(c)}</li>" for c in criteri_testo(chiave))
+    livello_adesso = "nd" if adesso is None else adesso[0]
     return f"""
-    <article class="cml-att">
-      <header>
-        <span class="cml-att-icona" aria-hidden="true">{dati['icona']}</span>
-        <h3>{html.escape(dati['nome'])}</h3>
+    <details class="att-tessera att-liv-{livello_adesso}">
+      <summary aria-label="{html.escape(dati['nome'], quote=True)}">
+        <span class="att-icona" aria-hidden="true">{dati['icona']}</span>
+        <span class="att-nome">{html.escape(dati['nome'])}</span>
         {testo_adesso}
-      </header>
-      <p class="cml-att-motivo">{html.escape(motivo)}</p>
-      <ul class="cml-att-fasce" aria-label="Fasce migliori">{''.join(righe)}</ul>
-      <div class="cml-linea" role="img" aria-label="Giudizio ora per ora sui prossimi giorni">{''.join(celle)}</div>
-      <details>
-        <summary>Come è calcolato ({html.escape(ORARI[dati['quando']])})</summary>
-        <ul class="cml-att-criteri">{criteri}</ul>
-      </details>
-    </article>"""
+        <span class="att-prossima">{migliore_prossima(fasce, oggi)}</span>
+      </summary>
+      <div class="att-dettaglio">
+        <p class="cml-att-motivo">{html.escape(motivo)}</p>
+        <ul class="cml-att-fasce" aria-label="Fasce migliori">{''.join(righe)}</ul>
+        <div class="cml-linea" role="img" aria-label="Giudizio ora per ora sui prossimi giorni">{''.join(celle)}</div>
+        <details>
+          <summary>Come è calcolato ({html.escape(ORARI[dati['quando']])})</summary>
+          <ul class="cml-att-criteri">{criteri}</ul>
+        </details>
+      </div>
+    </details>"""
 
 
 def sezione_attivita_html(luogo, ore, giorni, dati_mare=None, is_costiero=False, quota=None, indicatori=None,
@@ -586,22 +601,11 @@ def sezione_attivita_html(luogo, ore, giorni, dati_mare=None, is_costiero=False,
     if any(NOTA_RAFFICHE in "".join(g[2]) for d in risultati.values() for _, g in d["ore"] if g):
         note.append(f"💨 = {NOTA_RAFFICHE} secondo gli scenari degli ensemble (probabilità ≥ "
                     f"{PROBABILITA_AVVISO_RAFFICHE * 100:.0f}%), anche se la previsione resta sotto soglia.")
-    legenda = " ".join(_etichetta(l) for l in LIVELLI) + ' <span class="cml-liv cml-liv-nd">⚪ Fuori orario</span>'
-
     return f"""
-    <section class="cml-radar-box cml-attivita-box">
-      <div class="cml-radar-head">
-        <div>
-          <h2>🏃 Attività per {html.escape(luogo)}</h2>
-          <p>Giudizio ora per ora sui prossimi giorni e fasce migliori (almeno {ORE_MINIME_FASCIA} ore consecutive
-          Ottime o Buone). Il motivo indica il fattore che limita di più.</p>
-        </div>
-      </div>
-      <p class="cml-att-legenda">{legenda}</p>
-      <div class="cml-attivita-griglia">{schede}</div>
-      <div class="cml-marine-note">
-        ℹ️ Criteri applicativi basati sulla previsione, non garanzie di sicurezza: verifica sempre
-        le condizioni sul posto e gli avvisi ufficiali. {html.escape(' '.join(note))}
-      </div>
+    <section class="att-sezione">
+      <h2 class="cml-titolo-sezione">🏃 Attività</h2>
+      <p class="att-intro">Adesso e la prossima fascia buona (almeno {ORE_MINIME_FASCIA} ore). Tocca un'attività per i dettagli.</p>
+      <div class="att-griglia">{schede}</div>
+      {f'<p class="att-note">{html.escape(" ".join(note))}</p>' if note else ''}
     </section>
     """

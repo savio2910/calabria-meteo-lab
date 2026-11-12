@@ -163,9 +163,8 @@ def situazione_html(frasi):
         for icona, titolo, testo in frasi
     )
     return f"""
-<section class="cml-radar-box cml-situazione" aria-labelledby="sit-titolo">
-  <span class="cml-eyebrow">COME I PREVISORI</span>
-  <h2 id="sit-titolo">🌍 Situazione generale</h2>
+<details class="cml-fisarmonica cml-sezione cml-situazione" id="cml-situazione" open data-chiudi-su-telefono>
+  <summary class="cml-fisarmonica-titolo">🌍 Situazione generale</summary>
   <ul>{righe}</ul>
-  <p class="sit-nota">Dai modelli del Centro Europeo (ECMWF): pressione, aria e vento a circa 1.500 m, zero termico.</p>
-</section>"""
+  <p class="sit-nota">Come guardano i previsori: pressione, aria e vento a circa 1.500 m e zero termico (modelli del Centro Europeo).</p>
+</details>"""

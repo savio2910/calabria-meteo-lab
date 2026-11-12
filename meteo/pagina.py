@@ -6,46 +6,22 @@
 
 import html
 import json
-from datetime import datetime, timedelta
+from datetime import timedelta
 
-import pandas as pd
-
-from meteo.adesso import menu_rapido_html, riga_fonti_html, riquadro_adesso_html
+from meteo.adesso import menu_rapido_html, riga_breve_fonti_html, riga_fonti_html, riquadro_adesso_html
 from meteo.allerta import LIVELLI_ALLERTA, URL_CFD_CALABRIA, descrivi_livelli
 from meteo.attivita import sezione_attivita_html
-from meteo.config import FUSO_ORARIO, GIORNI_PREVISIONE, leggi_static
-from meteo.dati import stato_mare_da_onda, valuta_rischio_locale
-from meteo.formato import data_it, direzione, meteo, numero, ora_it
+from meteo.config import leggi_static
+from meteo.formato import data_it, ora_it
+from meteo.giorni import giorni_html
 from meteo.indicatori import riassunto_giorno, testi_indicatori
+from meteo.mare import mare_html
 from meteo.oraperora import sezione_ora_per_ora_html
 from meteo.probabilita import PROBABILITA_MINIMA_MOSTRATA, SOGLIE_RAFFICHE, testo_affidabilita
 from meteo.situazione import situazione_html
 
 
 STILE_CSS = leggi_static("stile.css")
-
-
-def badge_rischio_html(livello, rischio):
-    palette = {
-        "verde": ("#4f6d7a", "○", "Indice meteo: nessun segnale"),
-        "giallo": ("#2f6db3", "◔", "Indice meteo: attenzione"),
-        "arancione": ("#6a3fb5", "◑", "Indice meteo: attenzione alta"),
-        "rosso": ("#3b1f73", "●", "Indice meteo: attenzione molto alta"),
-    }
-
-    colore, icona, testo = palette.get(
-        livello,
-        palette["verde"],
-    )
-
-    # Per il livello verde il tipo di rischio ("nessuna criticità") ripeterebbe il testo
-    dettaglio = "" if livello == "verde" else f" · {html.escape(rischio.capitalize())}"
-    return (
-        f'<span class="cml-risk-badge" style="background:{colore};">'
-        f"<span>{icona}</span>"
-        f"<span>{html.escape(testo)}{dettaglio}</span>"
-        "</span>"
-    )
 
 
 def _testo_emissione(allerta):
@@ -130,75 +106,52 @@ def probabilita_giorno_html(data, probabilita):
               </div>"""
 
 
-def riquadro_correzione_html(correzione):
+def correzione_breve_html(correzione):
+    """Ritocco con l'ultima osservazione Meteostat, in una riga."""
     if not correzione:
         return ""
+    distanza = f", {correzione['distanza_km']:.0f} km" if correzione.get("distanza_km") is not None else ""
+    vento = (correzione["rapporto_vento"] - 1) * 100
+    return (f'<p class="cml-info-correzione">🔎 <b>Ritocco con l\'ultima osservazione</b> della stazione '
+            f'{html.escape(correzione["stazione"])}{distanza} (ore {ora_it(correzione["ultima_osservazione"])}): '
+            f'temperatura {correzione["bias_temp"]:+.1f} °C, umidità {correzione["bias_umidita"]:+.0f} %, '
+            f'vento {vento:+.0f} %, attenuato nelle 6 ore successive.</p>')
 
-    distanza = (
-        f"{correzione['distanza_km']:.1f} km"
-        if correzione.get("distanza_km") is not None
-        else "non disponibile"
-    )
 
-    bias_temp = correzione["bias_temp"]
-    segno_temp = "+" if bias_temp >= 0 else ""
-
-    bias_umidita = correzione["bias_umidita"]
-    segno_umidita = "+" if bias_umidita >= 0 else ""
-
-    rapporto = correzione["rapporto_vento"]
-    variazione_vento = (rapporto - 1) * 100
-    segno_vento = "+" if variazione_vento >= 0 else ""
-
+def informazioni_html(fonti_html, correzione, ha_mare):
+    """Riquadro unico, chiuso, con stato dei servizi, correzioni, avvertenze e fonti."""
+    note = [
+        "<b>Prossimi giorni</b>: l'icona riassume i fenomeni importanti delle 24 ore (se non ce ne sono, il cielo "
+        "medio di giorno); la barra va dalla minima alla massima, con la stessa scala per tutti i giorni; 💧 è la "
+        "probabilità di pioggia calcolata dagli scenari degli ensemble.",
+        "L'<b>indice meteo dell'app</b> è una stima automatica, <b>non un'allerta ufficiale</b>: per le allerte consulta "
+        f'il <a href="{URL_CFD_CALABRIA}" target="_blank" rel="noopener">Centro Funzionale Multirischi – ARPACAL</a>.',
+        "<b>Radar</b>: pioggia osservata, non una previsione. <b>Satellite</b>: mostra le nubi, non la pioggia al suolo. "
+        "<b>Fulmini</b>: scariche rilevate dalla rete Blitzortung; se non ce ne sono il rischio di temporali non è escluso.",
+    ]
+    if ha_mare:
+        note.append("<b>Mare</b>: la freccia indica dove vanno le onde, la direzione scritta da dove arrivano. Valori "
+                    "stimati su una griglia marina, meno precisi in baie, porti e promontori: per la navigazione "
+                    "consulta sempre fonti nautiche e avvisi ufficiali.")
+    note.append("<b>Attività e viaggio</b>: giudizi automatici basati sulla previsione, non garanzie di sicurezza.")
     return f"""
-    <section class="cml-nowcast-box">
-      <div class="cml-nowcast-head">
-        <span class="cml-eyebrow">CORREZIONE CON OSSERVAZIONI</span>
-        <h2>🔎 Previsione adattata alle osservazioni</h2>
-        <p>
-          Le prossime 6 ore sono corrette usando le osservazioni recenti della stazione
-          Meteostat più vicina e affidabile.
-        </p>
-      </div>
-
-      <div class="cml-marine-grid">
-        <div class="cml-marine-card">
-          <span>📍 Stazione</span>
-          <strong style="font-size:16px;">{html.escape(correzione['stazione'])}</strong>
-          <small>Distanza: {html.escape(distanza)}</small>
-        </div>
-
-        <div class="cml-marine-card">
-          <span>🕒 Ultima osservazione</span>
-          <strong>{ora_it(correzione['ultima_osservazione'])}</strong>
-          <small>{correzione['numero_osservazioni']} osservazioni nelle ultime 3 ore</small>
-        </div>
-
-        <div class="cml-marine-card">
-          <span>🌡️ Correzione temperatura</span>
-          <strong>{segno_temp}{bias_temp:.1f} °C</strong>
-          <small>Bias medio osservato</small>
-        </div>
-
-        <div class="cml-marine-card">
-          <span>💧 Correzione umidità</span>
-          <strong>{segno_umidita}{bias_umidita:.0f} %</strong>
-          <small>Bias medio osservato</small>
-        </div>
-
-        <div class="cml-marine-card">
-          <span>💨 Correzione vento</span>
-          <strong>{segno_vento}{variazione_vento:.0f} %</strong>
-          <small>Rapporto osservazione/modello</small>
-        </div>
-      </div>
-
-      <div class="cml-nowcast-note">
-        ℹ️ La correzione è più forte nelle prossime ore e si attenua progressivamente entro 6 ore.
-        È una stima automatica e non sostituisce avvisi ufficiali o valutazioni di sicurezza.
-      </div>
-    </section>
-    """
+<details class="cml-info cml-sezione" id="cml-info">
+  <summary>ℹ️ Fonti, taratura e affidabilità</summary>
+  <div class="cml-info-corpo">
+    {fonti_html}
+    {correzione_breve_html(correzione)}
+    <h3>Come leggere la pagina</h3>
+    <ul class="cml-info-note">{''.join(f'<li>{n}</li>' for n in note)}</ul>
+    <h3>Fonti dei dati</h3>
+    <p class="cml-info-fonti">
+      Modelli: ICON-2I (ItaliaMeteo–ARPAE), ECMWF IFS e AIFS (Centro Europeo), ICON-EU (DWD) attraverso Open-Meteo;
+      MOLOCH e BOLAM (CNR-ISAC), WRF (ItaliaMeteo, Fondazione CIMA, LaMMA) dai dati aperti di MeteoHub – Agenzia
+      ItaliaMeteo. Stazioni: rete della Protezione Civile in Calabria (MeteoHub) e Meteostat. Allerte: Dipartimento
+      della Protezione Civile. Radar: RainViewer. Satellite: Windy. Fulmini: Blitzortung.org. Mappe: OpenStreetMap.
+      Licenze CC BY / CC BY-SA.
+    </p>
+  </div>
+</details>"""
 
 
 def genera_app_completa(
@@ -219,289 +172,32 @@ def genera_app_completa(
 ):
     corrente = dati_terrestri["current"]
 
-    mare_html = ""
-
-    if (
-        dati_mare is not None
-        and isinstance(dati_mare, dict)
-        and dati_mare.get("current")
-    ):
-        corrente_mare = dati_mare["current"]
-        orarie_mare = pd.DataFrame(dati_mare.get("hourly", {}))
-        giornaliere_mare = pd.DataFrame(dati_mare.get("daily", {}))
-
-        if not orarie_mare.empty and "time" in orarie_mare:
-            orarie_mare["time"] = pd.to_datetime(orarie_mare["time"])
-
-        altezza_onda = corrente_mare.get("wave_height")
-        direzione_onda = corrente_mare.get("wave_direction")
-        periodo_onda = corrente_mare.get("wave_period")
-        altezza_mare_vento = corrente_mare.get("wind_wave_height")
-        altezza_swell = corrente_mare.get("swell_wave_height")
-        temperatura_mare = corrente_mare.get("sea_surface_temperature")
-
-        stato_mare, icona_mare, classe_mare = stato_mare_da_onda(altezza_onda)
-
-        previsioni_mare_html = ""
-        if not orarie_mare.empty and "time" in orarie_mare:
-            adesso_mare = pd.Timestamp(datetime.now(FUSO_ORARIO).replace(tzinfo=None))
-            triorarie = orarie_mare.loc[
-                (orarie_mare["time"].dt.hour % 3 == 0)
-                & (orarie_mare["time"].dt.minute == 0)
-                & (orarie_mare["time"] >= adesso_mare.floor("h"))
-            ].sort_values("time").copy()
-            sezioni_mare = []
-            for data_mare, gruppo_mare in triorarie.groupby(triorarie["time"].dt.date):
-                righe_mare = []
-                for _, riga_mare in gruppo_mare.iterrows():
-                    stato_prev, icona_prev, classe_prev = stato_mare_da_onda(riga_mare.get("wave_height"))
-                    righe_mare.append(f"""
-                      <tr>
-                        <td class="c-ora">{ora_it(riga_mare.get("time"))}</td>
-                        <td class="c-scenario"><span class="cml-marine-forecast-status {classe_prev}" style="margin:0;">
-                          {icona_prev} {html.escape(stato_prev)}</span></td>
-                        <td class="c-temp" data-unita=" m">{numero(riga_mare.get("wave_height"), 2)}</td>
-                        <td class="c-dato" data-etichetta="Onda da">{direzione(riga_mare.get("wave_direction"))} · {numero(riga_mare.get("wave_direction"), 0, "°")}</td>
-                        <td class="c-dato" data-etichetta="Mare" data-unita=" °C">{numero(riga_mare.get("sea_surface_temperature"), 1)}</td>
-                      </tr>
-                    """)
-                sezioni_mare.append(f"""
-                  <div class="cml-marine-forecast-date" style="margin-top:18px;">
-                    {html.escape(data_it(data_mare).title())}
-                  </div>
-                  <div class="cml-table-wrap">
-                    <table class="cml-table cml-tabella-mare">
-                      <thead><tr>
-                        <th>Ora</th><th>Stato del mare</th><th>Altezza onda m</th>
-                        <th>Direzione onda</th><th>Temp. mare °C</th>
-                      </tr></thead>
-                      <tbody>{''.join(righe_mare)}</tbody>
-                    </table>
-                  </div>
-                """)
-            previsioni_mare_html = f"""
-              <details class="cml-fisarmonica" open data-chiudi-su-telefono>
-              <summary class="cml-marine-forecast-title">🌊 Previsioni mare ogni 3 ore · prossimi {GIORNI_PREVISIONE} giorni</summary>
-              <p style="color:#607987;font-size:12px;">
-                Orari locali Europe/Rome. Valori alle ore indicate, non medie su tre ore.
-                Per oggi sono mostrate solo le scadenze dall’ora corrente in avanti.
-              </p>
-              {''.join(sezioni_mare) if sezioni_mare else '<p>Nessuna scadenza trioraria disponibile.</p>'}
-              </details>
-            """
-        else:
-            previsioni_mare_html = '<p>Previsioni marine orarie non disponibili.</p>'
-
-        mare_html = f"""
-        <section class="cml-marine-box">
-          <div class="cml-marine-head">
-            <div>
-              <span class="cml-eyebrow">BOLLETTINO COSTIERO</span>
-              <h2>🌊 Vento e stato del mare</h2>
-              <p>Stato attuale e previsione marina per il comune costiero di riferimento. La cella modellistica più vicina è a circa {numero(distanza_mare_km, 1, " km")} dal punto selezionato.</p>
-            </div>
-            <div class="cml-sea-status {classe_mare}">
-              <span>{icona_mare}</span>
-              <div><small>STATO DEL MARE</small><strong>{html.escape(stato_mare)}</strong></div>
-            </div>
-          </div>
-
-          <div class="cml-marine-grid">
-            <div class="cml-marine-card"><span>🌊 Altezza onda</span><strong>{numero(altezza_onda, 2, " m")}</strong><small>Onda significativa</small></div>
-            <div class="cml-marine-card"><span>🧭 Provenienza onda</span><strong>{direzione(direzione_onda)}</strong><small>{numero(direzione_onda, 0, "°")}</small></div>
-            <div class="cml-marine-card"><span>〰️ Periodo medio</span><strong>{numero(periodo_onda, 1, " s")}</strong><small>Intervallo medio d'onda</small></div>
-            <div class="cml-marine-card"><span>💨 Mare del vento</span><strong>{numero(altezza_mare_vento, 2, " m")}</strong><small>Componente wind sea</small></div>
-            <div class="cml-marine-card"><span>🌐 Mare di fondo</span><strong>{numero(altezza_swell, 2, " m")}</strong><small>Componente swell</small></div>
-            <div class="cml-marine-card"><span>🌡️ Temperatura mare</span><strong>{numero(temperatura_mare, 1, " °C")}</strong><small>Temperatura superficiale</small></div>
-          </div>
-
-          {previsioni_mare_html}
-          <div class="cml-marine-note">ℹ️ La direzione indica <b>da dove proviene</b> il moto ondoso. I valori sono stimati su griglia marina e possono essere meno rappresentativi presso baie, porti, promontori e costa molto frastagliata. Per navigazione e sicurezza consulta sempre fonti nautiche e avvisi ufficiali.</div>
-        </section>
-        """
-
-    # ---------------------------------------------------------
-    # SCHEDE GIORNALIERE
-    # ---------------------------------------------------------
-
-    etichette_giorni = ["OGGI", "DOMANI", "DOPODOMANI"]
-    carte_html = []
-
-    for indice, (_, riga) in enumerate(giorni.iterrows()):
-        tag = (
-            etichette_giorni[indice]
-            if indice < len(etichette_giorni)
-            else "PROSSIMAMENTE"
-        )
-
-        # La scheda sintetizza i fenomeni sulle 24 ore e il cielo medio diurno.
-        codice_effettivo = riga.get(
-            "weather_code_prevalente",
-            riga.get("weather_code"),
-        )
-
-        try:
-            if codice_effettivo is None or pd.isna(codice_effettivo):
-                codice_effettivo = 3
-            else:
-                codice_effettivo = int(float(codice_effettivo))
-        except (TypeError, ValueError):
-            codice_effettivo = 3
-
-        icona, descrizione = meteo(codice_effettivo)
-        fase = html.escape(str(riga.get("Fase lunare", "🌙 Luna")))
-        livello, rischio = valuta_rischio_locale(riga)
-        badge_rischio = badge_rischio_html(livello, rischio)
-
-        if codice_effettivo in [95, 96, 99]:
-            classe_icona = "cml-icon-thunder"
-        elif codice_effettivo in [71, 73, 75, 77, 85, 86]:
-            classe_icona = "cml-icon-snow"
-        elif (
-            codice_effettivo in range(51, 68)
-            or codice_effettivo in range(80, 83)
-        ):
-            classe_icona = "cml-icon-rain"
-        elif codice_effettivo in [2, 3, 45, 48]:
-            classe_icona = "cml-icon-cloud"
-        else:
-            classe_icona = "cml-icon-sun"
-
-        carte_html.append(
-            f"""
-            <article class="cml-day-card" id="scheda-{riga['time'].date()}"
-              role="button" tabindex="0"
-              aria-label="Mostra {html.escape(data_it(riga['time']), quote=True)} ora per ora"
-              onclick="window.vaiAlGiorno && vaiAlGiorno('{riga['time'].date()}')"
-              onkeydown="if (event.key === 'Enter' || event.key === ' ') {{ event.preventDefault(); window.vaiAlGiorno && vaiAlGiorno('{riga['time'].date()}'); }}">
-              <div class="cml-day-head">
-                <span class="cml-day-tag">{tag}</span>
-
-                <span class="cml-day-date">
-                  {html.escape(data_it(riga["time"]))}
-                </span>
-              </div>
-
-              <div class="cml-risk-row">
-                {badge_rischio}
-              </div>
-
-              <div class="cml-day-weather">
-                <div class="cml-day-icon {classe_icona}">
-                  {icona}
-                </div>
-
-                <div>
-                  <div class="cml-day-description">
-                    {html.escape(descrizione)}
-                  </div>
-
-                  <div class="cml-day-moon">
-                    {fase}
-                  </div>
-                </div>
-              </div>
-
-              <div class="cml-temperature-grid">
-                <div class="cml-temp-box">
-                  <span>MINIMA</span>
-
-                  <strong class="cml-temp-min">
-                    ↓ {numero(riga["temperature_2m_min"], 1, "°")}
-                  </strong>
-                </div>
-
-                <div class="cml-temp-box">
-                  <span>MASSIMA</span>
-
-                  <strong class="cml-temp-max">
-                    ↑ {numero(riga["temperature_2m_max"], 1, "°")}
-                  </strong>
-                </div>
-              </div>
-
-              {allerta_giorno_html(riga["time"].date(), allerta)}
-              {probabilita_giorno_html(riga["time"].date(), probabilita)}
-              {indicatori_giorno_html(riga["time"].date(), ore, indicatori)}
-
-              <div class="cml-day-details">
-                <div>
-                  <span>☁️ Nuvolosità diurna</span>
-                  <b>{numero(riga.get("cloud_cover_diurno"), 0, " %")}</b>
-                </div>
-
-                <div>
-                  <span>🌧️ Precipitazione</span>
-                  <b>{numero(riga.get("precipitation_sum"), 1, " mm")}</b>
-                </div>
-
-                <div>
-                  <span>💨 Vento massimo</span>
-                  <b>{numero(riga.get("wind_speed_10m_max"), 0, " km/h")}</b>
-                </div>
-
-                <div>
-                  <span>🌬️ Raffica massima</span>
-                  <b>{numero(riga.get("wind_gusts_10m_max"), 0, " km/h")}</b>
-                </div>
-
-                <div>
-                  <span>🧭 Direzione dominante</span>
-                  <b>{html.escape(str(riga.get("Da", "—")))}</b>
-                </div>
-              </div>
-
-              <div class="cml-astro-grid">
-                <div>
-                  <span>☀️ Alba</span>
-                  <b>{ora_it(riga.get("sunrise"))}</b>
-                </div>
-
-                <div>
-                  <span>🌇 Tramonto</span>
-                  <b>{ora_it(riga.get("sunset"))}</b>
-                </div>
-
-                <div>
-                  <span>🌙 Sorge</span>
-                  <b>{ora_it(riga.get("moonrise"))}</b>
-                </div>
-
-                <div>
-                  <span>🌘 Tramonta</span>
-                  <b>{ora_it(riga.get("moonset"))}</b>
-                </div>
-              </div>
-              <span class="cml-day-vai">Vedi ora per ora →</span>
-            </article>
-            """
-        )
-
     if ore.empty:
         raise RuntimeError(
             "Non sono disponibili dati orari futuri per la località selezionata."
         )
 
-    ora_per_ora_html = sezione_ora_per_ora_html(ore, probabilita, indicatori, giorni)
-
-    # ---------------------------------------------------------
-    # HTML COMPLETO CON HOME / PREVISIONI / RADAR
-    # ---------------------------------------------------------
-
-    riquadro_correzione = riquadro_correzione_html(
-        correzione_osservativa
+    sezione_giorni = giorni_html(
+        giorni, ore, corrente, probabilita, allerta, indicatori,
+        allerta_giorno_html, probabilita_giorno_html, indicatori_giorno_html,
     )
-
+    ora_per_ora_html = sezione_ora_per_ora_html(ore, probabilita, indicatori, giorni)
+    mare_sezione = mare_html(dati_mare, distanza_mare_km)
     sezione_attivita = sezione_attivita_html(
         luogo, ore, giorni, dati_mare, is_costiero, dati_terrestri.get("elevation"), indicatori, probabilita
     )
 
-    # Riquadro "Adesso", fonti dei dati e menu rapido
+    # Riquadro "Adesso", riga breve delle fonti, menu e riquadro unico delle informazioni
     adesso_html = riquadro_adesso_html(luogo, corrente, ore, giorni, probabilita, indicatori)
-    fonti_html = riga_fonti_html(dati_terrestri, correzione_osservativa, dati_mare, is_costiero, probabilita, allerta)
+    fonti_breve = riga_breve_fonti_html(dati_terrestri)
+    informazioni = informazioni_html(
+        riga_fonti_html(dati_terrestri, correzione_osservativa, dati_mare, is_costiero, probabilita, allerta),
+        correzione_osservativa,
+        bool(mare_sezione),
+    )
     banner_allerta = banner_allerta_html(allerta, giorni)
-    menu_html = menu_rapido_html(bool(mare_html))
-    mare_sezione = f'<div id="cml-mare" class="cml-sezione">{mare_html}</div>' if mare_html else ""
+    menu_html = menu_rapido_html(bool(mare_sezione))
+    situazione = situazione_html(situazione)
 
     script_app = (
         leggi_static("app.js")
@@ -513,7 +209,6 @@ def genera_app_completa(
             json.dumps(str(luogo), ensure_ascii=False).replace("<", "\\u003c"),
         )
     )
-
     script_adesso = leggi_static("adesso.js")
     script_oraperora = leggi_static("oraperora.js")
 
@@ -542,47 +237,18 @@ def genera_app_completa(
 
 <!-- ===================== ADESSO ===================== -->
 {adesso_html}
-{fonti_html}
-{situazione_html(situazione)}
-{riquadro_correzione}
+{fonti_breve}
 
 <!-- ===================== PROSSIMI GIORNI ===================== -->
-  <section class="cml-three-days cml-sezione" id="cml-giorni">
-    <div class="cml-section-title">
-      <div>
-        <span>ORIZZONTE PREVISIONALE</span>
-
-        <h2>📅 I prossimi tre giorni</h2>
-
-        <p>
-          Il riassunto di ogni giorno: toccalo per vederlo ora per ora.
-        </p>
-      </div>
-
-      <div class="cml-pill">72 ore</div>
-    </div>
-
-    <div class="cml-days-grid">
-      {''.join(carte_html)}
-    </div>
-    <div class="cml-note">
-      ℹ️ L'«indice meteo» è una stima automatica di questa app, <b>non un'allerta ufficiale</b>.
-      Per le allerte consulta il
-      <a href="https://www.cfd.calabria.it/" target="_blank" rel="noopener">Centro Funzionale Multirischi – ARPACAL</a>.
-    </div>
-
-    <div class="cml-note">
-      ℹ️ Le icone sintetizzano i fenomeni significativi sulle 24 ore;
-      in assenza di fenomeni mostrano il cielo medio diurno.
-      La nuvolosità riportata è la media diurna. Temperature, precipitazioni e vento
-      rappresentano estremi o cumulati sulle 24 ore.
-    </div>
-  </section>
+{sezione_giorni}
 
 <!-- ===================== ORA PER ORA ===================== -->
 <div id="cml-ora-per-ora" class="cml-sezione">
 {ora_per_ora_html}
 </div>
+
+<!-- ===================== SITUAZIONE GENERALE ===================== -->
+{situazione}
 
 <!-- ===================== MARE ===================== -->
 {mare_sezione}
@@ -591,128 +257,48 @@ def genera_app_completa(
 <div id="cml-radar" class="cml-sezione">
   <section class="cml-radar-box">
     <div class="cml-radar-head">
-      <div>
-        <h2>📡 Radar precipitazioni live</h2>
-
-        <p>
-          Sequenza radar RainViewer centrata sulla località selezionata:
-          {html.escape(luogo)}.
-        </p>
-      </div>
-
-      <button
-        class="cml-radar-btn"
-        id="btn-play"
-        type="button"
-        onclick="togglePlayRadar()"
-      >
-        ⏸ Pausa
-      </button>
+      <h2 class="cml-titolo-sezione">📡 Radar</h2>
+      <button class="cml-radar-btn" id="btn-play" type="button" onclick="togglePlayRadar()">⏸ Pausa</button>
     </div>
-
     <div id="radar-map"></div>
-
     <div class="cml-radar-footer">
-      <span>
-        🛰️ Base cartografica OpenStreetMap · Overlay radar RainViewer
-      </span>
-
-      <span>
-        Frame:
-        <span id="radar-timestamp" class="cml-radar-time">
-          caricamento...
-        </span>
-      </span>
+      <span>Pioggia osservata · RainViewer</span>
+      <span id="radar-timestamp" class="cml-radar-time">caricamento...</span>
     </div>
   </section>
 
-  <div class="cml-note">
-    ℹ️ Il radar mostra le precipitazioni osservate dai frame disponibili.
-    Non costituisce un bollettino di allerta né una previsione ufficiale.
-  </div>
-
   <!-- ===================== SATELLITE NUVOLOSITÀ ===================== -->
-  <details class="cml-fisarmonica cml-fisarmonica-mappa" open data-chiudi-su-telefono>
-  <summary class="cml-fisarmonica-titolo">🛰️ Satellite · Nuvolosità</summary>
+  <details class="cml-fisarmonica cml-fisarmonica-mappa">
+  <summary class="cml-fisarmonica-titolo">🛰️ Satellite · nuvole</summary>
   <section class="cml-radar-box">
-    <div class="cml-radar-head">
-      <div>
-        <h2>🛰️ Satellite · Nuvolosità</h2>
-        <p>
-          Immagini satellitari delle nubi, centrate sulla località
-          selezionata: {html.escape(luogo)}.
-          Controlla l’orario dell’immagine nella mappa.
-        </p>
-      </div>
-    </div>
-
     <iframe
       title="Satellite della nuvolosità"
       loading="lazy"
       src="https://embed.windy.com/embed2.html?lat={latitudine}&amp;lon={longitudine}&amp;zoom=7&amp;level=surface&amp;overlay=satellite&amp;product=satellite&amp;menu=&amp;message=&amp;marker=true&amp;calendar=now&amp;pressure=&amp;type=map&amp;location=coordinates&amp;detail=&amp;metricWind=km%2Fh&amp;metricTemp=%C2%B0C"
-      style="display:block;width:100%;height:520px;border:1px solid #d8e7eb;border-radius:16px;"
+      class="cml-mappa-esterna"
       allowfullscreen
     ></iframe>
-
     <div class="cml-radar-footer">
-      <span>🛰️ Visualizzazione satellitare · Windy</span>
-      <a
-        href="https://www.windy.com/-Satellite-satellite?satellite,{latitudine},{longitudine},7"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        Apri il satellite su Windy ↗
-      </a>
-    </div>
-
-    <div class="cml-marine-note">
-      ℹ️ Le immagini satellitari mostrano le nubi:
-      non sono una misura diretta della pioggia al suolo.
-      Se il widget non mostra il satellite, usa il collegamento
-      oppure configura il riquadro dal generatore ufficiale Windy.
+      <span>Windy</span>
+      <a href="https://www.windy.com/-Satellite-satellite?satellite,{latitudine},{longitudine},7" target="_blank" rel="noopener noreferrer">Apri su Windy ↗</a>
     </div>
   </section>
   </details>
 
   <!-- ===================== FULMINAZIONI ===================== -->
-  <details class="cml-fisarmonica cml-fisarmonica-mappa" open data-chiudi-su-telefono>
-  <summary class="cml-fisarmonica-titolo">⚡ Fulminazioni osservate</summary>
+  <details class="cml-fisarmonica cml-fisarmonica-mappa">
+  <summary class="cml-fisarmonica-titolo">⚡ Fulmini in tempo reale</summary>
   <section class="cml-radar-box">
-    <div class="cml-radar-head">
-      <div>
-        <h2>⚡ Fulminazioni osservate</h2>
-        <p>
-          Scariche rilevate dalla rete Blitzortung,
-          con mappa centrata su {html.escape(luogo)}.
-        </p>
-      </div>
-    </div>
-
     <iframe
       title="Mappa delle fulminazioni Blitzortung"
       loading="lazy"
       src="https://map.blitzortung.org/index.php?interactive=1&amp;NavigationControl=1&amp;FullScreenControl=1&amp;Cookies=0&amp;InfoDiv=1&amp;MenuButtonDiv=1&amp;ScaleControl=1#7/{latitudine}/{longitudine}"
-      style="display:block;width:100%;height:520px;border:1px solid #d8e7eb;border-radius:16px;"
+      class="cml-mappa-esterna"
       allowfullscreen
     ></iframe>
-
     <div class="cml-radar-footer">
-      <span>⚡ Dati: Blitzortung.org e collaboratori</span>
-      <a
-        href="https://map.blitzortung.org/#7/{latitudine}/{longitudine}"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        Apri la mappa dei fulmini ↗
-      </a>
-    </div>
-
-    <div class="cml-marine-note">
-      ℹ️ La mappa mostra le scariche rilevate dalla rete,
-      non una previsione dei fulmini.
-      L’assenza di scariche visualizzate non garantisce
-      l’assenza di rischio temporalesco.
-      Consulta gli avvisi ufficiali.
+      <span>Blitzortung.org e collaboratori</span>
+      <a href="https://map.blitzortung.org/#7/{latitudine}/{longitudine}" target="_blank" rel="noopener noreferrer">Apri la mappa ↗</a>
     </div>
   </section>
   </details>
@@ -723,12 +309,8 @@ def genera_app_completa(
   {sezione_attivita}
 </div>
 
-  <div class="cml-note">
-    ℹ️ <b>Fonti dei modelli:</b> ICON-2I (ItaliaMeteo–ARPAE), ECMWF IFS e AIFS
-    (Centro Europeo), ICON-EU (DWD) attraverso Open-Meteo; MOLOCH e BOLAM
-    (CNR-ISAC), WRF (ItaliaMeteo, Fondazione CIMA, LaMMA) dai dati aperti di
-    MeteoHub – Agenzia ItaliaMeteo (licenze CC BY / CC BY-SA).
-  </div>
+<!-- ===================== FONTI E AFFIDABILITÀ ===================== -->
+{informazioni}
 
 </main>
 

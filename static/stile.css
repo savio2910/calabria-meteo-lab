@@ -2436,3 +2436,68 @@ body {
   #cml-explorer input[type=range] { height: 44px; }
   .leaflet-touch .leaflet-bar a { width: 44px; height: 44px; line-height: 44px; }
 }
+
+/* =============================================================================
+   ATTIVITÀ: giudizio adesso, fasce migliori, linea ora per ora
+   ============================================================================= */
+
+.cml-att-legenda { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 14px; }
+
+.cml-attivita-griglia {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 14px;
+}
+
+.cml-att {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  padding: 16px 18px;
+  border: 1px solid #d5e4e9;
+  border-radius: 20px;
+  background: #fbfdfe;
+}
+
+.cml-att header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+.cml-att h3 { flex: 1 1 auto; margin: 0; color: var(--ink); font-size: 18px; }
+.cml-att-icona { font-size: 26px; line-height: 1; }
+.cml-att-motivo { margin: 0; color: var(--muted); font-size: 14px; }
+
+.cml-liv {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.cml-liv-0 { background: #dcf5e6; color: #11663a; }
+.cml-liv-1 { background: #fbf3c8; color: #725c00; }
+.cml-liv-2 { background: #fde3cc; color: #8a4108; }
+.cml-liv-3 { background: #fbd9dc; color: #93212d; }
+.cml-liv-nd { background: #e9eef1; color: #546b78; }
+
+.cml-att-fasce { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; font-size: 14px; color: var(--ink); }
+.cml-att-fasce b { display: inline-block; min-width: 76px; }
+.cml-att-fasce span { color: #284d5a; }
+
+/* Linea ora per ora: un segmento colorato per ogni ora */
+.cml-linea { display: flex; gap: 1px; height: 14px; }
+.cml-linea-ora { flex: 1 1 0; min-width: 2px; border-radius: 2px; padding: 0; }
+.cml-linea-ora.cml-liv-0 { background: #22a35a; }
+.cml-linea-ora.cml-liv-1 { background: #e3c11d; }
+.cml-linea-ora.cml-liv-2 { background: #f08a2c; }
+.cml-linea-ora.cml-liv-3 { background: #d63a47; }
+.cml-linea-ora.cml-liv-nd { background: #dfe7ec; }
+.cml-linea-giorno { margin-left: 4px; }
+
+.cml-att details summary { color: #0b7f98; font-size: 14px; font-weight: 700; cursor: pointer; }
+.cml-att-criteri { margin: 8px 0 0; padding-left: 18px; color: #3b5b69; font-size: 13px; line-height: 1.5; }
+
+@media (max-width: 680px) {
+  .cml-attivita-griglia { grid-template-columns: 1fr; }
+  .cml-att-fasce b { min-width: 64px; }
+}

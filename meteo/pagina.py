@@ -11,7 +11,7 @@ from datetime import datetime
 import pandas as pd
 
 from meteo.adesso import menu_rapido_html, riga_fonti_html, riquadro_adesso_html
-from meteo.attivita import tabella_attivita_luogo_html
+from meteo.attivita import sezione_attivita_html
 from meteo.config import FUSO_ORARIO, GIORNI_PREVISIONE, leggi_static
 from meteo.dati import stato_mare_da_onda, valuta_rischio_locale
 from meteo.formato import data_it, direzione, icona_meteo_html, meteo, numero, ora_it
@@ -588,30 +588,8 @@ def genera_app_completa(
         correzione_osservativa
     )
 
-    if "precipitation" not in corrente or corrente.get("precipitation") is None:
-        try:
-            ora_corrente = pd.Timestamp(
-                corrente.get("time")
-            ).floor("h")
-    
-            pioggia_ora = ore.loc[
-                ore["time"] == ora_corrente,
-                "precipitation",
-            ]
-    
-            corrente["precipitation"] = (
-                float(pioggia_ora.iloc[0])
-                if not pioggia_ora.empty
-                and pd.notna(pioggia_ora.iloc[0])
-                else 0.0
-            )
-        except Exception:
-            corrente["precipitation"] = 0.0
-    
-    tabella_attivita_luogo = tabella_attivita_luogo_html(
-        luogo,
-        corrente,
-        is_costiero,
+    sezione_attivita = sezione_attivita_html(
+        luogo, ore, giorni, dati_mare, is_costiero, dati_terrestri.get("elevation")
     )
 
     # Riquadro "Adesso", fonti dei dati e menu rapido
@@ -834,7 +812,7 @@ def genera_app_completa(
 
 <!-- ===================== ATTIVITÀ ===================== -->
 <div id="cml-attivita" class="cml-sezione">
-  {tabella_attivita_luogo}
+  {sezione_attivita}
 </div>
 
   <div class="cml-note">

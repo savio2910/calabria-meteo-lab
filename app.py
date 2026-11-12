@@ -11,6 +11,7 @@ from datetime import datetime, timedelta
 import streamlit as st
 import streamlit.components.v1 as components
 
+from meteo.allerta import allerta_per_comune
 from meteo.api import scarica_previsione_mare, scarica_previsione_terrestre
 from meteo.config import FUSO_ORARIO
 from meteo.correzione import calcola_correzione_osservativa, scarica_osservazioni_meteostat
@@ -223,6 +224,11 @@ def mostra_meteo():
             dati_mare = None
             distanza_mare_km = None
             is_costiero = comune_e_costiero(comune_amministrativo, COMUNI_COSTIERI)
+            # Allerta ufficiale della Protezione Civile per la zona del comune
+            try:
+                allerta = allerta_per_comune(comune_amministrativo, datetime.now(FUSO_ORARIO).date())
+            except Exception:
+                allerta = None
             if is_costiero:
                 try:
                     dati_mare, distanza_mare_km = scarica_previsione_mare(latitudine, longitudine)
@@ -242,6 +248,7 @@ def mostra_meteo():
             correzione_osservativa,
             is_costiero,
             probabilita,
+            allerta,
         )
         mostra_documento(documento)
 

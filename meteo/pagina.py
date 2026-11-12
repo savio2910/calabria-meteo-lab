@@ -6,11 +6,12 @@
 
 import html
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pandas as pd
 
 from meteo.adesso import menu_rapido_html, riga_fonti_html, riquadro_adesso_html
+from meteo.allerta import LIVELLI_ALLERTA, URL_CFD_CALABRIA, descrivi_livelli
 from meteo.attivita import sezione_attivita_html
 from meteo.config import FUSO_ORARIO, GIORNI_PREVISIONE, leggi_static
 from meteo.dati import stato_mare_da_onda, valuta_rischio_locale
@@ -43,6 +44,49 @@ def badge_rischio_html(livello, rischio):
         f"<span>{html.escape(testo)}{dettaglio}</span>"
         "</span>"
     )
+
+
+def _testo_emissione(allerta):
+    emesso = allerta.get("emesso")
+    return f"bollettino del {emesso:%d/%m} ore {emesso:%H:%M}" if emesso is not None else "bollettino"
+
+
+def banner_allerta_html(allerta, giorni):
+    """Riquadro con l'allerta ufficiale, mostrato solo se oggi o domani c'è almeno un'allerta gialla."""
+    if not allerta or not allerta.get("giorni"):
+        return ""
+    righe, massimo = [], 0
+    for indice, (data, livelli) in enumerate(sorted(allerta["giorni"].items())):
+        livello, testo = descrivi_livelli(livelli)
+        if livello == 0:
+            continue
+        massimo = max(massimo, livello)
+        quando = "Oggi" if indice == 0 else "Domani"
+        righe.append(f"<li><b>{quando}</b> ({html.escape(data_it(data))}): {LIVELLI_ALLERTA[livello][0]} {html.escape(testo)}</li>")
+    if not righe:
+        return ""
+    return f"""
+<section class="cml-allerta cml-allerta-{massimo}" role="alert">
+  <strong>⚠️ Allerta ufficiale della Protezione Civile</strong>
+  <ul>{''.join(righe)}</ul>
+  <p>Zona {html.escape(allerta['zona'])} «{html.escape(allerta['nome_zona'])}» · {html.escape(_testo_emissione(allerta))} ·
+     <a href="{URL_CFD_CALABRIA}" target="_blank" rel="noopener">dettagli e indicazioni sul sito del Centro Funzionale Calabria</a></p>
+</section>"""
+
+
+def allerta_giorno_html(data, allerta):
+    """Badge dell'allerta ufficiale nella scheda del giorno."""
+    if not allerta or not allerta.get("disponibile"):
+        return ""
+    livelli = allerta["giorni"].get(data)
+    if livelli is None:
+        # Il bollettino copre oggi e domani: se c'è solo oggi, quello di domani esce entro le 16
+        if len(allerta["giorni"]) == 1 and data == min(allerta["giorni"]) + timedelta(days=1):
+            return '<div class="cml-allerta-giorno cml-allerta-giorno-nd">Allerta ufficiale: bollettino in arrivo (entro le 16)</div>'
+        return ""
+    livello, testo = descrivi_livelli(livelli)
+    return (f'<div class="cml-allerta-giorno cml-allerta-giorno-{livello}" title="Protezione Civile · zona {html.escape(allerta["zona"])}">'
+            f'{LIVELLI_ALLERTA[livello][0]} Protezione Civile: {html.escape(testo)}</div>')
 
 
 def probabilita_giorno_html(data, probabilita):
@@ -144,6 +188,7 @@ def genera_app_completa(
     correzione_osservativa=None,
     is_costiero=False,
     probabilita=None,
+    allerta=None,
 ):
     corrente = dati_terrestri["current"]
 
@@ -348,6 +393,7 @@ def genera_app_completa(
                 </div>
               </div>
 
+              {allerta_giorno_html(riga["time"].date(), allerta)}
               {probabilita_giorno_html(riga["time"].date(), probabilita)}
 
               <div class="cml-day-details">
@@ -424,7 +470,8 @@ def genera_app_completa(
 
     # Riquadro "Adesso", fonti dei dati e menu rapido
     adesso_html = riquadro_adesso_html(luogo, corrente, ore, giorni, probabilita)
-    fonti_html = riga_fonti_html(dati_terrestri, correzione_osservativa, dati_mare, is_costiero, probabilita)
+    fonti_html = riga_fonti_html(dati_terrestri, correzione_osservativa, dati_mare, is_costiero, probabilita, allerta)
+    banner_allerta = banner_allerta_html(allerta, giorni)
     menu_html = menu_rapido_html(bool(mare_html))
     mare_sezione = f'<div id="cml-mare" class="cml-sezione">{mare_html}</div>' if mare_html else ""
 
@@ -463,6 +510,8 @@ def genera_app_completa(
 <main id="cml-pagina">
 
 {menu_html}
+
+{banner_allerta}
 
 <!-- ===================== ADESSO ===================== -->
 {adesso_html}

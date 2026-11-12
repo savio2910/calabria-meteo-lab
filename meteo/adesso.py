@@ -325,7 +325,7 @@ def riquadro_adesso_html(luogo, corrente, ore, giorni, probabilita=None):
 """
 
 
-def riga_fonti_html(dati_terrestri, correzione, dati_mare, is_costiero, probabilita=None):
+def riga_fonti_html(dati_terrestri, correzione, dati_mare, is_costiero, probabilita=None, allerta=None):
     """Fonte, ora di aggiornamento e stato dei servizi (verde = attivo, grigio = no)."""
     fonte = dati_terrestri.get("_fonte", "ICON-2I")
     ore_riserva = dati_terrestri.get("_ore_riserva") or []
@@ -357,6 +357,15 @@ def riga_fonti_html(dati_terrestri, correzione, dati_mare, is_costiero, probabil
         servizi.append((stato, "Probabilità", f"{' + '.join(probabilita['modelli'])} ({probabilita['scenari']} scenari)"))
     else:
         servizi.append(("spento", "Probabilità", "ensemble non disponibili"))
+
+    if allerta and allerta.get("disponibile") and allerta.get("giorni"):
+        livello_oggi = max(allerta["giorni"].get(min(allerta["giorni"]), {}).values(), default=0)
+        testo = "nessuna oggi" if livello_oggi == 0 else ["", "gialla", "arancione", "rossa"][livello_oggi] + " oggi"
+        servizi.append(("attivo", "Allerta", f"{testo} · zona {allerta['zona']}"))
+    elif allerta:
+        servizi.append(("spento", "Allerta", "bollettino non disponibile"))
+    else:
+        servizi.append(("spento", "Allerta", "zona non determinata"))
 
     servizi.append(("attesa", "Radar", "caricamento…"))
 

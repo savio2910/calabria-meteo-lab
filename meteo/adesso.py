@@ -10,6 +10,7 @@ import json
 import pandas as pd
 
 from meteo.formato import direzione, icona_meteo_html, meteo, numero, ora_it, valore_finito
+from meteo.indicatori import riassunto_giorno, testi_indicatori
 from meteo.probabilita import testo_affidabilita
 
 CODICI_TEMPORALE = {95, 96, 99}
@@ -245,6 +246,16 @@ def dati_cielo(corrente, ore, giorni):
     }
 
 
+def indicatori_adesso_html(ore, indicatori):
+    """Neve, temporali, UV e polveri nelle prossime 24 ore, come piccole etichette."""
+    if indicatori is None:
+        return ""
+    testi = testi_indicatori(riassunto_giorno(indicatori, ore.head(24)))
+    if not testi:
+        return ""
+    return '<p class="cml-adesso-extra">' + "".join(f"<span>{html.escape(t)}</span>" for t in testi) + "</p>"
+
+
 def affidabilita_html(probabilita):
     """Riga "Affidabilità alta/media/bassa nelle prossime 12 ore" (vuota senza ensemble)."""
     prossime = (probabilita or {}).get("prossime_12")
@@ -258,7 +269,7 @@ def affidabilita_html(probabilita):
     return f'<p class="cml-adesso-affidabilita cml-affidabilita-{prossime["affidabilita"]}">{html.escape(testo)}</p>'
 
 
-def riquadro_adesso_html(luogo, corrente, ore, giorni, probabilita=None):
+def riquadro_adesso_html(luogo, corrente, ore, giorni, probabilita=None, indicatori=None):
     codice = codice_attuale(corrente)
     descrizione = meteo(codice)[1]
     istante = corrente.get("time")
@@ -297,6 +308,7 @@ def riquadro_adesso_html(luogo, corrente, ore, giorni, probabilita=None):
 
     <p class="cml-adesso-frase">{html.escape(frase_riassuntiva(ore, probabilita=probabilita))}</p>
     {affidabilita_html(probabilita)}
+    {indicatori_adesso_html(ore, indicatori)}
 
     <div class="cml-adesso-dati">
       <div class="cml-dato">

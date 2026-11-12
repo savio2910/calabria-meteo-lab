@@ -2641,3 +2641,27 @@ body {
 .cml-allerta-giorno-2 { background: #ffe7cc; color: #7a3a00; border: 1px solid #ee7d00; }
 .cml-allerta-giorno-3 { background: #ffd9dd; color: #8a0012; border: 1px solid #d0021b; }
 .cml-allerta-giorno-nd { background: #eef3f5; color: #546b78; font-weight: 600; }
+
+/* =============================================================================
+   QUOTA NEVE, POTENZIALE TEMPORALESCO, UV, POLVERI
+   ============================================================================= */
+
+.cml-adesso-extra { display: flex; flex-wrap: wrap; gap: 6px; margin: -6px 0 0; }
+.cml-adesso-extra span {
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: rgba(4, 18, 32, 0.38);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.cml-giorno-extra { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 14px; }
+.cml-giorno-extra span {
+  padding: 5px 10px;
+  border: 1px solid #d5e4e9;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #284d5a;
+  font-size: 13px;
+  font-weight: 700;
+}

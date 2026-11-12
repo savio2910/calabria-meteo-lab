@@ -16,6 +16,7 @@ from meteo.attivita import sezione_attivita_html
 from meteo.config import FUSO_ORARIO, GIORNI_PREVISIONE, leggi_static
 from meteo.dati import stato_mare_da_onda, valuta_rischio_locale
 from meteo.formato import data_it, direzione, meteo, numero, ora_it
+from meteo.indicatori import riassunto_giorno, testi_indicatori
 from meteo.oraperora import sezione_ora_per_ora_html
 from meteo.probabilita import testo_affidabilita
 
@@ -87,6 +88,16 @@ def allerta_giorno_html(data, allerta):
     livello, testo = descrivi_livelli(livelli)
     return (f'<div class="cml-allerta-giorno cml-allerta-giorno-{livello}" title="Protezione Civile · zona {html.escape(allerta["zona"])}">'
             f'{LIVELLI_ALLERTA[livello][0]} Protezione Civile: {html.escape(testo)}</div>')
+
+
+def indicatori_giorno_html(data, ore, indicatori):
+    """Quota neve, potenziale temporalesco, UV e polveri del giorno (solo quelli che contano)."""
+    if indicatori is None:
+        return ""
+    testi = testi_indicatori(riassunto_giorno(indicatori, ore.loc[ore["time"].dt.date == data]))
+    if not testi:
+        return ""
+    return '<div class="cml-giorno-extra">' + "".join(f"<span>{html.escape(t)}</span>" for t in testi) + "</div>"
 
 
 def probabilita_giorno_html(data, probabilita):
@@ -189,6 +200,7 @@ def genera_app_completa(
     is_costiero=False,
     probabilita=None,
     allerta=None,
+    indicatori=None,
 ):
     corrente = dati_terrestri["current"]
 
@@ -395,6 +407,7 @@ def genera_app_completa(
 
               {allerta_giorno_html(riga["time"].date(), allerta)}
               {probabilita_giorno_html(riga["time"].date(), probabilita)}
+              {indicatori_giorno_html(riga["time"].date(), ore, indicatori)}
 
               <div class="cml-day-details">
                 <div>
@@ -454,7 +467,7 @@ def genera_app_completa(
             "Non sono disponibili dati orari futuri per la località selezionata."
         )
 
-    ora_per_ora_html = sezione_ora_per_ora_html(ore, probabilita)
+    ora_per_ora_html = sezione_ora_per_ora_html(ore, probabilita, indicatori)
 
     # ---------------------------------------------------------
     # HTML COMPLETO CON HOME / PREVISIONI / RADAR
@@ -465,11 +478,11 @@ def genera_app_completa(
     )
 
     sezione_attivita = sezione_attivita_html(
-        luogo, ore, giorni, dati_mare, is_costiero, dati_terrestri.get("elevation")
+        luogo, ore, giorni, dati_mare, is_costiero, dati_terrestri.get("elevation"), indicatori
     )
 
     # Riquadro "Adesso", fonti dei dati e menu rapido
-    adesso_html = riquadro_adesso_html(luogo, corrente, ore, giorni, probabilita)
+    adesso_html = riquadro_adesso_html(luogo, corrente, ore, giorni, probabilita, indicatori)
     fonti_html = riga_fonti_html(dati_terrestri, correzione_osservativa, dati_mare, is_costiero, probabilita, allerta)
     banner_allerta = banner_allerta_html(allerta, giorni)
     menu_html = menu_rapido_html(bool(mare_html))

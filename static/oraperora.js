@@ -93,6 +93,16 @@
   };
 
   /* ---------- Dettaglio dell'ora ---------- */
+  var LIVELLI_CAPE = ['basso', 'moderato', 'alto', 'molto alto'];
+  function extra(r) {
+    var righe = '';
+    if (typeof r.neve === 'number') righe += '<li>❄️ Quota neve <b>circa ' + fmt(r.neve, ' m') + '</b></li>';
+    if (typeof r.cape === 'number' && r.cape >= 1) righe += '<li>⛈️ Potenziale temporalesco <b>' + LIVELLI_CAPE[r.cape] + '</b></li>';
+    if (typeof r.uv === 'number' && r.uv >= 3) righe += '<li>☀️ Indice UV <b>' + r.uv + '</b></li>';
+    if (typeof r.polveri === 'number' && r.polveri >= 50) righe += '<li>🏜️ Polveri sahariane <b>' + r.polveri + ' µg/m³</b></li>';
+    return righe;
+  }
+
   function mostraDettaglio() {
     var r = righe[scelta];
     var pioggia = fmt(r.pioggia, ' mm', 1) + (typeof r.prob === 'number' ? ' · probabilità ' + r.prob + '%' : '');
@@ -102,7 +112,7 @@
       '</strong><span>' + r.cielo + (r.notte ? ' · notte' : '') + '</span></div><b class="oo-d-temp">' + fmt(r.temp, '°') + '</b></div>' +
       '<ul><li>🌡️ Percepita <b>' + fmt(r.percepita, '°') + '</b></li><li>🌧️ Pioggia <b>' + pioggia + '</b></li>' + temporali +
       '<li>💨 Vento <b>' + fmt(r.vento, ' km/h') + '</b> da ' + r.da + ' · raffiche ' + fmt(r.raffiche, ' km/h') + '</li>' +
-      '<li>☁️ Nuvole <b>' + fmt(r.nubi, '%') + '</b> · 💧 umidità ' + fmt(r.umidita, '%') + '</li></ul>';
+      '<li>☁️ Nuvole <b>' + fmt(r.nubi, '%') + '</b> · 💧 umidità ' + fmt(r.umidita, '%') + '</li>' + extra(r) + '</ul>';
     document.querySelectorAll('.oo-giorno').forEach(function (b) {
       b.setAttribute('aria-pressed', String(b.getAttribute('data-data') === r.data));
     });

@@ -15,6 +15,7 @@ import math
 import pandas as pd
 
 from meteo.formato import data_it, valore_finito
+from meteo.indicatori import SOGLIE_INDICATORI, valore_ora
 
 OTTIMO, BUONO, DISCRETO, SCONSIGLIATO = 0, 1, 2, 3
 LIVELLI = {
@@ -408,7 +409,7 @@ def attivita_disponibili(is_costiero, quota):
     ]
 
 
-def valuta_attivita(ore, giorni, dati_mare=None, is_costiero=False, quota=None):
+def valuta_attivita(ore, giorni, dati_mare=None, is_costiero=False, quota=None, indicatori=None):
     """Per ogni attività disponibile, il giudizio di ogni ora (None = fuori orario)."""
     mare = _mare_per_ora(dati_mare)
     risultati = {}
@@ -422,6 +423,9 @@ def valuta_attivita(ore, giorni, dati_mare=None, is_costiero=False, quota=None):
                 giudizio = giudica_ora(chiave, riga, mare.get(istante), _luna_illuminata(giorno))
                 if giudizio and chiave == "fotografia" and _ora_dorata(istante, giorno):
                     giudizio[2].append("ora dorata")
+                uv = valore_ora(indicatori, istante, "uv")
+                if giudizio and chiave == "spiaggia" and uv is not None and uv >= SOGLIE_INDICATORI["uv"][2]:
+                    giudizio[2].append("UV molto alto: proteggiti dal sole")
             ore_valutate.append((istante, giudizio))
         risultati[chiave] = {"nome": nome, "icona": icona, "quando": quando, "ore": ore_valutate}
     return risultati
@@ -492,7 +496,9 @@ def _scheda_attivita(chiave, dati, oggi):
                   "sempre": "Dati non disponibili."}[dati["quando"]]
     else:
         testo_adesso = _etichetta(adesso[0])
-        motivo = f"Adesso: {adesso[1]}." + (f" ✨ {', '.join(adesso[2]).capitalize()}." if adesso[2] else "")
+        motivo = f"Adesso: {adesso[1]}." + "".join(
+            f" {'✨ ' if nota == 'ora dorata' else ''}{nota[:1].upper() + nota[1:]}." for nota in adesso[2]
+        )
 
     fasce = fasce_migliori(ore_valutate)
     giorni_presenti = sorted({i.date() for i, _ in ore_valutate})
@@ -505,7 +511,7 @@ def _scheda_attivita(chiave, dati, oggi):
         elenco = sorted(sorted(elenco, key=lambda f: f[1] - f[0], reverse=True)[:MASSIMO_FASCE_GIORNO])
         if elenco:
             testo = " · ".join(
-                f"{inizio:%H}–{_ora_fine(fine)} {LIVELLI[livello][0]}" + (" ✨" if note else "")
+                f"{inizio:%H}–{_ora_fine(fine)} {LIVELLI[livello][0]}" + (" ✨" if "ora dorata" in note else "")
                 for inizio, fine, livello, note in elenco
             )
         else:
@@ -540,8 +546,8 @@ def _scheda_attivita(chiave, dati, oggi):
     </article>"""
 
 
-def sezione_attivita_html(luogo, ore, giorni, dati_mare=None, is_costiero=False, quota=None):
-    risultati = valuta_attivita(ore, giorni, dati_mare, is_costiero, quota)
+def sezione_attivita_html(luogo, ore, giorni, dati_mare=None, is_costiero=False, quota=None, indicatori=None):
+    risultati = valuta_attivita(ore, giorni, dati_mare, is_costiero, quota, indicatori)
     oggi = pd.Timestamp(ore.iloc[0]["time"]).date() if not ore.empty else pd.Timestamp.now().date()
     schede = "".join(_scheda_attivita(chiave, dati, oggi) for chiave, dati in risultati.items())
 

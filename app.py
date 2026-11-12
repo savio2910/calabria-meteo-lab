@@ -78,6 +78,23 @@ st.markdown(
         background: #eef5f8 !important;
       }
 
+      /* Schede principali "Meteo" e "Viaggio": grandi e ben visibili */
+      [data-testid="stTabs"] [role="tablist"] {
+        gap: 10px;
+      }
+      [data-testid="stTabs"] [role="tab"] {
+        padding: 12px 26px;
+        border-radius: 16px 16px 0 0;
+      }
+      [data-testid="stTabs"] [role="tab"] p {
+        font-size: 1.7rem;
+        font-weight: 800;
+      }
+      @media (max-width: 680px) {
+        [data-testid="stTabs"] [role="tab"] { padding: 10px 14px; }
+        [data-testid="stTabs"] [role="tab"] p { font-size: 1.35rem; }
+      }
+
       /* Pulsante "Usa la mia posizione": allineato al menu di ricerca */
       iframe[title="meteo.posizione.posizione_utente"] {
         display: block;
@@ -118,8 +135,45 @@ def _nuova_scelta():
     st.session_state.usa_posizione = False
 
 
+SERVIZI_METEO = """
+- **🌤️ Adesso**: temperatura, cielo e vento in questo momento, con una frase che riassume
+  le prossime 12 ore e un cielo animato che segue i dati reali (sole, luna, nuvole, pioggia, vento).
+- **⚠️ Allerta ufficiale**: il livello di allerta della Protezione Civile (temporali,
+  idrogeologico, idraulico) per la zona della località, oggi e domani.
+- **📅 Prossimi 3 giorni** e **🕒 Ora per ora**: minime, massime, pioggia, vento e cielo
+  per ogni giorno e per ogni ora.
+- **🎲 Probabilità e affidabilità**: quanto è probabile la pioggia e quanto è sicura la
+  previsione, confrontando 91 scenari dei modelli europei (ICON-EU ed ECMWF).
+- **❄️ Neve, ⛈️ temporali, ☀️ UV, 🏜️ polveri**: quota neve, potenziale temporalesco,
+  indice UV e sabbia del Sahara quando contano.
+- **🌊 Mare** (località costiere): altezza e direzione delle onde, temperatura dell'acqua.
+- **📡 Radar, satellite e fulmini**: le precipitazioni e i fulmini osservati in questo momento.
+- **🏃 Attività**: le ore migliori per escursioni, bici, corsa, foto, stelle, spiaggia, surf,
+  kite, pesca e neve.
+
+La previsione arriva da **ICON-2I** (ItaliaMeteo–ARPAE), un modello con dettaglio di circa 2 km,
+adatto alle montagne e alle coste calabresi, corretta quando possibile con le osservazioni
+delle stazioni vicine. Puoi condividere la previsione copiando l'indirizzo della pagina.
+"""
+
+SERVIZI_VIAGGIO = """
+1. Scegli **partenza** e **arrivo** (almeno uno in Calabria), il **mezzo** e il **giorno**.
+2. L'app calcola il percorso stradale e controlla il meteo circa **ogni 15 minuti di strada**,
+   all'ora in cui ci passerai.
+3. Prova una partenza **ogni 30 minuti** nella fascia che indichi e ti consiglia quella con il
+   tempo migliore lungo tutto il percorso, segnalando le partenze da evitare.
+4. Vedi il viaggio **passo passo** (strada, quota, meteo, giudizio) e su una **mappa**.
+
+Auto, moto e bici hanno soglie diverse: la moto e la bici risentono di più di pioggia, vento e freddo.
+Sono indicazioni basate sulla previsione: segui sempre gli avvisi ufficiali e lo stato delle strade.
+"""
+
+
 def mostra_meteo():
-    st.markdown("## 🔎 Seleziona località calabrese")
+    st.markdown("Le previsioni per tutta la Calabria: scegli un comune o una frazione, oppure usa la tua posizione.")
+    with st.expander("ℹ️ Cosa trovi qui"):
+        st.markdown(SERVIZI_METEO)
+    st.markdown("### 🔎 Seleziona località calabrese")
 
     # Località arrivata da un link condiviso (?luogo=...): fissata per tutta la
     # sessione, così le opzioni del menu restano stabili.
@@ -306,11 +360,13 @@ def calcola_viaggio(testo_partenza, testo_arrivo, mezzo, giorno, ora_da, ora_a):
 
 
 def mostra_viaggio():
-    st.markdown("## 🚗 Pianifica un viaggio")
-    st.caption(
-        "Inserisci partenza e arrivo (almeno uno in Calabria): calcolo il meteo che incontrerai "
-        "lungo la strada e l'orario di partenza migliore."
+    st.markdown(
+        "Il meteo che incontrerai lungo la strada, passo passo, e **l'orario di partenza migliore** "
+        "in base alle condizioni."
     )
+    with st.expander("ℹ️ Come funziona"):
+        st.markdown(SERVIZI_VIAGGIO)
+    st.markdown("### 🚗 Pianifica un viaggio")
 
     opzioni = list(ELENCO_COMUNI)
     with st.form("form_viaggio"):

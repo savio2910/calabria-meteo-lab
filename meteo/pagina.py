@@ -356,7 +356,7 @@ def genera_app_completa(
             f"""
             <article class="cml-day-card" id="scheda-{riga['time'].date()}"
               role="button" tabindex="0"
-              aria-label="Mostra {html.escape(data_it(riga['time']), quote=True)} nel grafico ora per ora"
+              aria-label="Mostra {html.escape(data_it(riga['time']), quote=True)} ora per ora"
               onclick="window.vaiAlGiorno && vaiAlGiorno('{riga['time'].date()}')"
               onkeydown="if (event.key === 'Enter' || event.key === ' ') {{ event.preventDefault(); window.vaiAlGiorno && vaiAlGiorno('{riga['time'].date()}'); }}">
               <div class="cml-day-head">
@@ -467,7 +467,7 @@ def genera_app_completa(
             "Non sono disponibili dati orari futuri per la località selezionata."
         )
 
-    ora_per_ora_html = sezione_ora_per_ora_html(ore, probabilita, indicatori)
+    ora_per_ora_html = sezione_ora_per_ora_html(ore, probabilita, indicatori, giorni)
 
     # ---------------------------------------------------------
     # HTML COMPLETO CON HOME / PREVISIONI / RADAR
@@ -510,7 +510,6 @@ def genera_app_completa(
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <style>
@@ -540,7 +539,7 @@ def genera_app_completa(
         <h2>📅 I prossimi tre giorni</h2>
 
         <p>
-          Il riassunto di ogni giorno: toccalo per vederlo ora per ora nel grafico.
+          Il riassunto di ogni giorno: toccalo per vederlo ora per ora.
         </p>
       </div>
 

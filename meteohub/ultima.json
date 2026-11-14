@@ -1,0 +1,179 @@
+{
+ "versione": 29910004,
+ "creato": "2026-11-13T20:04:57+00:00",
+ "griglia": {
+  "lat0": 37.86,
+  "lon0": 15.56,
+  "passo": 0.02,
+  "ny": 118,
+  "nx": 86
+ },
+ "byte_per_punto": 2798,
+ "mancante": -32768,
+ "modelli": [
+  {
+   "nome": "MOLOCH",
+   "dataset": "MOLOCH",
+   "corsa": "2026-11-13T03:00:00+00:00",
+   "ore": 46,
+   "variabili": [
+    "temperature_2m",
+    "relative_humidity_2m",
+    "wind_speed_10m",
+    "wind_direction_10m",
+    "precipitation",
+    "cloud_cover"
+   ],
+   "scale": {
+    "temperature_2m": [
+     10,
+     0
+    ],
+    "relative_humidity_2m": [
+     1,
+     0
+    ],
+    "wind_speed_10m": [
+     10,
+     0
+    ],
+    "wind_direction_10m": [
+     1,
+     0
+    ],
+    "precipitation": [
+     10,
+     0
+    ],
+    "cloud_cover": [
+     1,
+     0
+    ]
+   },
+   "inizio_byte": 4,
+   "elaborato": "2026-11-13T17:14:12+00:00"
+  },
+  {
+   "nome": "WRF ItaliaMeteo",
+   "dataset": "WRF",
+   "corsa": "2026-11-13T00:00:00+00:00",
+   "ore": 73,
+   "variabili": [
+    "temperature_2m",
+    "relative_humidity_2m",
+    "wind_speed_10m",
+    "wind_direction_10m",
+    "precipitation",
+    "pressure_msl"
+   ],
+   "scale": {
+    "temperature_2m": [
+     10,
+     0
+    ],
+    "relative_humidity_2m": [
+     1,
+     0
+    ],
+    "wind_speed_10m": [
+     10,
+     0
+    ],
+    "wind_direction_10m": [
+     1,
+     0
+    ],
+    "precipitation": [
+     10,
+     0
+    ],
+    "pressure_msl": [
+     10,
+     1000
+    ]
+   },
+   "inizio_byte": 556,
+   "elaborato": "2026-11-13T17:15:22+00:00"
+  },
+  {
+   "nome": "WRF CIMA",
+   "dataset": "WRF_OL",
+   "corsa": "2026-11-13T00:00:00+00:00",
+   "ore": 49,
+   "variabili": [
+    "temperature_2m",
+    "wind_speed_10m",
+    "wind_direction_10m",
+    "precipitation",
+    "pressure_msl"
+   ],
+   "scale": {
+    "temperature_2m": [
+     10,
+     0
+    ],
+    "wind_speed_10m": [
+     10,
+     0
+    ],
+    "wind_direction_10m": [
+     1,
+     0
+    ],
+    "precipitation": [
+     10,
+     0
+    ],
+    "pressure_msl": [
+     10,
+     1000
+    ]
+   },
+   "inizio_byte": 1432,
+   "elaborato": "2026-11-13T17:15:42+00:00"
+  },
+  {
+   "nome": "BOLAM",
+   "dataset": "BOLAM",
+   "corsa": "2026-11-12T00:00:00+00:00",
+   "ore": 73,
+   "variabili": [
+    "temperature_2m",
+    "relative_humidity_2m",
+    "wind_speed_10m",
+    "wind_direction_10m",
+    "precipitation",
+    "cloud_cover"
+   ],
+   "scale": {
+    "temperature_2m": [
+     10,
+     0
+    ],
+    "relative_humidity_2m": [
+     1,
+     0
+    ],
+    "wind_speed_10m": [
+     10,
+     0
+    ],
+    "wind_direction_10m": [
+     1,
+     0
+    ],
+    "precipitation": [
+     10,
+     0
+    ],
+    "cloud_cover": [
+     1,
+     0
+    ]
+   },
+   "inizio_byte": 1922,
+   "elaborato": "2026-11-12T13:46:09+00:00"
+  }
+ ],
+ "attribuzione": "Modelli MOLOCH e BOLAM (CNR-ISAC), WRF (ItaliaMeteo, Fondazione CIMA, LaMMA) dai dati aperti di MeteoHub - Agenzia ItaliaMeteo"
+}

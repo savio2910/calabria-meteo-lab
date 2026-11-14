@@ -1,0 +1,149 @@
+id,nome,rete,lat,lon,quota
+dpc-acri,Acri,dpcn-calabria,39.5,16.40278,826.0
+dpc-albi,Albi,dpcn-calabria,39.03028,16.59639,777.0
+dpc-albidona,Albidona,dpcn-calabria,39.92611,16.46639,763.0
+dpc-allai,Allai,dpcn-calabria,38.02639,15.74861,903.0
+dpc-altilia,Altilia,dpcn-calabria,39.12944,16.25528,640.0
+dpc-amantea,Amantea,dpcn-calabria,39.15,16.07806,292.0
+dpc-antonimina,Antonimina,dpcn-calabria,38.275,16.14722,352.0
+dpc-arasi,Arasi',dpcn-calabria,38.12056,15.73667,673.0
+dpc-ardore,Ardore,dpcn-calabria,38.20444,16.15361,251.0
+dpc-arena,Arena,dpcn-calabria,38.55806,16.21278,554.0
+dpc-bagnara-calabra,Bagnara Calabra,dpcn-calabria,38.29056,15.81194,92.0
+dpc-belsito,Belsito,dpcn-calabria,39.17528,16.28083,736.0
+dpc-belvedere-marittimo,Belvedere Marittimo,dpcn-calabria,39.62972,15.85167,34.0
+dpc-botricello,Botricello,dpcn-calabria,38.93778,16.85639,22.0
+dpc-botte-donato,Botte Donato,dpcn-calabria,39.25,16.43583,1440.0
+dpc-bova-superiore,Bova Superiore,dpcn-calabria,37.99667,15.93,806.0
+dpc-bovalino-marina,Bovalino Marina,dpcn-calabria,38.15031,16.18149,3.0
+dpc-campo-tenese,Campo Tenese,dpcn-calabria,39.855,16.08778,1121.0
+dpc-canolo-nuovo,Canolo Nuovo,dpcn-calabria,38.33222,16.15333,901.0
+dpc-capo-vaticano,Capo Vaticano,dpcn-calabria,38.61917,15.8325,44.0
+dpc-cardeto,Cardeto,dpcn-calabria,38.11111,15.81444,1286.0
+dpc-cariati,Cariati,dpcn-calabria,39.50444,16.94028,12.0
+dpc-cassano-jonico,Cassano Jonico,dpcn-calabria,39.78972,16.31389,272.0
+dpc-cassari,Cassari,dpcn-calabria,38.44444,16.29167,1077.0
+dpc-castrovillari,Castrovillari,dpcn-calabria,39.78611,16.25556,391.0
+dpc-castrovillari-camerata,Castrovillari - Camerata,dpcn-calabria,39.73316,16.27101,50.0
+dpc-catanzaro,Catanzaro,dpcn-calabria,38.9125,16.58194,229.0
+dpc-cecita,Cecita,dpcn-calabria,39.4,16.5375,1134.0
+dpc-cenadi-serralta,Cenadi - Serralta,dpcn-calabria,38.73361,16.34389,991.0
+dpc-cerchiara-di-calabria,Cerchiara di Calabria,dpcn-calabria,39.86556,16.38139,687.0
+dpc-cetraro-superiore,Cetraro Superiore,dpcn-calabria,39.5175,15.94056,112.0
+dpc-chiaravalle,Chiaravalle,dpcn-calabria,38.67222,16.40167,540.0
+dpc-ciro-marina,Ciro' Marina,dpcn-calabria,39.40722,17.11083,44.0
+dpc-cittanova,Cittanova,dpcn-calabria,38.35361,16.07861,413.0
+dpc-corbino,Corbino,dpcn-calabria,38.95139,16.565,655.0
+dpc-corigliano-calabro,Corigliano Calabro,dpcn-calabria,39.58694,16.52111,297.0
+dpc-cortale,Cortale,dpcn-calabria,38.83361,16.40222,454.0
+dpc-cosenza-118,Cosenza 118,dpcn-calabria,39.30583,16.23556,334.0
+dpc-cosenza-crati,Cosenza Crati,dpcn-calabria,39.28731,16.26483,261.0
+dpc-cotronei,Cotronei,dpcn-calabria,39.15972,16.78306,480.0
+dpc-cropalati,Cropalati,dpcn-calabria,39.51389,16.73056,245.0
+dpc-cropani,Cropani,dpcn-calabria,38.96889,16.77972,327.0
+dpc-crotone-molo-giunti,Crotone Molo Giunti,dpcn-calabria,39.08221,17.13555,2.0
+dpc-crucoli,Crucoli,dpcn-calabria,39.42444,17.00361,329.0
+dpc-cutro,Cutro,dpcn-calabria,39.03667,17.01528,175.0
+dpc-decollatura,Decollatura,dpcn-calabria,39.04917,16.335,1060.0
+dpc-domanico,Domanico,dpcn-calabria,39.21667,16.20278,792.0
+dpc-fabrizia,Fabrizia,dpcn-calabria,38.49167,16.30278,914.0
+dpc-feroleto,Feroleto,dpcn-calabria,38.46583,16.06028,135.0
+dpc-filadelfia,Filadelfia,dpcn-calabria,38.78417,16.28611,529.0
+dpc-fitterizzi-meteo,Fitterizzi Meteo,dpcn-calabria,39.52401,16.16225,154.0
+dpc-gambarie,Gambarie,dpcn-calabria,38.19278,15.84417,1203.0
+dpc-giffone,Giffone,dpcn-calabria,38.43778,16.14306,522.0
+dpc-gimigliano,Gimigliano,dpcn-calabria,38.97444,16.54028,636.0
+dpc-gioia-tauro-ss18,Gioia Tauro SS18,dpcn-calabria,38.43083,15.90722,12.0
+dpc-gioiosa-ionica,Gioiosa Ionica,dpcn-calabria,38.30139,16.32556,4.0
+dpc-isola-capo-rizzuto,Isola Capo Rizzuto,dpcn-calabria,38.93722,17.02333,95.0
+dpc-joppolo,Joppolo,dpcn-calabria,38.58278,15.8925,23.0
+dpc-laino-borgo,Laino Borgo,dpcn-calabria,39.95361,15.97306,272.0
+dpc-lamezia,Lamezia,dpcn-calabria,38.86528,16.24417,7.0
+dpc-licciardi,Licciardi,dpcn-calabria,38.89833,16.33222,44.0
+dpc-limina,Limina,dpcn-calabria,38.37139,16.18917,568.0
+dpc-locri,Locri,dpcn-calabria,38.24222,16.25778,20.0
+dpc-longobucco,Longobucco,dpcn-calabria,39.44972,16.61417,822.0
+dpc-lungro,Lungro,dpcn-calabria,39.745,16.1175,714.0
+dpc-maierato,Maierato,dpcn-calabria,38.70833,16.19194,250.0
+dpc-martirano,Martirano,dpcn-calabria,39.08306,16.23667,237.0
+dpc-mileto,Mileto,dpcn-calabria,38.60556,16.06056,351.0
+dpc-molochio,Molochio,dpcn-calabria,38.30806,16.03083,356.0
+dpc-mongiana-p,Mongiana P.,dpcn-calabria,38.51667,16.31944,936.0
+dpc-montalto-uffugo,Montalto Uffugo,dpcn-calabria,39.39806,16.12083,547.0
+dpc-monte-curcio-camigl,Monte Curcio-Camigl.,dpcn-calabria,39.32139,16.42889,1557.0
+dpc-monte-scrisi,Monte Scrisi,dpcn-calabria,38.235,15.71583,675.0
+dpc-montebello-ionico,Montebello Ionico,dpcn-calabria,37.9875,15.72861,640.0
+dpc-mormanno,Mormanno,dpcn-calabria,39.885,15.99222,971.0
+dpc-nicastro,Nicastro,dpcn-calabria,38.9775,16.30361,289.0
+dpc-nocelle-arvo,Nocelle-Arvo,dpcn-calabria,39.24722,16.54444,1283.0
+dpc-oriolo,Oriolo,dpcn-calabria,40.05,16.44694,485.0
+dpc-pagliarelle,Pagliarelle,dpcn-calabria,39.14194,16.74889,825.0
+dpc-palermiti,Palermiti,dpcn-calabria,38.75333,16.44778,540.0
+dpc-palmi,Palmi,dpcn-calabria,38.3575,15.85056,272.0
+dpc-paola,Paola,dpcn-calabria,39.36111,16.04167,89.0
+dpc-papanice,Papanice,dpcn-calabria,39.07222,17.02778,115.0
+dpc-papasidero,Papasidero,dpcn-calabria,39.87111,15.90583,194.0
+dpc-parenti,Parenti,dpcn-calabria,39.16361,16.40556,852.0
+dpc-petilia-policastro,Petilia Policastro,dpcn-calabria,39.11444,16.76639,650.0
+dpc-petrona,Petrona',dpcn-calabria,39.04333,16.75889,876.0
+dpc-pietrastorta,Pietrastorta,dpcn-calabria,38.11972,15.68972,397.0
+dpc-pizzoni,Pizzoni,dpcn-calabria,38.62472,16.24444,298.0
+dpc-plati,Plati',dpcn-calabria,38.22222,16.04444,286.0
+dpc-polistena,Polistena,dpcn-calabria,38.40833,16.0775,255.0
+dpc-ponte-vecchio,Ponte Vecchio,dpcn-calabria,38.3775,15.91278,44.0
+dpc-punta-stilo,Punta Stilo,dpcn-calabria,38.43556,16.57,14.0
+dpc-reggio-calabria,Reggio Calabria,dpcn-calabria,38.10278,15.63889,15.0
+dpc-reggio-calabria-catona,Reggio Calabria - Catona,dpcn-calabria,38.185,15.63806,1.0
+dpc-rizziconi,Rizziconi,dpcn-calabria,38.40778,15.97167,86.0
+dpc-roccaforte-del-greco,Roccaforte del Greco,dpcn-calabria,38.04444,15.90278,785.0
+dpc-roccella-jonica,Roccella Jonica,dpcn-calabria,38.32722,16.39528,53.0
+dpc-roccelletta,Roccelletta,dpcn-calabria,38.81444,16.55972,121.0
+dpc-rogliano,Rogliano,dpcn-calabria,39.18361,16.32583,715.0
+dpc-rosario,Rosario,dpcn-calabria,38.04222,15.72417,394.0
+dpc-rosarno,Rosarno,dpcn-calabria,38.49972,15.98361,22.0
+dpc-roseto-capo-spulico,Roseto Capo Spulico,dpcn-calabria,39.99111,16.60667,68.0
+dpc-s-agata-del-bianco,S.Agata del Bianco,dpcn-calabria,38.09167,16.08194,351.0
+dpc-s-caterina-dello-ionio,S.Caterina dello Ionio,dpcn-calabria,38.53611,16.51944,449.0
+dpc-s-cristina-d-aspr,S.Cristina d'Aspr.,dpcn-calabria,38.25278,15.97361,652.0
+dpc-s-mauro-marchesato,S.Mauro Marchesato,dpcn-calabria,39.10278,16.92778,170.0
+dpc-s-nicola-dell-alto,S.Nicola dell'Alto,dpcn-calabria,39.29056,16.97806,526.0
+dpc-s-pietro-di-carida,S.Pietro di Carida',dpcn-calabria,38.54944,16.12444,96.0
+dpc-s-pietro-in-guarano,S.Pietro in Guarano,dpcn-calabria,39.34056,16.30417,546.0
+dpc-s-sosti,S.Sosti,dpcn-calabria,39.66111,16.02778,352.0
+dpc-salica,Salica,dpcn-calabria,39.01389,17.12778,154.0
+dpc-san-luca,San Luca,dpcn-calabria,38.15111,16.07278,108.0
+dpc-san-nicola-da-crissa,San Nicola da Crissa,dpcn-calabria,38.65917,16.29917,675.0
+dpc-sant-alessio-in-aspromonte,Sant'Alessio in Aspromonte,dpcn-calabria,38.175,15.75611,585.0
+dpc-sant-elia-jano,Sant'Elia-Jano,dpcn-calabria,38.95222,16.58278,537.0
+dpc-satriano,Satriano,dpcn-calabria,38.67528,16.53278,23.0
+dpc-savelli,Savelli,dpcn-calabria,39.31472,16.78222,967.0
+dpc-scilla,Scilla,dpcn-calabria,38.25083,15.71389,78.0
+dpc-scilla-piano-delle-aquile,Scilla - Piano delle Aquile,dpcn-calabria,38.24694,15.75139,511.0
+dpc-scilla-solano,Scilla - Solano,dpcn-calabria,38.25,15.78083,598.0
+dpc-scilla-tagli,Scilla - Tagli,dpcn-calabria,38.24917,15.76472,460.0
+dpc-scilla-villaggio-del-pino,Scilla - Villaggio del Pino,dpcn-calabria,38.24194,15.73806,479.0
+dpc-sellia-superiore,Sellia Superiore,dpcn-calabria,38.98528,16.62083,5.0
+dpc-serra-s-bruno,Serra S.Bruno,dpcn-calabria,38.56611,16.3125,828.0
+dpc-serrarossa,Serrarossa,dpcn-calabria,39.06889,16.89056,50.0
+dpc-sibari,Sibari,dpcn-calabria,39.71063,16.49662,3.0
+dpc-sinopoli,Sinopoli,dpcn-calabria,38.25861,15.87139,632.0
+dpc-soverato-marina,Soverato Marina,dpcn-calabria,38.69,16.54444,20.0
+dpc-soveria-simeri,Soveria Simeri,dpcn-calabria,38.95167,16.6775,374.0
+dpc-spadola,Spadola,dpcn-calabria,38.60278,16.33722,756.0
+dpc-spineto,Spineto,dpcn-calabria,39.16333,16.54,1322.0
+dpc-staiti,Staiti,dpcn-calabria,38.00167,16.03417,501.0
+dpc-stignano,Stignano,dpcn-calabria,38.41889,16.46833,292.0
+dpc-tarsia,Tarsia,dpcn-calabria,39.6225,16.27806,225.0
+dpc-taurianova,Taurianova,dpcn-calabria,38.35389,16.01056,202.0
+dpc-tiriolo,Tiriolo,dpcn-calabria,38.94639,16.51972,556.0
+dpc-torano-scalo,Torano Scalo,dpcn-calabria,39.47444,16.20083,120.0
+dpc-tortora,Tortora,dpcn-calabria,39.9375,15.76861,23.0
+dpc-vibo-valentia,Vibo Valentia,dpcn-calabria,38.67361,16.10278,485.0
+dpc-vibo-valentia-longobardi,Vibo Valentia - Longobardi,dpcn-calabria,38.70278,16.11972,185.0
+dpc-villapiana,Villapiana,dpcn-calabria,39.79694,16.48139,4.0
+dpc-zungri,Zungri,dpcn-calabria,38.65056,15.98222,437.0
+meteostat-16344,Monte Scuro,meteostat,39.33,16.4,1710.0
+meteostat-16350,Crotone,meteostat,39.0,17.07,155.0
+meteostat-16362,Lamezia Terme,meteostat,38.9,16.25,15.0
+meteostat-16420,Messina,meteostat,38.2,15.55,59.0
+meteostat-16422,Reggio Calabria,meteostat,38.07,15.65,11.0
